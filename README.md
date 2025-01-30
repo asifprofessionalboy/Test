@@ -1,291 +1,223 @@
-$(document).ready(function () {
-    let barChart = null;
+this is my for my three chart
+<form method="get" action="@Url.Action("Overview","Innovation")">
+   <div class="row">
 
-    function updateBarChart(departments) {
-        const selectedDivision = $("#DivisionDropdown").val();
-        const selectedFinYear = $("#FinYear5").val(); // Get the selected financial year
+       <div class="col-sm-6">
+           <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;margin-left:2px;">
+               <h6 class="text-center overview-heading">
+                   Generation & Scrutiny Status - FY
 
-        if (selectedDivision && departments.length > 0) {
-            $.ajax({
-                url: '@Url.Action("GetDepartmentCounts", "Innovation")',
-                type: 'GET',
-                data: { division: selectedDivision, departments: departments, FinYear5: selectedFinYear },
-                traditional: true,
-                success: function (data) {
-                    console.log("Chart Data:", data);
+                   <select name="FinYear" id="FinYear" onchange="this.form.submit();">
+                       @if (ViewBag.FinYear == "24-25")
+                       {
+                           <option value="24-25" selected>25</option>
+                       }
+                       else
+                       {
+                           <option value="24-25">25</option>
+                       }
+                       @if (ViewBag.FinYear == "25-26")
+                       {
+                           <option value="25-26" selected>26</option>
+                       }
+                       else
+                       {
+                           <option value="25-26">26</option>
+                       }
+                   </select>
+                  
+               </h6>
 
-                    const labels = data.map(item => item.department);
-                    const counts = data.map(item => item.count);
-                    const colors = labels.map(() => getRandomColor());
+               <canvas id="barChart" style="width:500px;height:302px;margin-top:20px;"></canvas>
 
-                    if (barChart) {
-                        barChart.destroy();
-                    }
+           </fieldset>
+       </div>
 
-                    const ctx = document.getElementById("barChart6").getContext("2d");
+       <div class="col-sm-5">
+           <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;">
+               <h6 class="text-center overview-heading">Stage of Innovation Projects - FY
+                   <select name="FinYear2" id="FinYear2" onchange="this.form.submit();">
+                       @if (ViewBag.FinYear2 == "24-25")
+                       {
+                           <option value="24-25" selected>25</option>
+                       }
+                       else
+                       {
+                           <option value="24-25">25</option>
+                       }
+                       @if (ViewBag.FinYear2 == "25-26")
+                       {
+                           <option value="25-26" selected>26</option>
+                       }
+                       else
+                       {
+                           <option value="25-26">26</option>
+                       }
+                   </select>
+               </h6>
+               <canvas id="pieChart"></canvas>
+           </fieldset>
+       </div>
 
-                    barChart = new Chart(ctx, {
-                        type: "bar",
-                        data: {
-                            labels: labels,
-                            datasets: [
-                                {
-                                    label: "Department Count",
-                                    data: counts,
-                                    backgroundColor: colors,
-                                    borderColor: colors,
-                                    borderWidth: 1
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                datalabels: {
-                                    anchor: 'end',
-                                    align: 'top',
-                                    color: '#000',
-                                    font: {
-                                        weight: 'bold',
-                                        size: 10
-                                    },
-                                    formatter: value => value
-                                },
-                                legend: {
-                                    display: false,
-                                    position: 'top',
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    grid: { display: false },
-                                    title: {
-                                        display: true,
-                                        text: 'No. Of Projects',
-                                        font: { size: 11, weight: 'bold' }
-                                    }
-                                },
-                                x: {
-                                    grid: { display: false },
-                                    ticks: {
-                                        callback: function (value) {
-                                            return this.getLabelForValue(value).split(' ');
-                                        },
-                                        autoSkip: false,
-                                        maxRotation: 0,
-                                        minRotation: 0
-                                    }
-                                }
-                            }
-                        },
-                        plugins: [ChartDataLabels]
-                    });
-                },
-                error: function () {
-                    alert("An error occurred while fetching chart data. Please try again.");
+   </div>
+   <div class="row">
+       <div class="col-sm-6">
+           <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;margin-top:3px;margin-left:2px;">
+               <h6 class="text-center overview-heading">Emerging themes of Innovation Projects(Nos) - FY
+                   <select name="FinYear3" id="FinYear3" onchange="this.form.submit();">
+                       @if (ViewBag.FinYear3 == "24-25")
+                       {
+                           <option value="24-25" selected>25</option>
+                       }
+                       else
+                       {
+                           <option value="24-25">25</option>
+                       }
+                       @if (ViewBag.FinYear3 == "25-26")
+                       {
+                           <option value="25-26" selected>26</option>
+                       }
+                       else
+                       {
+                           <option value="25-26">26</option>
+                       }
+                   </select>
+               </h6>
+               <canvas id="barChart3" class="" style="width:390px;height:368px;"></canvas>
+           </fieldset>
+       </div>
+       </div>
+
+   </form>
+
+
+this is my controller 
+public IActionResult Overview(string FinYear="", string FinYear2 = "", string FinYear3 = "", string FinYear4 = "")
+{
+	if (HttpContext.Session.GetString("Session") != null)
+	{
+        string connectionString = "Server=10.0.168.50;Database=INNOVATIONDB;User Id=fs;Password=p@ssW0Rd321";
+		using (IDbConnection connection = new SqlConnection(connectionString))
+		{
+
+			if (!string.IsNullOrEmpty(FinYear) || FinYear == "")
+			{
+                DateTime startDate = DateTime.MinValue;
+                DateTime endDate = DateTime.MaxValue;
+
+
+                if (FinYear == "24-25" || FinYear=="")
+                {
+                    startDate = new DateTime(2024, 4, 1);
+                    endDate = new DateTime(2024, 10, 31);
                 }
-            });
-        } else if (barChart) {
-            barChart.destroy();
-        }
-    }
-
-    function getRandomColor() {
-        const letters = "0123456789ABCDEF";
-        let color = "#";
-        for (let i = 0; i < 6; i++) {
-            color += letters[Math.floor(Math.random() * 16)];
-        }
-        return color;
-    }
-
-    $("#DivisionDropdown").change(function () {
-        const selectedDivision = $(this).val();
-        $("#DepartmentDropdownButton").val("");
-        $("#DepartmentList").empty();
-
-        if (selectedDivision) {
-            $.ajax({
-                url: '@Url.Action("GetDepartments", "Innovation")',
-                type: 'GET',
-                data: { division: selectedDivision },
-                success: function (departments) {
-                    console.log("Departments received:", departments);
-
-                    if (departments && departments.length > 0) {
-                        const selectAllItem = `<li>
-                            <label class="dropdown-item">
-                                <input type="checkbox" id="selectAll" class="department-checkbox" />
-                                Select All
-                            </label>
-                        </li>`;
-                        $("#DepartmentList").append(selectAllItem);
-
-                        departments.forEach(function (department) {
-                            const listItem = `<li>
-                                <label class="dropdown-item">
-                                    <input type="checkbox" name="Department" value="${department.department}" class="department-checkbox" />
-                                    ${department.department}
-                                </label>
-                            </li>`;
-                            $("#DepartmentList").append(listItem);
-                        });
-
-                        $(".department-checkbox").change(function () {
-                            if (this.id === "selectAll") {
-                                const isChecked = $(this).is(":checked");
-                                $(".department-checkbox").not("#selectAll").prop("checked", isChecked);
-
-                                const allDepartments = isChecked
-                                    ? $(".department-checkbox").not("#selectAll").map(function () {
-                                        return $(this).val();
-                                    }).get()
-                                    : [];
-
-                                updateSelectedCount(allDepartments);
-                                updateBarChart(allDepartments);
-                            } else {
-                                const selectedDepartments = $(".department-checkbox:checked")
-                                    .not("#selectAll").map(function () {
-                                        return $(this).val();
-                                    }).get();
-
-                                $("#selectAll").prop("checked", selectedDepartments.length === $(".department-checkbox").not("#selectAll").length);
-
-                                updateSelectedCount(selectedDepartments);
-                                updateBarChart(selectedDepartments);
-                            }
-                        });
-                    } else {
-                        $("#DepartmentList").append('<li class="dropdown-item disabled">No departments available</li>');
-                    }
-                },
-                error: function () {
-                    alert("An error occurred while fetching departments. Please try again.");
+                else if (FinYear == "25-26")
+                {
+                    startDate = new DateTime(2024, 11, 1);
+                    endDate = new DateTime(2025, 3, 31);
                 }
-            });
-        } else {
-            $("#DepartmentList").append('<li class="dropdown-item disabled">---- Select Department ----</li>');
+				var totalInnovationsquery = "select count(*) from App_Innovation where CreatedOn>='" + startDate + "'and CreatedOn<='" + endDate + "' and Status != 'Draft'";
+				var totalApprovedInnovationsquery = "select count(*) from App_Innovation where CreatedOn>='" + startDate + "'and CreatedOn<='" + endDate + "' and Status = 'Approved'";
+				var totalPendingInnovationsquery = "select count(*) from App_Innovation where CreatedOn>='" + startDate + "'and CreatedOn<='" + endDate + "' and Status = 'Pending for Approval'";
+				
+				var totalsustainquery = "select Count(distinct Master_Id) from App_Innovation_Benefits where Master_ID in (select Master_ID from App_Innovation where CreatedOn>='"+startDate+"'and CreatedOn<='"+endDate+"') and  Benefits like '%sustain%'";
+                var totalsafetyquery = "select count(distinct Master_Id)  from App_Innovation_Benefits where Master_ID in (select Master_ID from App_Innovation where CreatedOn>='"+startDate+"'and CreatedOn<='"+endDate+"') and Benefits  like '%safe%'";
+                var totalothersquery = "select count(distinct Master_Id)  from App_Innovation_Benefits where Master_ID in (select Master_ID from App_Innovation where CreatedOn>='"+startDate+"'and CreatedOn<='"+endDate+"') and Benefits not like '%sustain%' and Benefits NOT like '%safe%'";
+
+
+				int totalInnovations = connection.QuerySingleOrDefault<int>(totalInnovationsquery);
+				int totalApprovedInnovations = connection.QuerySingleOrDefault<int>(totalApprovedInnovationsquery);
+				int totalPendingInnovations = connection.QuerySingleOrDefault<int>(totalPendingInnovationsquery);
+				
+				int totalsustain = connection.QuerySingleOrDefault<int>(totalsustainquery);
+                int totalsafety = connection.QuerySingleOrDefault<int>(totalsafetyquery);
+                int totalothers = connection.QuerySingleOrDefault<int>(totalothersquery);
+				ViewBag.TotalInnovations = totalInnovations;
+				ViewBag.TotalApprovedInnovations = totalApprovedInnovations;
+				ViewBag.TotalPendingInnovations = totalPendingInnovations;
+				
+				ViewBag.totalsafety = totalsafety;
+                ViewBag.totalsustainability = totalsustain;
+                ViewBag.totalothers = totalothers;
+            }
+			 if (!string.IsNullOrEmpty(FinYear2) || FinYear2 == "")
+			{
+				DateTime startDate = DateTime.MinValue;
+				DateTime endDate = DateTime.MaxValue;
+
+
+				if (FinYear2 == "24-25" || FinYear2=="")
+				{
+					startDate = new DateTime(2024, 4, 1);
+					endDate = new DateTime(2024, 10, 31);
+				}
+				else if (FinYear2 == "25-26")
+				{
+					startDate = new DateTime(2024, 11, 1);
+					endDate = new DateTime(2025, 3, 31);
+				}
+                var totalConceptquery = "select count(*) from App_Innovation where CreatedOn>='" + startDate + "'and CreatedOn<='" + endDate + "' and Stage_of_Innovation = 'concept'and Status='Approved'";
+                var totalImplementedSuccessquery = "select count(*) from App_Innovation where CreatedOn>='" + startDate + "'and CreatedOn<='" + endDate + "' and Stage_of_Innovation = 'Implemented Successfully'and Status='Approved'";
+                var totalTrailquery = "select count(*) from App_Innovation where CreatedOn>='" + startDate + "'and CreatedOn<='" + endDate + "' and Stage_of_Innovation = 'Under Trial'and Status='Approved'";
+
+                int totalConcept = connection.QuerySingleOrDefault<int>(totalConceptquery);
+                int totalImplementedSuccess = connection.QuerySingleOrDefault<int>(totalImplementedSuccessquery);
+                int totalTrail = connection.QuerySingleOrDefault<int>(totalTrailquery);
+
+                ViewBag.totalConcept = totalConcept;
+                ViewBag.totalTrail = totalTrail;
+                ViewBag.totalImplementedSuccess = totalImplementedSuccess;
+            }
+
+            if (!string.IsNullOrEmpty(FinYear3) || FinYear3 == "")
+            {
+                DateTime startDate = DateTime.MinValue;
+                DateTime endDate = DateTime.MaxValue;
+
+
+                if (FinYear3 == "24-25" || FinYear3 == "")
+                {
+                    startDate = new DateTime(2024, 4, 1);
+                    endDate = new DateTime(2024, 10, 31);
+                }
+                else if (FinYear3 == "25-26")
+                {
+                    startDate = new DateTime(2024, 11, 1);
+                    endDate = new DateTime(2025, 3, 31);
+                }
+              
+                var totalsustainquery = "select count(distinct IB.Master_Id) as Others from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn>='"+startDate+"'and CreatedOn<='"+endDate+"' and Benefits  like '%sustain%'";
+                var totalsafetyquery = "select count(distinct IB.Master_Id) as Others from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn>='"+startDate+"'and CreatedOn<='"+endDate+"' and Benefits  like '%safe%'";
+                var totalothersquery = "select count(distinct IB.Master_Id) as Others from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn>='"+startDate+"'and CreatedOn<='"+endDate+"'and Benefits not like '%sustain%' and Benefits NOT like '%safe%'";
+
+                int totalsustain = connection.QuerySingleOrDefault<int>(totalsustainquery);
+                int totalsafety = connection.QuerySingleOrDefault<int>(totalsafetyquery);
+                int totalothers = connection.QuerySingleOrDefault<int>(totalothersquery);
+                
+                ViewBag.totalsafety = totalsafety;
+                ViewBag.totalsustainability = totalsustain;
+                ViewBag.totalothers = totalothers;
+            }
+
+            ViewBag.FinYear = FinYear;
+            ViewBag.FinYear2 = FinYear2;
+            ViewBag.FinYear3 = FinYear3;
+            var divisions = GetDivisionDD();
+			ViewBag.Divisions = divisions;
+		
+
         }
 
-        if (barChart) {
-            barChart.destroy();
-            barChart = null;
-        }
-    });
-
-    function updateSelectedCount(selectedDepartments) {
-        const selectedCount = selectedDepartments.length;
-        $("#DepartmentDropdownButton").val(selectedCount > 0 ? `${selectedCount} selected` : "");
     }
+	else
+	{
+		return RedirectToAction("Login", "User");
+	}
+  
 
-    // Move this outside of the function definition
-    $("#FinYear5").change(function () {
-        const selectedDepartments = $(".department-checkbox:checked")
-            .not("#selectAll")
-            .map(function () { return $(this).val(); }).get();
-
-        updateBarChart(selectedDepartments);
-    });
-
-});
+	
+    return View();
+}
 
 
-
-
-						 
-              let color = "#";
-              for (let i = 0; i < 6; i++) {
-                  color += letters[Math.floor(Math.random() * 16)];
-              }
-              return color;
-          }
-
-          $("#DivisionDropdown").change(function () {
-              const selectedDivision = $(this).val();
-              $("#DepartmentDropdownButton").val("");
-              $("#DepartmentList").empty();
-
-              if (selectedDivision) {
-                  $.ajax({
-                      url: '@Url.Action("GetDepartments", "Innovation")',
-                      type: 'GET',
-                      data: { division: selectedDivision },
-                      success: function (departments) {
-                          console.log("Departments received:", departments);
-
-                          if (departments && departments.length > 0) {
-                              const selectAllItem = `<li>
-                                  <label class="dropdown-item">
-                                      <input type="checkbox" id="selectAll" class="department-checkbox" />
-                                      Select All
-                                  </label>
-                              </li>`;
-                              $("#DepartmentList").append(selectAllItem);
-
-                              departments.forEach(function (department) {
-                                  const listItem = `<li>
-                                      <label class="dropdown-item">
-                                          <input type="checkbox" name="Department" value="${department.department}" class="department-checkbox" />
-                                          ${department.department}
-                                      </label>
-                                  </li>`;
-                                  $("#DepartmentList").append(listItem);
-                              });
-
-                              $(".department-checkbox").change(function () {
-                                  if (this.id === "selectAll") {
-                                      const isChecked = $(this).is(":checked");
-                                      $(".department-checkbox").not("#selectAll").prop("checked", isChecked);
-
-                                      const allDepartments = isChecked
-                                          ? $(".department-checkbox")
-                                              .not("#selectAll")
-                                              .map(function () {
-                                                  return $(this).val();
-                                              })
-                                              .get()
-                                          : [];
-                                      updateSelectedCount(allDepartments);
-                                      updateBarChart(allDepartments);
-                                  } else {
-                                      const selectedDepartments = $(".department-checkbox:checked")
-                                          .not("#selectAll")
-                                          .map(function () {
-                                              return $(this).val();
-                                          })
-                                          .get();
-
-                                      $("#selectAll").prop("checked", selectedDepartments.length === $(".department-checkbox").not("#selectAll").length);
-
-                                      updateSelectedCount(selectedDepartments);
-                                      updateBarChart(selectedDepartments);
-                                  }
-                              });
-                          } else {
-                              $("#DepartmentList").append('<li class="dropdown-item disabled">No departments available</li>');
-                          }
-                      },
-                      error: function () {
-                          alert("An error occurred while fetching departments. Please try again.");
-                      }
-                  });
-              } else {
-                  $("#DepartmentList").append('<li class="dropdown-item disabled">---- Select Department ----</li>');
-              }
-
-              // Clear the bar chart when switching divisions
-              if (barChart) {
-                  barChart.destroy();
-                  barChart = null;
-              }
-          });
-
-          function updateSelectedCount(selectedDepartments) {
-              const selectedCount = selectedDepartments.length;
-              $("#DepartmentDropdownButton").val(selectedCount > 0 ? `${selectedCount} selected` : "");j
-          }
-          $("#FinYear5").change(function () {
-              const selectedDepartments = $(".department-checkbox:checked")
-                  .not("#selectAll").map(
+in this when i changes the dropdown of finyear it refresh the pages , i dont want that i want that when it i change dropdown value it shows the data but not refresh the page
