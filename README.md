@@ -1,3 +1,17 @@
+<td>
+    @if (!string.IsNullOrEmpty(item.Attachment))
+    {
+        var fileName = item.Attachment.Split('_').Last(); <!-- Extract file name -->
+        var fileExtension = System.IO.Path.GetExtension(fileName).ToLower();
+
+        <a href="@Url.Action("DownloadFile", "YourControllerName", new { fileName = item.Attachment })"
+           target="_blank">
+            @fileName
+        </a>
+    }
+</td>
+
+
 i have this table grid in my view 
 <table class="table" id="myTable">
 	<thead class="table" style="background-color: #d2b1ff;color: #000000;font-size:15px;">
