@@ -1,3 +1,26 @@
+@if (!string.IsNullOrEmpty(Model.Attachment))
+{
+    <div>
+        <ul>
+            @foreach (var fileName in Model.Attachment.Split(','))
+            {
+                var cleanFileName = ExtractFileName(fileName);
+                var fileExtension = System.IO.Path.GetExtension(fileName).ToLower();
+                var isPdf = fileExtension == ".pdf";
+
+                <li>
+                    <a href="@Url.Action("DownloadFile", new { fileName = fileName })" 
+                       @(isPdf ? "target=\"_blank\"" : "")>
+                        @cleanFileName
+                    </a>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+
+
 this is my for my three chart
 <form method="get" action="@Url.Action("Overview","Innovation")">
    <div class="row">
