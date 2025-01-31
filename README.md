@@ -1,121 +1,57 @@
-public IActionResult DownloadFile(string fileName)
-{
-    var uploadPath = configuration["FileUpload:Path"];
-    var filePath = Path.Combine(uploadPath, fileName);
-
-    if (!System.IO.File.Exists(filePath))
-    {
-        return NotFound();
-    }
-
-    var memory = new MemoryStream();
-    using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-    {
-        stream.CopyTo(memory);
-    }
-    memory.Position = 0;
-
-    var contentType = GetContentType(filePath);
-    var fileExtension = Path.GetExtension(fileName).ToLower();
-
-    if (fileExtension == ".pdf")
-    {
-        // Open in browser instead of downloading
-        return File(memory, contentType, fileName, enableRangeProcessing: true);
-    }
-    else
-    {
-        // Force download for other file types
-        return File(memory, contentType, fileName);
-    }
-}
-
-<div class="col-sm-3">
-    @if (!string.IsNullOrEmpty(Model.Attachment))
-    {
-        <div>
-            <ul>
-                @foreach (var fileName in Model.Attachment.Split(','))
-                {
-                    var cleanFileName = ExtractFileName(fileName);
-                    var fileExtension = System.IO.Path.GetExtension(fileName).ToLower();
-                    var isPdf = fileExtension == ".pdf";
-
-                    <li>
-                        <a href="@Url.Action("DownloadFile", new { fileName = fileName })"
-                           target="_blank">
-                            @cleanFileName
-                        </a>
-                    </li>
-                }
-            </ul>
-        </div>
-    }
-</div>
-
-
-
-
-this is my full code of attachment 
-	<div class="col-sm-3">
-			@if (!string.IsNullOrEmpty(Model.Attachment))
+i have this table grid in my view 
+<table class="table" id="myTable">
+	<thead class="table" style="background-color: #d2b1ff;color: #000000;font-size:15px;">
+		<tr>
+			<th style="width:12%;">Ref No</th>
+			<th style="width:10%;">Fin Year</th>
+			<th style="width:25%;">Department</th>
+			<th>Subject</th>
+			<th>Attachment</th>
+		</tr>
+	</thead>
+	<tbody>
+		@if (ViewBag.ListData2 != null)
+		{
+			@foreach (var item in ViewBag.ListData2)
 			{
-				<div>
-					<ul>
-						@foreach (var fileName in Model.Attachment.Split(','))
-						{
-							var cleanFileName = ExtractFileName(fileName);
-							var fileExtension = System.IO.Path.GetExtension(fileName).ToLower();
-							var isPdf = fileExtension == ".pdf";
+				<tr>
+					<td>
+						<a asp-action="ViewerForm"
+						   asp-route-id="@item.Id"
+						   asp-route-page="@ViewBag.CurrentPage"
+						   asp-route-FinYear="@ViewBag.FinYear"
+						   asp-route-MD="@ViewBag.MD"
+						   asp-route-L2="@ViewBag.L2"
+						   asp-route-Flash="@ViewBag.Flash"
+						   asp-route-Bidding="@ViewBag.Bidding"
+						   asp-route-DETP="@ViewBag.DETP"
+						   asp-route-BE="@ViewBag.BE"
+						   asp-route-Admin="@ViewBag.Admin"
+						   asp-route-SearchMonth="@ViewBag.SearchMonth"
+						   class="btn glow"
+						   style="text-decoration:none;background-color:;font-weight:;">
+							@item.RefNo
+						</a>
+					</td>
 
-							<li>
-								<a href="@Url.Action("DownloadFile", new { fileName = fileName })"
-								@(isPdf ? "target=\"_blank\"" : "")>
-									@cleanFileName
-								</a>
-							</li>
-						}
-					</ul>
-				</div>
+					<td class="">@item.FinYear</td>
+					<td>@item.Department</td>
+					<td>@item.Subject</td>
+					<td>@item.Attachment</td>
+				</tr>
 			}
-	</div>
-	@functions {
-		private string ExtractFileName(string fileNameWithPrefix)
-		{
-
-			var parts = fileNameWithPrefix.Split('_');
-			if (parts.Length > 1)
-			{
-				return parts[parts.Length - 1];
-			}
-			return fileNameWithPrefix;
 		}
-	}
-
-
-</div>
-
-	public IActionResult DownloadFile(string fileName)
-	{
-		var uploadPath = configuration["FileUpload:Path"];
-		var filePath = Path.Combine(uploadPath, fileName);
-
-		if (!System.IO.File.Exists(filePath))
+		else
 		{
-			return NotFound();
+			<tr>
+				<td colspan="4">No data available</td>
+			</tr>
 		}
+	</tbody>
+</table>
 
-		var memory = new MemoryStream();
-		using (var stream = new FileStream(filePath, FileMode.Open))
-		{
-			stream.CopyTo(memory);
-		}
-		memory.Position = 0;
 
-		return File(memory, GetContentType(filePath), Path.GetFileName(filePath));
-	}
+in this i have a column attachment , attachment is stored like this in table 
+6f04eb4a-5db1-4462-a227-c929dfa10534_23-01-2025_10-18-45_InnovationRPT (7).pdf
 
-	
-in this i want that if user clicks on the attachment link it opens the attachment pdf in new tab in browser and download automatically 
-
-simply i want to show the pdf in new tab of browser
+i want to show only name InnovationRPT (7).pdf and link on this when i click on this it opens the pdf in new tab to show 
