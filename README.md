@@ -1,3 +1,83 @@
+$(document).ready(function () {
+    // Function to validate the form
+    function validateForm() {
+        let isValid = true;
+
+        // Remove existing validation styles
+        $('.is-invalid').removeClass('is-invalid');
+
+        // Check Worksite field
+        if ($('#WorkSite').val().trim() === '') {
+            $('#WorkSite').addClass('is-invalid');
+            isValid = false;
+        }
+
+        // Check all Latitude and Longitude fields
+        $('.location-row').each(function () {
+            let latitude = $(this).find('.LatitudeInput');
+            let longitude = $(this).find('.LongInput');
+
+            if (latitude.val().trim() === '') {
+                latitude.addClass('is-invalid');
+                isValid = false;
+            }
+
+            if (longitude.val().trim() === '') {
+                longitude.addClass('is-invalid');
+                isValid = false;
+            }
+        });
+
+        return isValid;
+    }
+
+    // Handle the submit button click
+    $('#submitButton').click(function (e) {
+        e.preventDefault();
+        
+        // Validate form fields
+        if (!validateForm()) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+
+        const id = $('#LocationId').val();
+        const rowsData = [];
+        $('.location-row').each(function () {
+            const latitude = $(this).find('.LatitudeInput').val();
+            const longitude = $(this).find('.LongInput').val();
+            const worksite = $('#WorkSite').val();
+
+            rowsData.push({
+                WorkSite: worksite,
+                Latitude: parseFloat(latitude),
+                Longitude: parseFloat(longitude),
+                Id: id
+            });
+        });
+
+        $.ajax({
+            url: '@Url.Action("LocationMaster", "Master")',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Id: id,
+                appLocations: rowsData,
+                actionType: "Submit"
+            }),
+            success: function (response) {
+                alert('Locations saved successfully!');
+                $('#formContainer').hide();
+            },
+            error: function () {
+                alert('An error occurred while saving the locations.');
+            }
+        });
+    });
+});
+
+
+
 i have this form 
 <div id="formContainer" style="display:none;">
     <form asp-action="LocationMaster" asp-controller="Master" id="form2" method="post">
