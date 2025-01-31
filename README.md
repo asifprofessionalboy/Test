@@ -1,3 +1,61 @@
+public IActionResult DownloadFile(string fileName)
+{
+    var uploadPath = configuration["FileUpload:Path"];
+    var filePath = Path.Combine(uploadPath, fileName);
+
+    if (!System.IO.File.Exists(filePath))
+    {
+        return NotFound();
+    }
+
+    var memory = new MemoryStream();
+    using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+    {
+        stream.CopyTo(memory);
+    }
+    memory.Position = 0;
+
+    var contentType = GetContentType(filePath);
+    var fileExtension = Path.GetExtension(fileName).ToLower();
+
+    if (fileExtension == ".pdf")
+    {
+        // Open in browser instead of downloading
+        return File(memory, contentType, fileName, enableRangeProcessing: true);
+    }
+    else
+    {
+        // Force download for other file types
+        return File(memory, contentType, fileName);
+    }
+}
+
+<div class="col-sm-3">
+    @if (!string.IsNullOrEmpty(Model.Attachment))
+    {
+        <div>
+            <ul>
+                @foreach (var fileName in Model.Attachment.Split(','))
+                {
+                    var cleanFileName = ExtractFileName(fileName);
+                    var fileExtension = System.IO.Path.GetExtension(fileName).ToLower();
+                    var isPdf = fileExtension == ".pdf";
+
+                    <li>
+                        <a href="@Url.Action("DownloadFile", new { fileName = fileName })"
+                           target="_blank">
+                            @cleanFileName
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+
+
+
 this is my full code of attachment 
 	<div class="col-sm-3">
 			@if (!string.IsNullOrEmpty(Model.Attachment))
