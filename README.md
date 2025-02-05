@@ -1,3 +1,23 @@
+<form asp-action="EditDocument" method="get">
+    <div class="col-sm-2">
+        <select class="form-control form-control-sm custom-select" name="SearchMonth">
+            <option value="">Select Month</option>
+            @foreach (var item in ViewBag.Month as List<MonthDD>)
+            {
+                <option value="@item.Month" selected="@(item.Month == ViewBag.SearchMonth ? "selected" : null)">
+                    @item.Month
+                </option>
+            }
+        </select>
+    </div>
+    <div class="col-sm-2">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+
+
+
+
 this is my month for searching 
 <form asp-action="EditDocument" method="get">
 <div class="col-sm-2">
