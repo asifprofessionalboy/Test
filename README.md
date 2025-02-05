@@ -1,3 +1,57 @@
+<form asp-action="ViewerForm" method="get">
+	<input type="hidden" name="L2" value="@ViewBag.L2" />
+	<input type="hidden" name="Bidding" value="@ViewBag.Bidding" />
+	<input type="hidden" name="Flash" value="@ViewBag.Flash" />
+	<input type="hidden" name="DETP" value="@ViewBag.DETP" />
+	<input type="hidden" name="BE" value="@ViewBag.BE" />
+	<input type="hidden" name="Admin" value="@ViewBag.Admin" />
+	<input type="hidden" name="MD" value="@ViewBag.MD" />
+
+	<div class="row">
+		<div class="col-sm-1">
+			<label class="control-label">Fin Year </label>
+		</div>
+		<div class="col-sm-2">
+			<select class="form-control form-control-sm custom-select" name="FinYear">
+				<option value="">Select Fin Year</option>
+				<option value="25-26" selected="@(ViewBag.FinYear == "25-26" ? "selected" : null)">FY'26</option>
+				<option value="24-25" selected="@(ViewBag.FinYear == "24-25" ? "selected" : null)">FY'25</option>
+				<option value="23-24" selected="@(ViewBag.FinYear == "23-24" ? "selected" : null)">FY'24</option>
+			</select>
+		</div>
+		<div class="col-sm-1">
+			<label class="control-label">Fin Month </label>
+		</div>
+		<div class="col-sm-2">
+			<select class="form-control form-control-sm custom-select" name="SearchMonth">
+				<option value="">Select Month</option>
+				@foreach (var item in ViewBag.Month as List<MonthDD>)
+				{
+					<option value="@item.Month" selected="@(item.Month == ViewBag.SearchMonth ? "selected" : null)">
+						@item.Month
+					</option>
+				}
+			</select>
+		</div>
+		<div class="col-sm-2">
+			<button type="submit" class="btn btn-primary">Search</button>
+		</div>
+	</div>
+</form>
+
+ViewBag.FinYear = FinYear;
+ViewBag.SearchMonth = SearchMonth;
+ViewBag.MD = MD;
+ViewBag.L2 = L2;
+ViewBag.Flash = Flash;
+ViewBag.Bidding = Bidding;
+ViewBag.DETP = DETP;
+ViewBag.BE = BE;
+ViewBag.Admin = Admin;
+
+
+
+
 this is my form , when i click on cards it redirects user to new form along with the filter and shows grid 
 <form asp-action="ViewerForm" method="get">
 <div class="container mt-4" style="">
