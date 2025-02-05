@@ -47,3 +47,10 @@ https://localhost:7073/Technical/DownloadFile?fileName=16d60a72-ce03-40b7-84bb-0
 
 
 i want to open the pdf on new tab like new page not to download 
+
+i have this directory to upload attachment 
+var UploadPath = builder.Configuration["FileUpload:Path"];
+if (!Directory.Exists(UploadPath))
+{
+	Directory.CreateDirectory(UploadPath);
+}
