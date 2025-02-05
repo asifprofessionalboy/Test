@@ -37,6 +37,69 @@ public async Task<IActionResult> EditDocument(AppTechnicalService technicalServi
             }
 
             // Preserve existing attachments if no new file is uploaded
+            if (technicalService.Attach == null || !technicalService.Attach.Any())
+            {
+                technicalService.Attachment = existingtechnicalService.Attachment;
+            }
+
+            var CreatedBy = HttpContext.Session.GetString("Session");
+            existingtechnicalService.CreatedBy = CreatedBy;
+            existingtechnicalService.CreatedOn = DateTime.Now;
+
+            // Set only necessary values, avoiding overwriting Attachment
+            existingtechnicalService.RefNo = RefNo;
+            existingtechnicalService.SomeOtherProperty = technicalService.SomeOtherProperty; // Update other fields as needed
+
+            await context.SaveChangesAsync();
+            return RedirectToAction("EditDocument", "Technical");
+        }
+    }
+
+    return View(technicalService);
+}
+
+
+
+
+[HttpPost]
+public async Task<IActionResult> EditDocument(AppTechnicalService technicalService, string RefNo = "")
+{
+    if (ModelState.IsValid)
+    {
+        var existingtechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+        if (existingtechnicalService != null)
+        {
+            // If new files are uploaded, replace the previous attachments
+            if (technicalService.Attach != null && technicalService.Attach.Any())
+            {
+                var uploadPath = configuration["FileUpload:Path"];
+                var newAttachments = new List<string>();
+
+                foreach (var file in technicalService.Attach)
+                {
+                    if (file.Length > 0)
+                    {
+                        var uniqueId = Guid.NewGuid().ToString();
+                        var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
+                        var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+                        var fileExtension = Path.GetExtension(file.FileName);
+                        var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+                        var fullPath = Path.Combine(uploadPath, formattedFileName);
+
+                        using (var stream = new FileStream(fullPath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        newAttachments.Add(formattedFileName);
+                    }
+                }
+
+                // Replace old attachments with new ones
+                existingtechnicalService.Attachment = string.Join(",", newAttachments);
+            }
+
+            // Preserve existing attachments if no new file is uploaded
             technicalService.Attachment ??= existingtechnicalService.Attachment;
 
             var CreatedBy = HttpContext.Session.GetString("Session");
