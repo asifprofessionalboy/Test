@@ -1,3 +1,66 @@
+public async Task<IActionResult> EditDocument(Guid? id, int page = 1, string FinYear = "", string SearchMonth = "")
+{
+    if (HttpContext.Session.GetString("Session") == null)
+    {
+        return RedirectToAction("Login", "User");
+    }
+
+    var Dept = GetDepartmentDD();
+    ViewBag.Department = Dept;
+
+    var Month = GetMonthDD();
+    ViewBag.Month = Month;
+
+    int pageSize = 5;
+    var query = context.AppTechnicalServices.OrderByDescending(x => x.RefNo).AsQueryable();
+
+    if (!string.IsNullOrEmpty(FinYear) && FinYear != "Select Fin Year")
+    {
+        query = query.Where(a => a.FinYear.Contains(FinYear));
+    }
+
+    if (!string.IsNullOrEmpty(SearchMonth))
+    {
+        query = query.Where(a => a.Month.Contains(SearchMonth));
+    }
+
+    var pagedData = query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+    var totalCount = query.Count();
+
+    ViewBag.ListData2 = pagedData;
+    ViewBag.CurrentPage = page;
+    ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+    ViewBag.FinYear = FinYear;
+    ViewBag.SearchMonth = SearchMonth;
+
+    if (id.HasValue)
+    {
+        var model = await context.AppTechnicalServices.FindAsync(id.Value);
+        if (model == null)
+        {
+            return NotFound();
+        }
+
+        var viewModel = new AppTechnicalService
+        {
+            RefNo = model.RefNo,
+            Department = model.Department,
+            Subject = model.Subject,
+            FinYear = model.FinYear,
+            CreatedBy = model.CreatedBy,
+            Attachment = model.Attachment,
+            Month = model.Month,
+            Id = model.Id
+        };
+
+        return View(viewModel);
+    }
+
+    return View(new AppTechnicalService());
+}
+
+
+
 not working ,
 this is my view after the delete i am redirecting 
 public async Task<IActionResult> EditDocument(Guid? id, int page = 1,string FinYear="",string SearchMonth="")
