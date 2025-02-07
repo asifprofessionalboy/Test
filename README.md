@@ -1,3 +1,86 @@
+<input type="submit" value="Save" name="action" id="Savebtn" class="btn" style="border-radius:7px"/>
+<input type="submit" value="Delete" name="action" id="DeleteButton" class="btn" style="border: 1px solid;background: #f34848;padding:10px;border-radius:7px;" />
+
+
+[HttpPost]
+public async Task<IActionResult> EditDocument(AppTechnicalService technicalService, string action, string RefNo = "")
+{
+    if (action == "Delete")
+    {
+        var existingTechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+        if (existingTechnicalService != null)
+        {
+            context.AppTechnicalServices.Remove(existingTechnicalService);
+            await context.SaveChangesAsync();
+            TempData["Message"] = "Document deleted successfully!";
+            return RedirectToAction("EditDocument", "Technical");
+        }
+    }
+    else if (action == "Save")
+    {
+        if (ModelState.IsValid)
+        {
+            var existingTechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+            if (existingTechnicalService != null)
+            {
+                // If new files are uploaded, replace previous attachments
+                if (technicalService.Attach != null && technicalService.Attach.Any())
+                {
+                    var uploadPath = configuration["FileUpload:Path"];
+                    var newAttachments = new List<string>();
+
+                    foreach (var file in technicalService.Attach)
+                    {
+                        if (file.Length > 0)
+                        {
+                            var uniqueId = Guid.NewGuid().ToString();
+                            var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
+                            var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+                            var fileExtension = Path.GetExtension(file.FileName);
+                            var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+                            var fullPath = Path.Combine(uploadPath, formattedFileName);
+
+                            using (var stream = new FileStream(fullPath, FileMode.Create))
+                            {
+                                await file.CopyToAsync(stream);
+                            }
+
+                            newAttachments.Add(formattedFileName);
+                        }
+                    }
+
+                    // Replace old attachments with new ones
+                    existingTechnicalService.Attachment = string.Join(",", newAttachments);
+                }
+
+                // Preserve existing attachments if no new file is uploaded
+                if (technicalService.Attach == null || !technicalService.Attach.Any())
+                {
+                    technicalService.Attachment = existingTechnicalService.Attachment;
+                }
+
+                var CreatedBy = HttpContext.Session.GetString("Session");
+                existingTechnicalService.CreatedBy = CreatedBy;
+                existingTechnicalService.CreatedOn = DateTime.Now;
+
+                // Update other fields
+                existingTechnicalService.RefNo = RefNo;
+                existingTechnicalService.FinYear = technicalService.FinYear;
+                existingTechnicalService.Month = technicalService.Month;
+                existingTechnicalService.Department = technicalService.Department;
+                existingTechnicalService.Subject = technicalService.Subject;
+
+                await context.SaveChangesAsync();
+                TempData["Message"] = "Document updated successfully!";
+            }
+        }
+    }
+
+    return RedirectToAction("EditDocument", "Technical");
+}
+
+
+
 leave it , i have this form 
 @if (Model != null && Model.RefNo != null)
 {
