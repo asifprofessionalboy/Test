@@ -1,3 +1,60 @@
+<form method="post" enctype="multipart/form-data">
+    <!-- Other form fields go here -->
+    
+    <!-- Hidden field to track action -->
+    <input type="hidden" name="action" id="actionField" />
+    
+    <input type="submit" value="Save" class="btn" style="border-radius:7px" onclick="setAction('Save')" />
+    <input type="submit" value="Delete" class="btn" style="border: 1px solid;background: #f34848;padding:10px;border-radius:7px;" onclick="setAction('Delete')" />
+</form>
+
+<script>
+    // Set the value of the hidden field based on which button is clicked
+    function setAction(actionValue) {
+        document.getElementById('actionField').value = actionValue;
+    }
+</script>
+
+[HttpPost]
+public async Task<IActionResult> EditDocument(AppTechnicalService technicalService, string action, string RefNo = "")
+{
+    if (action == "Delete")
+    {
+        var existingTechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+        if (existingTechnicalService != null)
+        {
+            context.AppTechnicalServices.Remove(existingTechnicalService);
+            await context.SaveChangesAsync();
+            TempData["Message"] = "Document deleted successfully!";
+            return RedirectToAction("EditDocument", "Technical");
+        }
+    }
+    else if (action == "Save")
+    {
+        if (ModelState.IsValid)
+        {
+            var existingTechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+            if (existingTechnicalService != null)
+            {
+                // Handle file attachments and saving logic here...
+                
+                existingTechnicalService.RefNo = RefNo;
+                existingTechnicalService.FinYear = technicalService.FinYear;
+                existingTechnicalService.Month = technicalService.Month;
+                existingTechnicalService.Department = technicalService.Department;
+                existingTechnicalService.Subject = technicalService.Subject;
+                
+                await context.SaveChangesAsync();
+                TempData["Message"] = "Document updated successfully!";
+            }
+        }
+    }
+
+    return RedirectToAction("EditDocument", "Technical");
+}
+
+
+
 [HttpPost]
 public async Task<IActionResult> EditDocument(AppTechnicalService technicalService, string action, string RefNo = "")
 {
