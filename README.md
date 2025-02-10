@@ -1,3 +1,49 @@
+if (!string.IsNullOrEmpty(FinYear3) || FinYear3 == "")
+{
+    DateTime startDate = DateTime.MinValue;
+    DateTime endDate = DateTime.MaxValue;
+
+    if (FinYear3 == "24-25" || FinYear3 == "")
+    {
+        startDate = new DateTime(2024, 04, 1);
+        endDate = new DateTime(2025, 03, 31);
+    }
+    else if (FinYear3 == "25-26")
+    {
+        startDate = new DateTime(2025, 04, 1);
+        endDate = new DateTime(2026, 03, 31);
+    }
+
+    var totalBenefitsQuery = "select count(distinct Master_ID) as TotalBenefits from App_Innovation_Benefits as IB inner join App_Innovation as IA on IA.Id = IB.Master_ID where Status = 'Approved' and IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate";
+    int totalBenefits = connection.QuerySingleOrDefault<int>(totalBenefitsQuery, new { startDate, endDate });
+
+    if (totalBenefits == 0)
+    {
+        // If no data is found, set all values to 0
+        ViewBag.totalsafety = 0;
+        ViewBag.totalsustainability = 0;
+        ViewBag.totalothers = 0;
+    }
+    else
+    {
+        var totalsafetyQuery = "select count(distinct IB.Master_Id) as safety from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%safe%'";
+        int totalsafety = connection.QuerySingleOrDefault<int>(totalsafetyQuery, new { startDate, endDate });
+
+        int remainingBenefits = totalBenefits - totalsafety;
+
+        string adjustedSustainQuery = "select count(distinct IB.Master_Id) as sustain from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%sustain%' and IB.Master_ID not in (select distinct IB.Master_ID from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%safe%')";
+        int totalsustain = connection.QuerySingleOrDefault<int>(adjustedSustainQuery, new { startDate, endDate });
+
+        int totalothers = remainingBenefits - totalsustain;
+
+        ViewBag.totalsafety = totalsafety;
+        ViewBag.totalsustainability = totalsustain;
+        ViewBag.totalothers = totalothers;
+    }
+}
+
+
+
 this is my full logic
   if (!string.IsNullOrEmpty(FinYear3) || FinYear3 == "")
   {
