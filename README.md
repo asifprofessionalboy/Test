@@ -1,3 +1,13 @@
+<select id="DivisionDropdown" class="form-control form-control-sm custom-select">
+    <option value="" selected></option>
+    @foreach (var division in ViewBag.Divisions)
+    {
+        var displayText = division.Division == "Corporate Services" ? "People Function" : division.Division;
+        <option value="@division.Division">@displayText</option>
+    }
+</select>
+
+
 this is my js for division dropdown and for chatjs
   $(document).ready(function () {
       let barChart = null;
