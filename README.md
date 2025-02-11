@@ -1,89 +1,138 @@
-if (!string.IsNullOrEmpty(FinYear3) || FinYear3 == "")
-{
-    DateTime startDate = DateTime.MinValue;
-    DateTime endDate = DateTime.MaxValue;
+this is my chart.js 
 
-    if (FinYear3 == "24-25" || FinYear3 == "")
-    {
-        startDate = new DateTime(2024, 04, 1);
-        endDate = new DateTime(2025, 03, 31);
+<script>
+    let myChart;
+    function updateChart(){
+        
+        const finyear = document.getElementById("FinYear4").value;
+       //const baseUrl = window.location.origin +'/Log_Innovation';
+        const baseUrl = window.location.origin;
+        const url = `${baseUrl}/Innovation/GetDivisionCount?FinYear4=${finyear}`;
+        
+       
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data);
+
+                const labels = data.map(item => item.division);
+                const colors = ['#6b5b95', '#b2ad7f', '#feb236', '#b1cbbb', '#86af49', '#b9936c', '#3e4444', '#034f84', '#c94c4c'];
+                const counts = data.map(item => item.count);
+
+                
+                const canvas = document.getElementById('barChart4');
+                const ctx4 = canvas.getContext('2d');
+
+                if(myChart){
+                    myChart.destroy();
+                    myChart = null;
+
+                    canvas.height = 370;
+                    canvas.width = 800;
+                }
+
+               myChart= new Chart(ctx4, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Division wise Participation',
+                            data: counts,
+                            backgroundColor: colors,
+                            borderColor: colors.map(color => color.replace('0.2', '1')),
+                            borderWidth: 0.5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            datalabels: {
+                                anchor: 'end',
+                                align: 'top',
+                                color: '#000',
+                                font: {
+                                    weight: 'bold',
+                                    size: 10
+                                },
+                                formatter: value => value
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: context => `${context.raw}`
+                                }
+                            },
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+
+                                ticks: {
+                                    callback: function (value, index, ticks) {
+
+                                        const label = this.getLabelForValue(value);
+
+
+                                        return label.split(' ');
+
+                                    },
+                                    autoSkip: false,
+                                    maxRotation: 0,
+                                    minRotation: 0,
+                                    font: {
+                                        size: 11
+
+                                    },
+
+                                    display: true
+                                },
+                                grid: {
+                                    display: false
+                                },
+                            },
+                            y: {
+                                grid: {
+                                    display: false
+                                },
+                                display: true,
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'No. Of Projects',
+                                    font: {
+                                        size: 11,
+                                        family: 'Arial',
+                                        weight: 'bold',
+                                        color: '#767676'
+                                    }
+                                },
+                                ticks: {
+                                    display: false,
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        layout: {
+                            padding: {
+                                bottom: 20,
+                                top: 50
+                            }
+                        },
+                        barPercentage: 0.2,
+                    },
+                    plugins: [ChartDataLabels]
+                });
+            })
+            .catch(error => console.error('Error:', error));
     }
-    else if (FinYear3 == "25-26")
-    {
-        startDate = new DateTime(2025, 04, 1);
-        endDate = new DateTime(2026, 03, 31);
-    }
+    document.addEventListener("DOMContentLoaded", updateChart);
 
-    var totalBenefitsQuery = "select count(distinct Master_ID) as TotalBenefits from App_Innovation_Benefits as IB inner join App_Innovation as IA on IA.Id = IB.Master_ID where Status = 'Approved' and IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate";
-    int totalBenefits = connection.QuerySingleOrDefault<int>(totalBenefitsQuery, new { startDate, endDate });
+</script>
 
-    if (totalBenefits == 0)
-    {
-        // If no data is found, set all values to 0
-        ViewBag.totalsafety = 0;
-        ViewBag.totalsustainability = 0;
-        ViewBag.totalothers = 0;
-    }
-    else
-    {
-        var totalsafetyQuery = "select count(distinct IB.Master_Id) as safety from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%safe%'";
-        int totalsafety = connection.QuerySingleOrDefault<int>(totalsafetyQuery, new { startDate, endDate });
-
-        int remainingBenefits = totalBenefits - totalsafety;
-
-        string adjustedSustainQuery = "select count(distinct IB.Master_Id) as sustain from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%sustain%' and IB.Master_ID not in (select distinct IB.Master_ID from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%safe%')";
-        int totalsustain = connection.QuerySingleOrDefault<int>(adjustedSustainQuery, new { startDate, endDate });
-
-        int totalothers = remainingBenefits - totalsustain;
-
-        ViewBag.totalsafety = totalsafety;
-        ViewBag.totalsustainability = totalsustain;
-        ViewBag.totalothers = totalothers;
-    }
-}
-
-
-
-this is my full logic
-  if (!string.IsNullOrEmpty(FinYear3) || FinYear3 == "")
-  {
-      DateTime startDate = DateTime.MinValue;
-      DateTime endDate = DateTime.MaxValue;
-
-
-      if (FinYear3 == "24-25" || FinYear3 == "")
-      {
-          startDate = new DateTime(2024, 04, 1);
-          endDate = new DateTime(2025, 03, 31);
-      }
-      else if (FinYear3 == "25-26")
-      {
-          startDate = new DateTime(2025, 04, 1);
-          endDate = new DateTime(2026, 03, 31);
-      }
-
-			var totalBenefitsQuery = "select count(distinct Master_ID) as TotalBenefits from App_Innovation_Benefits as IB inner join App_Innovation as IA on IA.Id = IB.Master_ID where Status = 'Approved'";
-			var totalsafetyQuery = "select count(distinct IB.Master_Id) as safety from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= '" + startDate + "' and IA.CreatedOn <= '" + endDate + "' and IA.Status = 'Approved' and IB.Benefits like '%safe%'";
-			var totalsustainQuery = "select count(distinct IB.Master_Id) as sustain from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= '" + startDate + "' and IA.CreatedOn <= '" + endDate + "' and IA.Status = 'Approved' and IB.Benefits like '%sustain%'";
-			var totalOthersQuery = "select count(distinct IB.Master_Id) as others from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= '" + startDate + "' and IA.CreatedOn <= '" + endDate + "' and IA.Status = 'Approved' and IB.Benefits not like '%sustain%' and IB.Benefits not like '%safe%'";
-
-			int totalBenefits = connection.QuerySingleOrDefault<int>(totalBenefitsQuery);
-			int totalsafety = connection.QuerySingleOrDefault<int>(totalsafetyQuery);
-
-			
-			int remainingBenefits = totalBenefits - totalsafety;
-
-			
-			string adjustedSustainQuery = "select count(distinct IB.Master_Id) as sustain from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= '" + startDate + "' and IA.CreatedOn <= '" + endDate + "' and IA.Status = 'Approved' and IB.Benefits like '%sustain%' and IB.Master_ID not in (select distinct IB.Master_ID from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= '" + startDate + "' and IA.CreatedOn <= '" + endDate + "' and IA.Status = 'Approved' and IB.Benefits like '%safe%')";
-			int totalsustain = connection.QuerySingleOrDefault<int>(adjustedSustainQuery);
-
-			int totalothers = remainingBenefits - totalsustain;
-
-			ViewBag.totalsafety = totalsafety;
-			ViewBag.totalsustainability = totalsustain;
-			ViewBag.totalothers = totalothers;
-
-		}
-
-
-in this one issue is having that if there is no data in any finyear it shows me the count of totalothers , i dont want it , if there is no data in finyear then all query value is 0
+in this js one division name is corporate services , i want that division label should look People Function when the label value is Corporate services 
