@@ -1,3 +1,11 @@
+var emailList = await context.AppMailEmployeeMasters
+    .Where(e => e.EmailId != null)
+    .Select(e => e.EmailId.Trim().ToLower()) // Normalize email casing
+    .Distinct()
+    .ToListAsync();
+
+
+
 for (int i = 0; i < emailList.Count; i += batchSize)
 {
     var batch = emailList.Skip(i).Take(batchSize).ToList();
