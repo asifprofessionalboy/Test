@@ -1,3 +1,13 @@
+for (int i = 0; i < emailList.Count; i += batchSize)
+{
+    var batch = emailList.Skip(i).Take(batchSize).ToList();
+    await emailService.SendApprovedEmailAsync(batch, "", "", subject, msg);
+    
+    await Task.Delay(1000).ConfigureAwait(false); // Small delay to avoid SMTP issues
+}
+
+
+
 public async Task SendApprovedEmailAsync(List<string> toEmails, string ccEmail, string bccEmail, string subject, string message)
 {
     var emailSettings = _configuration.GetSection("EmailSettings");
