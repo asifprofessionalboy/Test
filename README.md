@@ -1,3 +1,37 @@
+var emailList = await context.AppMailEmployeeMasters
+    .Where(e => e.EmailId != null)
+    .Select(e => e.EmailId)
+    .Distinct()
+    .ToListAsync();  // Ensure unique emails
+
+if (status == "Approved")
+{
+    var subject = "New Innovation Project - Explore Now!";
+    var msg = $@"
+    <html>
+        <body>
+            <p>Dear Team,</p>
+            <p><b>New Innovation : '{existingInnovation.Innovation}' has been launched on our portal.</b></p>
+            <p>To learn more about the project, please visit the following link: 
+            <a href='{returnUrl}'>Click here</a></p>
+            <p>EXPLORE . INNOVATE . ELEVATE</p>
+            <p>Regards,</p>
+            <b>Smarani Vuppala</b>
+            <br>Innovation Champion
+            <br>Assistant Manager, Technical Services
+        </body>
+    </html>";
+
+    // Send emails in batches of 300, ensuring no duplicate emails
+    int batchSize = 300;
+    for (int i = 0; i < emailList.Count; i += batchSize)
+    {
+        var batch = emailList.Skip(i).Take(batchSize).ToList();
+        await emailService.SendApprovedEmailAsync(batch, "", "", subject, msg);
+    }
+}
+
+
 
 public async Task SendApprovedEmailAsync(List<string> toEmails, string ccEmail, string bccEmail, string subject, string message)
 {
