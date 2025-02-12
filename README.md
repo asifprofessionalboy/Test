@@ -1,4 +1,47 @@
-		
+
+public async Task SendApprovedEmailAsync(List<string> toEmails, string ccEmail, string bccEmail, string subject, string message)
+{
+    var emailSettings = _configuration.GetSection("EmailSettings");
+
+    var email = new MimeMessage();
+    email.From.Add(new MailboxAddress(emailSettings["SenderName"], emailSettings["SenderEmail"]));
+
+    // Ensure unique email IDs to prevent duplicates
+    var uniqueEmails = toEmails.Distinct().ToList();
+
+    foreach (var toEmail in uniqueEmails)
+    {
+        email.To.Add(new MailboxAddress(toEmail, toEmail));
+    }
+
+    if (!string.IsNullOrEmpty(ccEmail))
+    {
+        email.Cc.Add(new MailboxAddress(ccEmail, ccEmail));
+    }
+    if (!string.IsNullOrEmpty(bccEmail))
+    {
+        email.Bcc.Add(new MailboxAddress(bccEmail, bccEmail));
+    }
+
+    email.Subject = subject;
+    email.Body = new TextPart(TextFormat.Html)
+    {
+        Text = message
+    };
+
+    using (var smtp = new SmtpClient())
+    {
+        await smtp.ConnectAsync(emailSettings["SMTPServer"], int.Parse(emailSettings["SMTPPort"]), MailKit.Security.SecureSocketOptions.StartTls);
+        await smtp.AuthenticateAsync(emailSettings["SenderEmail"], emailSettings["SenderPassword"]);
+        await smtp.SendAsync(email);
+        await smtp.DisconnectAsync(true);
+    }
+}
+
+
+  
+
+
 this is my controller method for Approval form
 [HttpPost]
 		[RequestSizeLimit(500 * 1024 * 1024)]
