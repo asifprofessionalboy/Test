@@ -1,3 +1,35 @@
+public async Task<IActionResult> SubjectMaster(Guid? id, int page = 1, string searchString = "")
+{
+    int pageSize = 5;
+    var query = context.AppSubjectMasters.AsQueryable();
+
+    if (!string.IsNullOrEmpty(searchString))
+    {
+        query = query.Where(a => a.Subject.Contains(searchString));
+    }
+
+    var pagedData = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+    var totalCount = query.Count();
+
+    ViewBag.ListData2 = pagedData;
+    ViewBag.CurrentPage = page;
+    ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+    ViewBag.SearchString = searchString;
+
+    // Initialize a new view model
+    AppSubjectMaster viewModel = null;
+
+    if (id.HasValue)
+    {
+        viewModel = await context.AppSubjectMasters.FirstOrDefaultAsync(a => a.Id == id);
+    }
+
+    return View(viewModel);
+}
+
+
+
+
 i have this model 
  public partial class AppSubjectMaster
  {
