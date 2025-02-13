@@ -1,136 +1,65 @@
-[HttpPost]
-public async Task<IActionResult> SubmitTransactions(AppSubjectMaster model)
+this is the method to fetch subjectDD  
+public List<SubjectDD> GetSubjectDD()
+  {
+      string connectionString = GetConnectionString();
+
+      string query = @"select distinct Subject from App_SubjectMaster";
+
+
+      using (var connection = new SqlConnection(connectionString))
+      {
+          var divisions = connection.Query<SubjectDD>(query).ToList();
+
+          return divisions;
+
+      }
+
+  }
+
+this is controller view 
+public IActionResult TechnicalService()
 {
-    if (model == null)
+    if (HttpContext.Session.GetString("Session") != null)
     {
-        return BadRequest("Invalid data.");
+		var viewModel = new AppTechnicalService
+		{
+			Attach = new List<IFormFile>(),
+
+		};
+		var Dept = GetDepartmentDD();
+        ViewBag.Department = Dept;
+
+		var Month = GetMonthDD();
+		ViewBag.Month = Month;
+
+        var subjectDDs = GetSubjectDD();
+        ViewBag.Subjects = subjectDDs;
+
+
+        return View(viewModel);
+	}
+	else
+    {
+        return RedirectToAction("Login", "User");
     }
 
-    if (model.Id == Guid.Empty)  // Create new record
-    {
-        model.Id = Guid.NewGuid();  // Generate new GUID for new record
-        model.CreatedOn = DateTime.UtcNow;
-        context.AppSubjectMasters.Add(model);
-    }
-    else  // Update existing record
-    {
-        var existingRecord = await context.AppSubjectMasters.FindAsync(model.Id);
-        if (existingRecord != null)
-        {
-            existingRecord.Subject = model.Subject;
-            existingRecord.CreatedBy = model.CreatedBy;
-            existingRecord.CreatedOn = model.CreatedOn; // Update only if needed
-            context.AppSubjectMasters.Update(existingRecord);
-        }
-        else
-        {
-            return NotFound("Record not found.");
-        }
-    }
-
-    await context.SaveChangesAsync();
-    return RedirectToAction("SubjectMaster");
-}
-
-[HttpPost]
-public async Task<IActionResult> DeleteTransaction(Guid id)
-{
-    var record = await context.AppSubjectMasters.FindAsync(id);
-    if (record == null)
-    {
-        return NotFound("Record not found.");
-    }
-
-    context.AppSubjectMasters.Remove(record);
-    await context.SaveChangesAsync();
     
-    return Json(new { success = true, message = "Deleted successfully!" });
 }
 
+this is my view side 
+<div class="form-group row">
+				<div class="col-sm-1">
+				<label asp-for="Subject" class="control-label">Subject </label>
+				</div>
+				<div class="col-sm-3">
+					<select asp-for="Subject" class="form-control form-control-sm custom-select" name="Subject">
+					<option value="">Select Subject</option>
+					@foreach (var item in SubjectDropdown)
+					{
+						<option value="@item.Subject">@item.Subject</option>
+					}
+					
+					</select>
+				</div>
 
-
-public async Task<IActionResult> SubjectMaster(Guid? id, int page = 1, string searchString = "")
-{
-    int pageSize = 5;
-    var query = context.AppSubjectMasters.AsQueryable();
-
-    if (!string.IsNullOrEmpty(searchString))
-    {
-        query = query.Where(a => a.Subject.Contains(searchString));
-    }
-
-    var pagedData = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-    var totalCount = query.Count();
-
-    ViewBag.ListData2 = pagedData;
-    ViewBag.CurrentPage = page;
-    ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-    ViewBag.SearchString = searchString;
-
-    // Initialize a new view model
-    AppSubjectMaster viewModel = null;
-
-    if (id.HasValue)
-    {
-        viewModel = await context.AppSubjectMasters.FirstOrDefaultAsync(a => a.Id == id);
-    }
-
-    return View(viewModel);
-}
-
-
-
-
-i have this model 
- public partial class AppSubjectMaster
- {
-     public AppSubjectMaster()
-     {
-
-         AppSubjectMasters = new AppSubjectMaster();
-        
-     }
-
-     public AppSubjectMaster AppSubjectMasters { get; set; }
-
-     public Guid Id { get; set; }
-     public string? Subject { get; set; }
-     public string? CreatedBy { get; set; }
-     public DateTime? CreatedOn { get; set; }
- }
-
-this is my controller method 
-
- public async Task<IActionResult> SubjectMaster(Guid? id, int page = 1, string searchString = "")
- {
-     int pageSize = 5;
-     var query = context.AppSubjectMasters.AsQueryable();
-
-     if (!string.IsNullOrEmpty(searchString))
-     {
-         query = query.Where(a => a.Subject.Contains(searchString));
-     }
-
-     var pagedData = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-     var totalCount = query.Count();
-
-     ViewBag.ListData2 = pagedData;
-     ViewBag.CurrentPage = page;
-     ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-     ViewBag.SearchString = searchString;
-
-     var viewModel = new AppSubjectMaster(); 
-
-     if (id.HasValue)
-     {
-         var selectedTransaction = await context.AppSubjectMasters.FirstOrDefaultAsync(a => a.Id == id);
-         if (selectedTransaction != null)
-         {
-             viewModel.AppSubjectMasters = selectedTransaction;
-         }
-     }
-
-     return View(viewModel);
- }
-
-getting error SqlException: Invalid column name 'AppSubjectMastersId'.
+i am getting object reference not set to an instance error 
