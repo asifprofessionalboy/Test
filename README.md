@@ -1,3 +1,54 @@
+public async Task<IActionResult> Transactions(Guid? id, int page = 1, string searchString = "")
+{
+    var viewModel = new AppTransactionViewModel
+    {
+        AppProducts = new List<AppProduct>(),
+        AppTransaction = new AppTransaction(),
+    };
+
+    var products = context.AppProductMasters
+        .Select(c => new
+        {
+            Value = c.Product,
+            Text = c.Product,
+            Price = c.Price
+        })
+        .ToList();
+
+    ViewBag.ProductsDD = products;
+
+    int pageSize = 5;
+    var query = context.AppTransactions.AsQueryable();
+
+    if (!string.IsNullOrEmpty(searchString))
+    {
+        query = query.Where(a => a.CustomerCode.Contains(searchString));
+    }
+
+    var pagedData = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+    var totalCount = query.Count();
+
+    ViewBag.ListData2 = pagedData;
+    ViewBag.CurrentPage = page;
+    ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+    ViewBag.SearchString = searchString;
+
+    // Fetch selected transaction details if ID is provided
+    if (id.HasValue)
+    {
+        var selectedTransaction = await context.AppTransactions.FirstOrDefaultAsync(a => a.Id == id);
+        if (selectedTransaction != null)
+        {
+            viewModel.AppTransaction = selectedTransaction;
+        }
+    }
+
+    return View(viewModel);
+}
+
+
+
+
 this is my form  <main class="content">
 
      <section class="mt-4">
