@@ -1,3 +1,31 @@
+@model List<AppSubjectMaster>
+
+<div class="row">
+    @foreach (var subject in Model)
+    {
+        <div class="col-sm-4">
+            <a asp-action="ViewerForm" asp-route-Subject="@subject.Subject">
+                <div class="card l-bg-cyan-dark">
+                    <div class="card-statistic-3 p-4">
+                        <div class="">
+                            <h6 class="card-title mb-0 head">@subject.Subject</h6>
+                        </div>
+                        <div class="row align-items-center mb-4 d-flex">
+                            <div class="col-8">
+                                <h7 class="d-flex align-items-center mb-1"></h7>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    }
+</div>
+
+
+
+
+
 this is my view side for dashboard 
 public IActionResult Dashboard()
 {
