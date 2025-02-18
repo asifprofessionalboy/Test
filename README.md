@@ -1,112 +1,291 @@
-@model List<AppSubjectMaster>
+i have this controller method that is the issue is happening, any other controller method is not happening like this but this is the controller i am facing this issue		
 
-<div class="row">
-    @foreach (var subject in Model)
-    {
-        <div class="col-sm-4">
-            <a asp-action="ViewerForm" asp-route-Subject="@subject.Subject">
-                <div class="card l-bg-cyan-dark">
-                    <div class="card-statistic-3 p-4">
-                        <div class="">
-                            <h6 class="card-title mb-0 head">@subject.Subject</h6>
-                        </div>
-                        <div class="row align-items-center mb-4 d-flex">
-                            <div class="col-8">
-                                <h7 class="d-flex align-items-center mb-1"></h7>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-    }
-</div>
+        [HttpPost]
+        [RequestSizeLimit(500 * 1024 * 1024)]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Approval_Form(InnovationViewModel InnViewModel)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
 
+                    if (InnViewModel.Attach != null && InnViewModel.Attach.Any())
+                    {
+                        var uploadPath = configuration["FileUpload:Path"];
+                        foreach (var file in InnViewModel.Attach)
+                        {
+                            if (file.Length > 0)
+                            {
+                                var uniqueId = Guid.NewGuid().ToString();
+                                var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy");
+                                var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+                                var fileExtension = Path.GetExtension(file.FileName);
+                                var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+                                var fullPath = Path.Combine(uploadPath, formattedFileName);
+                                using (var stream = new FileStream(fullPath, FileMode.Create))
+                                {
+                                    await file.CopyToAsync(stream);
+                                }
+                                InnViewModel.Attachment += $"{formattedFileName},";
+                            }
+                        }
+                        if (!string.IsNullOrEmpty(InnViewModel.Attachment))
+                        {
+                            InnViewModel.Attachment = InnViewModel.Attachment.TrimEnd(',');
+                        }
+                    }
+                    else if (InnViewModel.Id.HasValue)
+                    {
 
+                        var existingInnovation2 = await context.AppInnovations.FindAsync(InnViewModel.Id.Value);
+                        if (existingInnovation2 != null)
+                        {
+                            InnViewModel.Attachment = existingInnovation2.Attachment;
+                        }
+                    }
 
+                    var Status = Request.Form["Champion"];
 
+                    if (!InnViewModel.Id.HasValue)
+                    {
+                        ModelState.AddModelError("", "Invalid operation. The innovation Id is required.");
+                        return View(InnViewModel);
+                    }
 
-this is my view side for dashboard 
-public IActionResult Dashboard()
-{
-	if (HttpContext.Session.GetString("Session") != null)
-	{
-		return View();
-	}
-	else
-	{
-		return RedirectToAction("Login", "User");
-	}
-}
+                    var existingInnovation = await context.AppInnovations.FindAsync(InnViewModel.Id.Value);
 
-this is my viewside 
+                    if (existingInnovation == null)
+                    {
+                        return NotFound();
+                    }
 
- <div class="col-sm-4">
-              <a asp-action="ViewerForm" asp-route-MD="MD Communication pack">
-             <div class="card l-bg-cyan-dark">
-                 <div class="card-statistic-3 p-4">
+                    var user = HttpContext.Session.GetString("Session");
 
-                     <div class="">
-                         <h6 class="card-title mb-0 head" name="MD">
+                    if (Status == "Draft")
+                    {
+                        existingInnovation.ApprovedOn = null;
+                        existingInnovation.ApprovedBy = null;
 
-                             MD Communication pack
-
-                         </h6>
-                     </div>
-                     <div class="row align-items-center mb-4 d-flex">
-                         <div class="col-8">
-                             <h7 class="d-flex align-items-center mb-1">
-
-                             </h7>
-                         </div>
-
-                     </div>
-                 </div>
-             </div>
-         </a>
-    
- </div>
-
-     <div class="col-sm-4">
-
-          <a asp-action="ViewerForm" asp-route-Flash="Flash Report">
-             <div class="card l-bg-purple-dark">
-                 <div class="card-statistic-3 p-4">
-
-                     <div class="">
-                         <h6 class="card-title mb-0 head">
-
-                             Flash Report
-
-                         </h6>
-                     </div>
-                     <div class="row align-items-center mb-4 d-flex">
-                         <div class="col-8">
-                             <h7 class="d-flex align-items-center mb-1">
-
-                             </h7>
-                         </div>
-
-                     </div>
-
-                 </div>
-             </div>
-         </a>
+                    }
+                    else
+                    {
+                        existingInnovation.ApprovedOn = DateTime.Now;
+                    }
 
 
-     </div>
+                    existingInnovation.PersonalNo = InnViewModel.PersonalNo;
+                    existingInnovation.Name = InnViewModel.Name;
+                    existingInnovation.Department = InnViewModel.Department;
+                    existingInnovation.Designation = InnViewModel.Designation;
+                    existingInnovation.EmailId = InnViewModel.EmailId;
+                    existingInnovation.Mobile = InnViewModel.Mobile;
+                    existingInnovation.Innovation = InnViewModel.Innovation;
+                    existingInnovation.Description = InnViewModel.Description;
+                    existingInnovation.StageOfInnovation = InnViewModel.StageOfInnovation;
+                    existingInnovation.Attachment = InnViewModel.Attachment;
+                    existingInnovation.Status = Status;
+                    existingInnovation.ApproverRemarks = InnViewModel.ApproverRemarks;
+                    existingInnovation.SubmitFlag = "Submit";
+                    existingInnovation.ApprovedOn = existingInnovation.ApprovedOn;
+                    existingInnovation.ApprovedBy = "842015";
+                    existingInnovation.SourceOfInnovation = InnViewModel.SourceOfInnovation;
+                    existingInnovation.OtherBenefit = InnViewModel.OtherBenefit;
+                    existingInnovation.DareToTry = InnViewModel.DareToTry;
 
-, i have subjectMaster model , i want to make this dynamic 
-public partial class AppSubjectMaster
-{
-   
 
-    public Guid Id { get; set; }
-    public string? Subject { get; set; }
-    public string? CreatedBy { get; set; }
-    public DateTime? CreatedOn { get; set; }
-}
+                    if (!string.IsNullOrEmpty(InnViewModel.OtherBenefit))
+                    {
+                        var existingBenefit = context.AppBenefitMasters.FirstOrDefault(b => b.Benefit == InnViewModel.OtherBenefit);
+                        if (existingBenefit == null)
+                        {
+                            var newBenefit = new AppBenefitMaster
+                            {
+                                Id = Guid.NewGuid(),
+                                Benefit = InnViewModel.OtherBenefit
+                            };
+                            context.AppBenefitMasters.Add(newBenefit);
+                        }
+                        else
+                        {
+                            existingBenefit.Benefit = InnViewModel.OtherBenefit;
+                            context.AppBenefitMasters.Update(existingBenefit);
+                        }
+                    }
 
-i want that when there is new subject added to master table then make the card like this cards above ,
+                    try
+                    {
+                        context.Entry(existingInnovation).State = EntityState.Modified;
+                        await context.SaveChangesAsync();
+                    }
+                    catch (DbUpdateConcurrencyException ex)
+                    {
+                        ModelState.AddModelError("", "Unable to save changes.");
+                        return View(InnViewModel);
+                    }
 
-and this for my filter when clicking on cards it shows filtered data, make this dynamic also
+
+                    foreach (var benefit in InnViewModel.appInnovationBenefits)
+                    {
+                        if (benefit.Id == Guid.Empty)
+                        {
+                            benefit.Id = Guid.NewGuid();
+                            benefit.MasterId = existingInnovation.Id;
+                            await context.AppInnovationBenefits.AddAsync(benefit);
+                        }
+                        else
+                        {
+                            benefit.MasterId = existingInnovation.Id;
+                            context.Entry(benefit).State = EntityState.Modified;
+                        }
+                    }
+                    await context.SaveChangesAsync();
+
+
+                    foreach (var team in InnViewModel.appProjectTeams)
+                    {
+                        if (team.Id == Guid.Empty)
+                        {
+                            team.Id = Guid.NewGuid();
+                            team.MasterId = existingInnovation.Id;
+                            await context.AppProjectTeams.AddAsync(team);
+                        }
+                        else
+                        {
+                            team.MasterId = existingInnovation.Id;
+                            context.Entry(team).State = EntityState.Modified;
+                        }
+                    }
+                    await context.SaveChangesAsync();
+
+                    var refNo = await context.AppInnovations
+                        .Where(x => x.Id == existingInnovation.Id)
+                        .Select(x => x.RefNo)
+                        .FirstOrDefaultAsync();
+
+                    var status = await context.AppInnovations
+                        .Where(x => x.Id == existingInnovation.Id)
+                        .Select(x => x.Status)
+                        .FirstOrDefaultAsync();
+
+
+
+
+
+                    var emailList = await context.AppMailEmployeeMasters
+    .FromSqlRaw(@"SELECT DISTINCT EmailID 
+                  FROM App_MailEmployee_Master 
+                  WHERE EmailID IS NOT NULL")
+    .Select(e => e.EmailId)
+    .ToListAsync();
+
+
+                    if (status == "Approved")
+                    {
+                        var Det = HttpContext.Session.GetString("Session");
+                        var data = context1.AppEmployeeMasters.FirstOrDefault(x => x.Pno == InnViewModel.Pno);
+
+
+                        var EmailId = await context.AppLogins.FirstOrDefaultAsync(x => x.UserId == InnViewModel.PersonalNo);
+
+                        if (EmailId != null)
+                        {
+                            var RequesterEmail = EmailId.Email;
+
+                            string statusText = status switch
+                            {
+                                "Approved" => "Approved",
+                                "Pending With Requester" => "Returned",
+                                "Rejected" => "Rejected",
+                                _ => "Unknown"
+                            };
+                            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                            var innovationUrl = $"{baseUrl}/Innovation/Innovation/AllAction?Id={existingInnovation.Id}";
+                            var returnUrl = $"{baseUrl}/Innovation/User/Login?returnUrl={HttpUtility.UrlEncode(innovationUrl)}";
+
+                            string subject = "New Innovation Project - Explore Now!";
+                            string msg = $@"
+            <html>
+                <body>
+					<p> Dear Team,</p>
+                    <p><b>New Innovation : ' {existingInnovation.Innovation} ' has been launched on our portal.</b></p>
+                   <p>To learn more about the project, please visit the following link : <a href='{returnUrl}'>Click here</a></br></p>
+                   </BR><p> EXPLORE . INNOVATE . ELEVATE</p>
+                   </BR><p> Regards,</p>
+                    <b>Smarani Vuppala</br>
+                    Innovation Champion</br>
+                    Assistant Manager, Technical Services</b></br>
+ <p><b>Tata Steel Utilities & Infrastructure Services Limited</b></br>
+ (Formerly Jamshedpur Utilities & Services Company Limited)</br>
+Sakchi Boulevard, Northern Town, Bistupur | Jamshedpur 831 001</br>
+ Mobile +91-6287396293</br>
+</br>smarani.vuppala@tatasteel.com | http://www.tatasteeluisl.com
+</br><b style=color:#3a7cda;>TATA STEEL UTILITIES AND INFRASTRUCTURE SERVICES LIMITED</b>
+                </body>
+            </html>";
+
+
+                            var firstBatch = emailList.Skip(0).Take(300).ToList();
+                            await emailService.SendApprovedEmailAsync(firstBatch, "SHASHI.KUMAR@TATASTEEL.COM", "", subject, msg);
+
+                            var secondBatch = emailList.Skip(300).Take(300).ToList();
+                            await emailService.SendApprovedEmailAsync(secondBatch, "SHASHI.KUMAR@TATASTEEL.COM", "", subject, msg);
+
+                            var thirdBatch = emailList.Skip(600).Take(307).ToList();
+                            await emailService.SendApprovedEmailAsync(thirdBatch, "SHASHI.KUMAR@TATASTEEL.COM", "", subject, msg);
+
+                        }
+
+                        //await emailService.SendApprovedEmailAsync("irshad321mhan@gmail.com", "", "", subject, msg);
+
+                    }
+                    else
+                    {
+                        var EmailId = await context.AppLogins.FirstOrDefaultAsync(x => x.UserId == InnViewModel.PersonalNo);
+                        if (EmailId != null)
+                        {
+                            var RequesterEmail = EmailId.Email;
+
+                            string statusText = status switch
+                            {
+                                "Approved" => "Approved",
+                                "Pending With Requester" => "Returned",
+                                "Rejected" => "Rejected",
+                                _ => "Unknown"
+                            };
+                            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                            var innovationUrl = $"{baseUrl}/Innovation/Innovation/AllRequest?Id={existingInnovation.Id}";
+                            var returnUrl = $"{baseUrl}/Innovation/User/Login?returnUrl={HttpUtility.UrlEncode(innovationUrl)}";
+                            string subject = $"Innovation Log: Innovation Id {refNo}";
+                            string msg = $@"
+            <html>
+                <body>
+                    <p><b>Innovation is {statusText} with Innovation Id: {refNo}</b></p>
+                   <p><a href='{returnUrl}'>Click here to view the Innovation</a></br></p>
+                   <p> Regards,</p>
+                    <b>Smarani Vuppala</br>
+                    Innovation Champion</br>
+                    Assistant Manager, Technical Services</b></br>
+ <p><b>Tata Steel Utilities & Infrastructure Services Limited</b></br>
+ (Formerly Jamshedpur Utilities & Services Company Limited)</br>
+Sakchi Boulevard, Northern Town, Bistupur | Jamshedpur 831 001</br>
+ Mobile +91-6287396293</br>
+</br>smarani.vuppala@tatasteel.com | http://www.tatasteeluisl.com
+</br><b style=color:#3a7cda;>TATA STEEL UTILITIES AND INFRASTRUCTURE SERVICES LIMITED</b>
+                </body>
+            </html>";
+
+                            await emailService.SendEmailAsync(RequesterEmail, "smarani.vuppala@tatasteel.com", "", subject, msg);
+                        }
+                    }
+
+                }
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError($"{ex.Message}", "Unable to save changes.");
+            }
+
+
+            return RedirectToAction("Homepage", "Innovation");
+        }
