@@ -1,3 +1,77 @@
+[HttpPost]
+public async Task<IActionResult> TechnicalService(AppTechnicalService service)
+{
+    if (ModelState.IsValid)
+    {
+        if (service.Attach != null && service.Attach.Any())
+        {
+            var uploadPath = configuration["FileUpload:Path"];
+            foreach (var file in service.Attach)
+            {
+                if (file.Length > 0)
+                {
+                    var uniqueId = Guid.NewGuid().ToString();
+                    var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
+                    var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+                    var fileExtension = Path.GetExtension(file.FileName);
+                    var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+                    var fullPath = Path.Combine(uploadPath, formattedFileName);
+
+                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    service.Attachment += $"{formattedFileName},";
+                }
+            }
+
+            if (!string.IsNullOrEmpty(service.Attachment))
+            {
+                service.Attachment = service.Attachment.TrimEnd(',');
+            }
+        }
+
+        var CreatedOn = HttpContext.Session.GetString("Session");
+
+        var appTechnicalService = new AppTechnicalService
+        {
+            Department = service.Department,
+            Subject = service.Subject,
+            FinYear = service.FinYear,
+            CreatedBy = CreatedOn,
+            Attachment = service.Attachment,
+            Month = service.Month
+        };
+
+        context.AppTechnicalServices.Add(appTechnicalService);
+        await context.SaveChangesAsync();
+
+        // **Fetching all UserIds from AppLogin**
+        var allUsers = context.AppLogins.Select(x => x.UserId).ToList();
+
+        // **Inserting notification for each user**
+        var notifications = allUsers.Select(userId => new AppNotification
+        {
+            Id = Guid.NewGuid(),
+            RefNo = userId,  // Using UserId as RefNo
+            Pno = userId,  // Using UserId as Pno
+            Subject = service.Subject,
+            ChildSubject = "Technical Service Notification", // Define your child subject
+            IsViewed = false // Default to false
+        }).ToList();
+
+        await context.AppNotifications.AddRangeAsync(notifications);
+        await context.SaveChangesAsync();
+
+        return RedirectToAction("TechnicalService", "Technical");
+    }
+
+    return View(service);
+}
+
+
+
 this is my controller method 
 [HttpPost]
 public async Task<IActionResult> TechnicalService(AppTechnicalService service)
