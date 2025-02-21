@@ -1,3 +1,89 @@
+using Dapper;
+using System.Data;
+
+public IActionResult Dashboard()
+{
+    var sessionUser = HttpContext.Session.GetString("Session");
+    if (sessionUser != null)
+    {
+        var subjects = context.AppSubjectMasters.ToList();
+        ViewBag.Subjects = subjects;
+
+        // SQL query to count unread notifications for the logged-in user
+        string query = @"
+            SELECT Subject, COUNT(*) AS UnreadCount
+            FROM AppNotification
+            WHERE Pno = @pno AND IsViewed = 0
+            GROUP BY Subject";
+
+        using (var connection = context.Database.GetDbConnection())
+        {
+            connection.Open();
+            var unreadNotifications = connection.Query<(string Subject, int UnreadCount)>(
+                query,
+                new { pno = sessionUser }
+            ).ToDictionary(x => x.Subject, x => x.UnreadCount);
+
+            ViewBag.UnreadNotifications = unreadNotifications;
+        }
+
+        return View();
+    }
+    else
+    {
+        return RedirectToAction("Login", "User");
+    }
+}
+
+
+<div class="col-sm-4">
+    <a asp-action="ViewerForm" asp-route-MD="MD Communication pack" class="position-relative">
+        <div class="card l-bg-cyan-dark position-relative">
+            
+            @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("MD Communication pack"))
+            {
+                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
+                    @ViewBag.UnreadNotifications["MD Communication pack"]
+                </span>
+            }
+
+            <div class="card-statistic-3 p-4">
+                <div class="">
+                    <h6 class="card-title mb-0 head">
+                        MD Communication pack
+                    </h6>
+                </div>
+            </div>
+        </div>
+    </a>
+</div>
+
+<div class="col-sm-4">
+    <a asp-action="ViewerForm" asp-route-Flash="Flash Report" class="position-relative">
+        <div class="card l-bg-purple-dark position-relative">
+            
+            @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("Flash Report"))
+            {
+                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
+                    @ViewBag.UnreadNotifications["Flash Report"]
+                </span>
+            }
+
+            <div class="card-statistic-3 p-4">
+                <div class="">
+                    <h6 class="card-title mb-0 head">
+                        Flash Report
+                    </h6>
+                </div>
+            </div>
+        </div>
+    </a>
+</div>
+
+
+
+
+
 public IActionResult Dashboard()
 {
     var sessionUser = HttpContext.Session.GetString("Session");
