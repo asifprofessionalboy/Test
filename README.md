@@ -36,6 +36,90 @@ public async Task<IActionResult> TechnicalService(AppTechnicalService service)
 
         var appTechnicalService = new AppTechnicalService
         {
+            RefNo = "TS-" + DateTime.UtcNow.Ticks.ToString(), // Ensuring RefNo is set
+            Department = service.Department,
+            Subject = service.Subject,
+            FinYear = service.FinYear,
+            CreatedBy = User,
+            Attachment = service.Attachment,
+            Month = service.Month
+        };
+
+        // Save the Technical Service entry first
+        context.AppTechnicalServices.Add(appTechnicalService);
+        await context.SaveChangesAsync();
+
+        // Retrieve the saved record to get the generated RefNo
+        var savedService = await context.AppTechnicalServices
+            .OrderByDescending(x => x.Id) // Get latest record
+            .FirstOrDefaultAsync();
+
+        if (savedService == null || string.IsNullOrEmpty(savedService.RefNo))
+        {
+            throw new Exception("Error: RefNo is NULL after saving.");
+        }
+
+        // Now use savedService.RefNo instead of service.RefNo
+        var allUsers = await context.AppLogins.Select(x => x.UserId).ToListAsync();
+
+        var notifications = allUsers.Select(userId => new AppNotification
+        {
+            RefNo = savedService.RefNo, // Now RefNo has a value
+            Pno = userId,
+            Subject = service.Subject,
+            IsViewed = false
+        }).ToList();
+
+        await context.AppNotifications.AddRangeAsync(notifications);
+        await context.SaveChangesAsync();
+
+        return RedirectToAction("TechnicalService", "Technical");
+    }
+
+    return View(service);
+}
+
+
+
+
+[HttpPost]
+public async Task<IActionResult> TechnicalService(AppTechnicalService service)
+{
+    if (ModelState.IsValid)
+    {
+        if (service.Attach != null && service.Attach.Any())
+        {
+            var uploadPath = configuration["FileUpload:Path"];
+            foreach (var file in service.Attach)
+            {
+                if (file.Length > 0)
+                {
+                    var uniqueId = Guid.NewGuid().ToString();
+                    var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
+                    var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+                    var fileExtension = Path.GetExtension(file.FileName);
+                    var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+                    var fullPath = Path.Combine(uploadPath, formattedFileName);
+
+                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    service.Attachment += $"{formattedFileName},";
+                }
+            }
+
+            if (!string.IsNullOrEmpty(service.Attachment))
+            {
+                service.Attachment = service.Attachment.TrimEnd(',');
+            }
+        }
+
+        var User = HttpContext.Session.GetString("Session");
+
+        var appTechnicalService = new AppTechnicalService
+        {
             Department = service.Department,
             Subject = service.Subject,
             FinYear = service.FinYear,
