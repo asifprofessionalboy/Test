@@ -1,3 +1,20 @@
+using (IDbConnection connection = new SqlConnection(connectionString))
+{
+    string updateQuery = @"
+        UPDATE App_Notification 
+        SET IsViewed = 1 
+        WHERE Subject = @Subject AND Pno = @Pno";
+
+    string selectedSubject = MD ?? Bidding ?? Bi2nd ?? Bi4th ?? BDWeek ?? L2 ?? Flash ?? Exception ?? DETP ?? BE ?? Admin;
+
+    if (!string.IsNullOrEmpty(selectedSubject))
+    {
+        await connection.ExecuteAsync(updateQuery, new { Subject = selectedSubject, Pno = sessionPno });
+    }
+}
+
+
+
 public async Task<IActionResult> ViewerForm(Guid? id, int page = 1, string Bidding = "",string Bi2nd = "",  string Bi4th = "",  string BDWeek = "", string L2 = "", string Flash = "", string Exception = "", string SearchMonth = "", string FinYear = "",string DETP="",string MD="",string BE="",string Admin = "")
 {
 	if (HttpContext.Session.GetString("Session") != null)
