@@ -1,106 +1,24 @@
-using Dapper;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
-using System.Data;
-using System.Threading.Tasks;
-
-public class YourController : Controller
-{
-    private readonly string _connectionString;
-
-    public YourController(IConfiguration configuration)
-    {
-        _connectionString = configuration.GetConnectionString("DefaultConnection");
-    }
-
-    public async Task<IActionResult> ViewerForm(string MD = "")
-    {
-        if (HttpContext.Session.GetString("Session") != null)
-        {
-            string sessionPno = HttpContext.Session.GetString("SessionPno"); // Get Pno from session
-
-            if (!string.IsNullOrEmpty(MD))
-            {
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    string updateQuery = @"
-                        UPDATE AppNotification 
-                        SET IsViewed = 1 
-                        WHERE Subject = @Subject AND Pno = @Pno";
-
-                    await connection.ExecuteAsync(updateQuery, new { Subject = MD, Pno = sessionPno });
-                }
-            }
-
-            // Fetch and return the view data as before
-            var viewModel = new AppTechnicalService
-            {
-                Attach = new List<IFormFile>(),
-            };
-
-            return View(viewModel);
-        }
-        else
-        {
-            return RedirectToAction("Login", "User");
-        }
-    }
-}
-
-
-
-
-this is my model   
-public partial class AppNotification
-  {
-      public Guid Id { get; set; }
-      public string? RefNo { get; set; }
-      public string? Pno { get; set; }
-      public string? Subject { get; set; }
-      public string? ChildSubject { get; set; }
-      public bool? IsViewed { get; set; }
-  }
-i have this viewside 
-
-  <div class="col-sm-4">
-      <a asp-action="ViewerForm" asp-route-MD="MD Communication pack" class="position-relative">
-          <div class="card l-bg-cyan-dark position-relative">
-
-             
-              @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("MD Communication pack"))
-              {
-                  <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
-                      @ViewBag.UnreadNotifications["MD Communication pack"]
-                  </span>
-              }
-
-              <div class="card-statistic-3 p-4">
-                  <div class="">
-                      <h6 class="card-title mb-0 head">
-                          MD Communication pack
-                      </h6>
-                  </div>
-              </div>
-              <div class="row align-items-center mb-4 d-flex">
-                  <div class="col-8">
-                      <h7 class="d-flex align-items-center mb-1">
-
-                      </h7>
-                  </div>
-
-              </div>
-          </div>
-      </a>
-  </div>
-
-in this method i want to execute a update command for notification , when i click on MD Communication pack then the value of IsViewed is set 1 of the Subject and for that Pno of session
-and this is my view method  , with that 
+is there any issue in this code , iwant for All subject when clicking on cards 
 
 	public async Task<IActionResult> ViewerForm(Guid? id, int page = 1, string Bidding = "", string Bi2nd = "",  string Bi4th = "",  string BDWeek = "", string L2 = "", string Flash = "", string Exception = "", string SearchMonth = "", string FinYear = "",string DETP="",string MD="",string BE="",string Admin = "")
 	{
 		if (HttpContext.Session.GetString("Session") != null)
 		{
-			var viewModel2 = new AppTechnicalService
+            string sessionPno =  HttpContext.Session.GetString("Session"); 
+		
+            string connectionString = GetConnectionString();
+            using (IDbConnection connection = new SqlConnection(connectionString))
+            {
+                string updateQuery = @"
+                    UPDATE App_Notification 
+                    SET IsViewed = 1 
+                    WHERE Subject = @Subject AND Pno = @Pno";
+
+                await connection.ExecuteAsync(updateQuery, new { Subject = MD,Bidding,Bi2nd,Bi4th,BDWeek,L2,Flash, Exception,DETP,BE,Admin, Pno = sessionPno });
+            }
+
+
+            var viewModel2 = new AppTechnicalService
 			{
 
 				Attach = new List<IFormFile>(),
@@ -239,3 +157,73 @@ and this is my view method  , with that
 		}
 
 	}
+
+
+        <div class="col-sm-4">
+            <a asp-action="ViewerForm" asp-route-MD="MD Communication pack" class="position-relative">
+                <div class="card l-bg-cyan-dark position-relative">
+
+                   
+                    @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("MD Communication pack"))
+                    {
+                        <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
+                            @ViewBag.UnreadNotifications["MD Communication pack"]
+                        </span>
+                    }
+
+                    <div class="card-statistic-3 p-4">
+                        <div class="">
+                            <h6 class="card-title mb-0 head">
+                                MD Communication pack
+                            </h6>
+                        </div>
+                    </div>
+                    <div class="row align-items-center mb-4 d-flex">
+                        <div class="col-8">
+                            <h7 class="d-flex align-items-center mb-1">
+
+                            </h7>
+                        </div>
+
+                    </div>
+                </div>
+            </a>
+        </div>
+
+
+        <div class="col-sm-4">
+
+            <a asp-action="ViewerForm" asp-route-Flash="Flash Report" class="position-relative">
+                <div class="card l-bg-purple-dark position-relative">
+                    @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("Flash Report"))
+                    {
+                        <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
+                            @ViewBag.UnreadNotifications["Flash Report"]
+                        </span>
+                    }
+                    <div class="card-statistic-3 p-4">
+
+                        <div class="">
+                            <h6 class="card-title mb-0 head">
+
+                                Flash Report
+
+                            </h6>
+                        </div>
+                        <div class="row align-items-center mb-4 d-flex">
+                            <div class="col-8">
+                                <h7 class="d-flex align-items-center mb-1">
+
+                                </h7>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+            </a>
+
+
+        </div>
+
+etc...
