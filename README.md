@@ -1,3 +1,21 @@
+// List of subjects inside the popup
+List<string> popupSubjects = new List<string>
+{
+    "L2 KPIs - Technical Services",
+    "L3 KPIs - Admin & CC",
+    "L3 KPIs - Bidding",
+    "L3 KPIs - BE,Data Analytics,BD,CRM",
+    "L3 KPIs - DETP"
+};
+
+// Calculate total unread notifications for popup subjects
+ViewBag.PopupUnreadNotifications = ViewBag.UnreadNotifications?
+    .Where(n => popupSubjects.Contains(n.Key))
+    .Sum(n => n.Value) ?? 0;
+
+
+
+
 <div class="col-sm-4">
     <a href="#popup1" class="position-relative">
         <div class="card l-bg-blue-dark">
