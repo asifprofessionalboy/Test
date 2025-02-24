@@ -1,258 +1,98 @@
-using Dapper;
-using System.Data;
+    
+<asp:Chart ID="Chart2" runat="server" Height="400px" Width="600px" Visible = "true" >
+    <Titles>
+        <asp:Title  Name="Items" Text="WAGES FOR LEVEL 2"/>
+    </Titles> 
+    <Legends>
+        <asp:Legend Alignment="Center" Docking="Bottom" IsTextAutoFit="False" Name="Default" LegendStyle="Row" />
+    </Legends>
+    <Series>
+        <asp:Series Name="Default" ChartType="Pie" IsValueShownAsLabel="true" />
+    </Series>
+    <ChartAreas>
+        <asp:ChartArea Name="ChartArea1" BorderWidth="0" />
+      
+    </ChartAreas>
+    </asp:Chart>
 
-public IActionResult Dashboard()
-{
-    var sessionUser = HttpContext.Session.GetString("Session");
-    if (sessionUser != null)
-    {
-        var subjects = context.AppSubjectMasters.ToList();
-        ViewBag.Subjects = subjects;
 
-        // SQL query to count unread notifications for the logged-in user
-        string query = @"
-            SELECT Subject, COUNT(*) AS UnreadCount
-            FROM AppNotification
-            WHERE Pno = @pno AND IsViewed = 0
-            GROUP BY Subject";
 
-        using (var connection = context.Database.GetDbConnection())
+        private void Bindchart_wagesL2()
         {
-            connection.Open();
-            var unreadNotifications = connection.Query<(string Subject, int UnreadCount)>(
-                query,
-                new { pno = sessionUser }
-            ).ToDictionary(x => x.Subject, x => x.UnreadCount);
+            SqlConnection con = new SqlConnection(System.Web.Configuration.WebConfigurationManager.ConnectionStrings["connect"].ConnectionString);
+            con.Open();
+            string strSQL = string.Empty;
+            strSQL = "select (select count(*) as Application_Count1 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 1 and status = 'Pending With L2 Level') as DaysCount1, " +
+                     "(select count(*) as Application_Count2 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 2 and status = 'Pending With L2 Level' ) as DaysCount2, (select count(*) as Application_Count3 from App_Online_Wages " +
+                     "where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 3 and status = 'Pending With L2 Level' ) as DaysCount3, (select count(*) as Application_Count3 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) > 3  and status = 'Pending With L2 Level' ) as DaysCountGreater3";
+            SqlCommand cmd = new SqlCommand(strSQL);
+            cmd.Connection = con;
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            DataSet ds2 = new DataSet();
+            da.Fill(ds2);
+            cmd.ExecuteNonQuery();
 
-            ViewBag.UnreadNotifications = unreadNotifications;
+
+            Chart2.Series["Default"].Points.Clear();
+            
+            if (ds2.Tables[0].Rows.Count > 0)
+            {
+
+                //Chart2.Series["Default"].Points
+                //.Where(p => p.YValues[0] == 0)
+                //.ToList()
+                //.ForEach(p => p.Label = "");
+
+                DataRow row = ds2.Tables[0].Rows[0];
+                DataPoint dp1 = new DataPoint();
+                dp1.YValues = new double[] { Convert.ToInt32(row["DaysCount1"]) };
+                //dp1.Label = "#VALX - #VALY";
+                dp1.LegendText = "1 Pending \n Days - " + row["DaysCount1"].ToString();
+                Chart2.Series["Default"].Points.Add(dp1);
+
+                DataPoint dp2 = new DataPoint();
+                dp2.YValues = new double[] { Convert.ToInt32(row["DaysCount2"]) };
+                //dp2.Label = "#VALX - #VALY";
+                dp2.LegendText = "2 Pending \nDays - " + row["DaysCount2"].ToString();
+                Chart2.Series["Default"].Points.Add(dp2);
+
+                DataPoint dp3 = new DataPoint();
+                dp3.YValues = new double[] { Convert.ToInt32(row["DaysCount3"]) };
+                //dp3.Label = "#VALX - #VALY";
+                dp3.LegendText = "3 Pending \n  Days - " + row["DaysCount3"].ToString();
+                Chart2.Series["Default"].Points.Add(dp3);
+
+                DataPoint dp4 = new DataPoint();
+                dp4.YValues = new double[] { Convert.ToInt32(row["DaysCountGreater3"]) };
+                //dp4.Label = "#VALX - #VALY";
+                dp4.LegendText = "More than 3\n Pending Days - " + row["DaysCountGreater3"].ToString();
+                Chart2.Series["Default"].Points.Add(dp4);
+
+
+                foreach(DataPoint point in Chart2.Series["Default"].Points)
+                {
+                    if(point.YValues[0]==0)
+                    {
+                        point.Label = "";
+                    }
+                    else
+                    {
+                        point.Label = "#VALY";
+                    }
+
+                }
+
+            }
+
+            Chart2.Series["Default"].ChartType = SeriesChartType.Pie;
+            Chart2.Series["Default"].IsValueShownAsLabel = true;
+            //Chart2.ChartAreas["ChartArea1"].Area3DStyle.Enable3D = true;
+            //Chart2.Series["Default"]["PieLabelStyle"] = "Outside";
+            //Chart2.Series["Default"]["Font"] = "Areal, 8pt";
+            Chart2.Legends[0].Enabled = true;
+
+            con.Close();
+
+
         }
 
-        return View();
-    }
-    else
-    {
-        return RedirectToAction("Login", "User");
-    }
-}
-
-
-<div class="col-sm-4">
-    <a asp-action="ViewerForm" asp-route-MD="MD Communication pack" class="position-relative">
-        <div class="card l-bg-cyan-dark position-relative">
-            
-            @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("MD Communication pack"))
-            {
-                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
-                    @ViewBag.UnreadNotifications["MD Communication pack"]
-                </span>
-            }
-
-            <div class="card-statistic-3 p-4">
-                <div class="">
-                    <h6 class="card-title mb-0 head">
-                        MD Communication pack
-                    </h6>
-                </div>
-            </div>
-        </div>
-    </a>
-</div>
-
-<div class="col-sm-4">
-    <a asp-action="ViewerForm" asp-route-Flash="Flash Report" class="position-relative">
-        <div class="card l-bg-purple-dark position-relative">
-            
-            @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("Flash Report"))
-            {
-                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
-                    @ViewBag.UnreadNotifications["Flash Report"]
-                </span>
-            }
-
-            <div class="card-statistic-3 p-4">
-                <div class="">
-                    <h6 class="card-title mb-0 head">
-                        Flash Report
-                    </h6>
-                </div>
-            </div>
-        </div>
-    </a>
-</div>
-
-
-
-
-
-public IActionResult Dashboard()
-{
-    var sessionUser = HttpContext.Session.GetString("Session");
-    if (sessionUser != null)
-    {
-        var subjects = context.AppSubjectMasters.ToList();
-        ViewBag.Subjects = subjects;
-
-        // Fetch unread notifications count for each subject for the logged-in user
-        var unreadNotifications = context.AppNotifications
-            .Where(n => n.Pno == sessionUser && n.IsViewed == false)
-            .GroupBy(n => n.Subject)
-            .Select(g => new
-            {
-                Subject = g.Key,
-                Count = g.Count()
-            })
-            .ToDictionary(x => x.Subject, x => x.Count);
-
-        ViewBag.UnreadNotifications = unreadNotifications;
-
-        return View();
-    }
-    else
-    {
-        return RedirectToAction("Login", "User");
-    }
-}
-
-
-
-<div class="col-sm-4">
-    <a asp-action="ViewerForm" asp-route-MD="MD Communication pack" class="position-relative">
-        <div class="card l-bg-cyan-dark position-relative">
-            
-            <!-- Badge for Unread Notifications -->
-            @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("MD Communication pack"))
-            {
-                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
-                    @ViewBag.UnreadNotifications["MD Communication pack"]
-                </span>
-            }
-
-            <div class="card-statistic-3 p-4">
-                <div class="">
-                    <h6 class="card-title mb-0 head">
-                        MD Communication pack
-                    </h6>
-                </div>
-            </div>
-        </div>
-    </a>
-</div>
-
-<div class="col-sm-4">
-    <a asp-action="ViewerForm" asp-route-Flash="Flash Report" class="position-relative">
-        <div class="card l-bg-purple-dark position-relative">
-            
-            <!-- Badge for Unread Notifications -->
-            @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("Flash Report"))
-            {
-                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
-                    @ViewBag.UnreadNotifications["Flash Report"]
-                </span>
-            }
-
-            <div class="card-statistic-3 p-4">
-                <div class="">
-                    <h6 class="card-title mb-0 head">
-                        Flash Report
-                    </h6>
-                </div>
-            </div>
-        </div>
-    </a>
-</div>
-
-
-
-
-i have this model for Notification
-public partial class AppNotification
-{
-    public Guid Id { get; set; }
-    public string? RefNo { get; set; }
-    public string? Pno { get; set; }
-    public string? Subject { get; set; }
-    public string? ChildSubject { get; set; }
-    public bool? IsViewed { get; set; }
-}
-
-this is my controller method
-
-public IActionResult Dashboard()
-{
-	if (HttpContext.Session.GetString("Session") != null)
-	{
-		var subjects = context.AppSubjectMasters.ToList();
-		ViewBag.Subjects = subjects;
-
-
-
-
-		return View();
-	}
-	else
-	{
-		return RedirectToAction("Login", "User");
-	}
-}
-
-i have this cards 
-<div class="col-sm-4">
-        <a asp-action="ViewerForm" asp-route-MD="MD Communication pack" class="position-relative">
-            <div class="card l-bg-cyan-dark position-relative">
-              
-                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
-                    10
-                </span>
-
-                <div class="card-statistic-3 p-4">
-                    <div class="">
-                        <h6 class="card-title mb-0 head" name="MD">
-                            MD Communication pack
-                        </h6>
-                    </div>
-                    <div class="row align-items-center mb-4 d-flex">
-                        <div class="col-8">
-                            <h7 class="d-flex align-items-center mb-1">
-                            </h7>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </a>
-   
-</div>
-
-    <div class="col-sm-4">
-
-        <a asp-action="ViewerForm" asp-route-Flash="Flash Report" class="position-relative">
-            <div class="card l-bg-purple-dark position-relative">
-                <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
-                    10
-                </span>
-                <div class="card-statistic-3 p-4">
-
-                    <div class="">
-                        <h6 class="card-title mb-0 head">
-
-                            Flash Report
-
-                        </h6>
-                    </div>
-                    <div class="row align-items-center mb-4 d-flex">
-                        <div class="col-8">
-                            <h7 class="d-flex align-items-center mb-1">
-
-                            </h7>
-                        </div>
-
-                    </div>
-
-                </div>
-            </div>
-        </a>
-
-
-    </div>
-
-
-in this i want that i want to count Subject which is zero and shows on notification badge for each subject differently , and for each pno who is login 
