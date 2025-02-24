@@ -1,3 +1,85 @@
+public async Task<IActionResult> ViewerForm(Guid? id, int page = 1, string SearchMonth = "", string FinYear = "", params string[] subjects)
+{
+    if (HttpContext.Session.GetString("Session") != null)
+    {
+        string sessionPno = HttpContext.Session.GetString("Session"); 
+        
+        string connectionString = GetConnectionString();
+        using (IDbConnection connection = new SqlConnection(connectionString))
+        {
+            // Filter out empty subject values
+            var subjectList = subjects.Where(s => !string.IsNullOrEmpty(s)).ToList();
+
+            if (subjectList.Any()) 
+            {
+                string updateQuery = @"
+                    UPDATE App_Notification 
+                    SET IsViewed = 1 
+                    WHERE Subject IN @Subjects AND Pno = @Pno";
+
+                await connection.ExecuteAsync(updateQuery, new { Subjects = subjectList, Pno = sessionPno });
+            }
+        }
+
+        int pageSize = 5;
+        var query = context.AppTechnicalServices.OrderByDescending(x => x.RefNo).AsQueryable();
+
+        var Dept = GetDepartmentDD();
+        ViewBag.Department = Dept;
+
+        var Month = GetMonthDD();
+        ViewBag.Month = Month;
+
+        var subjectDDs = GetSubjectDD();
+        ViewBag.Subjects = subjectDDs;
+
+        // Apply subject filters dynamically
+        if (subjects.Any(s => !string.IsNullOrEmpty(s)))
+        {
+            query = query.Where(a => subjects.Contains(a.Subject));
+        }
+
+        if (!string.IsNullOrEmpty(FinYear) && FinYear != "Select Fin Year")
+        {
+            query = query.Where(a => a.FinYear.Contains(FinYear));
+        }
+
+        if (!string.IsNullOrEmpty(SearchMonth))
+        {
+            query = query.Where(a => a.Month.Contains(SearchMonth));
+        }
+
+        var pagedData = query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var totalCount = query.Count();
+
+        ViewBag.ListData2 = pagedData;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        ViewBag.SearchMonth = SearchMonth;
+        ViewBag.FinYear = FinYear;
+
+        if (id.HasValue)
+        {
+            var model = await context.AppTechnicalServices.FindAsync(id.Value);
+            if (model == null)
+            {
+                return NotFound();
+            }
+
+            return View(model);
+        }
+
+        return View(new AppTechnicalService());
+    }
+    else
+    {
+        return RedirectToAction("Login", "User");
+    }
+}
+
+
+
+
 is there any issue in this code , iwant for All subject when clicking on cards 
 
 	public async Task<IActionResult> ViewerForm(Guid? id, int page = 1, string Bidding = "", string Bi2nd = "",  string Bi4th = "",  string BDWeek = "", string L2 = "", string Flash = "", string Exception = "", string SearchMonth = "", string FinYear = "",string DETP="",string MD="",string BE="",string Admin = "")
