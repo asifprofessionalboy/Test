@@ -1,3 +1,55 @@
+using Dapper;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using System.Data;
+using System.Threading.Tasks;
+
+public class YourController : Controller
+{
+    private readonly string _connectionString;
+
+    public YourController(IConfiguration configuration)
+    {
+        _connectionString = configuration.GetConnectionString("DefaultConnection");
+    }
+
+    public async Task<IActionResult> ViewerForm(string MD = "")
+    {
+        if (HttpContext.Session.GetString("Session") != null)
+        {
+            string sessionPno = HttpContext.Session.GetString("SessionPno"); // Get Pno from session
+
+            if (!string.IsNullOrEmpty(MD))
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    string updateQuery = @"
+                        UPDATE AppNotification 
+                        SET IsViewed = 1 
+                        WHERE Subject = @Subject AND Pno = @Pno";
+
+                    await connection.ExecuteAsync(updateQuery, new { Subject = MD, Pno = sessionPno });
+                }
+            }
+
+            // Fetch and return the view data as before
+            var viewModel = new AppTechnicalService
+            {
+                Attach = new List<IFormFile>(),
+            };
+
+            return View(viewModel);
+        }
+        else
+        {
+            return RedirectToAction("Login", "User");
+        }
+    }
+}
+
+
+
+
 this is my model   
 public partial class AppNotification
   {
