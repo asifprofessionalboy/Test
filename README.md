@@ -1,3 +1,26 @@
+<div class="col-sm-4">
+    <a href="#popup1" class="position-relative">
+        <div class="card l-bg-blue-dark">
+            <div class="card-statistic-3 p-4">
+                <div class="mb-4">
+                    <h6 class="card-title mb-0 head">
+                        KPIs
+                    </h6>
+                </div>
+            </div>
+        </div>
+        @if (ViewBag.TotalUnreadNotifications > 0)
+        {
+            <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
+                @ViewBag.TotalUnreadNotifications
+            </span>
+        }
+    </a>
+</div>
+
+
+
+
 this is my popup card , i want notification badge to show in this , count total no. of subjects like this 
 
 <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
