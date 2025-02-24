@@ -1,3 +1,31 @@
+Dictionary<string, string> subjects = new Dictionary<string, string>();
+
+if (!string.IsNullOrEmpty(Bidding)) subjects["Bidding"] = Bidding;
+if (!string.IsNullOrEmpty(DETP)) subjects["DETP"] = DETP;
+if (!string.IsNullOrEmpty(BE)) subjects["BE"] = BE;
+if (!string.IsNullOrEmpty(Admin)) subjects["Admin"] = Admin;
+if (!string.IsNullOrEmpty(MD)) subjects["MD"] = MD;
+if (!string.IsNullOrEmpty(L2)) subjects["L2"] = L2;
+if (!string.IsNullOrEmpty(Flash)) subjects["Flash"] = Flash;
+if (!string.IsNullOrEmpty(Exception)) subjects["Exception"] = Exception;
+if (!string.IsNullOrEmpty(Bi2nd)) subjects["Bi2nd"] = Bi2nd;
+if (!string.IsNullOrEmpty(Bi4th)) subjects["Bi4th"] = Bi4th;
+if (!string.IsNullOrEmpty(BDWeek)) subjects["BDWeek"] = BDWeek;
+
+ViewBag.Subjects = subjects;
+
+@foreach (var subject in ViewBag.Subjects as Dictionary<string, string>)
+{
+    <input type="hidden" name="@subject.Key" value="@subject.Value" />
+}
+
+<div class="card-header text-center" style="background-color:#49477a;color:white;font-weight:bold;">
+    @string.Join(" ", (ViewBag.Subjects as Dictionary<string, string>).Values)
+</div>
+
+
+
+
 for these 
 i want to use subject 
 
