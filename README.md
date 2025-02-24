@@ -1,3 +1,34 @@
+<a asp-action="ViewerForm" asp-route-subjects="MD Communication pack" class="position-relative">
+    <div class="card l-bg-cyan-dark position-relative">
+        @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("MD Communication pack"))
+        {
+            <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
+                @ViewBag.UnreadNotifications["MD Communication pack"]
+            </span>
+        }
+        <div class="card-statistic-3 p-4">
+            <h6 class="card-title mb-0 head">MD Communication pack</h6>
+        </div>
+    </div>
+</a>
+
+<a asp-action="ViewerForm" asp-route-subjects="Flash Report" class="position-relative">
+    <div class="card l-bg-purple-dark position-relative">
+        @if (ViewBag.UnreadNotifications != null && ViewBag.UnreadNotifications.ContainsKey("Flash Report"))
+        {
+            <span class="badge rounded-pill badge-notification bg-danger position-absolute top-0 end-0 m-2">
+                @ViewBag.UnreadNotifications["Flash Report"]
+            </span>
+        }
+        <div class="card-statistic-3 p-4">
+            <h6 class="card-title mb-0 head">Flash Report</h6>
+        </div>
+    </div>
+</a>
+
+
+
+
 public async Task<IActionResult> ViewerForm(Guid? id, int page = 1, string SearchMonth = "", string FinYear = "", params string[] subjects)
 {
     if (HttpContext.Session.GetString("Session") != null)
