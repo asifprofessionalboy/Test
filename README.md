@@ -1,4 +1,31 @@
-using (IDbConnection connection = new SqlConnection(connectionString))
+string updateQuery = @"
+    UPDATE App_Notification 
+    SET IsViewed = 1 
+    WHERE Pno = @Pno 
+    AND Subject IN (@MD, @Bidding, @Bi2nd, @Bi4th, @BDWeek, @L2, @Flash, @Exception, @DETP, @BE, @Admin)";
+
+await connection.ExecuteAsync(updateQuery, new 
+{ 
+    Pno = sessionPno,
+    MD,
+    Bidding,
+    Bi2nd,
+    Bi4th,
+    BDWeek,
+    L2,
+    Flash,
+    Exception,
+    DETP,
+    BE,
+    Admin
+});
+
+
+
+
+using (IDbConnection connection = new 
+
+SqlConnection(connectionString))
 {
     string updateQuery = @"
         UPDATE App_Notification 
