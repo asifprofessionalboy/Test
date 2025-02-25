@@ -1,3 +1,39 @@
+var totalBenefitsQuery = @"SELECT COUNT(*) 
+                           FROM App_Innovation 
+                           WHERE Innovation IS NOT NULL AND Status = 'Approved' 
+                           AND CreatedOn >= @startDate AND CreatedOn <= @endDate";
+int totalBenefits = connection.QuerySingleOrDefault<int>(totalBenefitsQuery, new { startDate, endDate });
+
+if (totalBenefits == 0)
+{
+    ViewBag.totalsafety = 0;
+    ViewBag.totalsustainability = 0;
+    ViewBag.totalothers = 0;
+}
+else
+{
+    var totalSafetyQuery = @"SELECT COUNT(*) 
+                             FROM App_Innovation 
+                             WHERE CreatedOn >= @startDate AND CreatedOn <= @endDate 
+                             AND Innovation LIKE '%safe%' AND Status = 'Approved'";
+    int totalSafety = connection.QuerySingleOrDefault<int>(totalSafetyQuery, new { startDate, endDate });
+
+    var totalSustainQuery = @"SELECT COUNT(*) 
+                              FROM App_Innovation 
+                              WHERE CreatedOn >= @startDate AND CreatedOn <= @endDate 
+                              AND Innovation LIKE '%sustain%' AND Status = 'Approved'";
+    int totalSustain = connection.QuerySingleOrDefault<int>(totalSustainQuery, new { startDate, endDate });
+
+    int totalOthers = totalBenefits - (totalSafety + totalSustain);
+
+    ViewBag.totalsafety = totalSafety;
+    ViewBag.totalsustainability = totalSustain;
+    ViewBag.totalothers = totalOthers;
+}
+
+
+
+
 
 and this is my existing 
 
