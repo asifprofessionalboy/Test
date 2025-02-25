@@ -1,3 +1,41 @@
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="TransactionDate">Transaction Date & Time</label>
+        <div class="input-group">
+            <span class="input-group-text">
+                <i class="fa fa-calendar"></i>
+            </span>
+            <input asp-for="TransactionDate" class="form-control form-control-sm" 
+                   id="TransactionDate" type="text" placeholder="dd/mm/yyyy HH:mm" autocomplete="off">
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- Bootstrap 5 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+<!-- Bootstrap Datetimepicker CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.min.css">
+
+<!-- Moment.js (Required for Datetimepicker) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Bootstrap Datetimepicker JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/js/bootstrap-datetimepicker.min.js"></script>
+
+
+
+
+
 $(document).ready(function () {
     if ($.fn.datetimepicker) {
         console.log("Bootstrap Datetimepicker is loaded!");
