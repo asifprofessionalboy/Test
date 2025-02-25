@@ -1,151 +1,102 @@
-<div class="row">
-    <div class="col-md-6 mb-3">
-        <label for="TransactionDate">Transaction Date & Time</label>
-        <div class="input-group">
-            <span class="input-group-text">
-                <i class="fa fa-calendar"></i>
-            </span>
-            <input asp-for="TransactionDate" class="form-control form-control-sm" 
-                   id="TransactionDate" type="text" placeholder="dd/mm/yyyy HH:mm" autocomplete="off">
-        </div>
-    </div>
-</div>
+i have this cs 
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            Bindchart_wagesL1();
+        }
+
+        private void Bindchart_wagesL1()
+        {
+            SqlConnection con = new SqlConnection(System.Web.Configuration.WebConfigurationManager.ConnectionStrings["connect"].ConnectionString);
+            con.Open();
+            string strSQL = string.Empty;
+            strSQL = "select (select count(*) as Application_Count1 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 1 and status = 'Pending With L1 Level') as DaysCount1, " +
+                     "(select count(*) as Application_Count2 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 2 and status = 'Pending With L1 Level' ) as DaysCount2, (select count(*) as Application_Count3 from App_Online_Wages " +
+                     "where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 3 and status = 'Pending With L1 Level' ) as DaysCount3, (select count(*) as Application_Count3 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) > 3 " +
+                      " and status = 'Pending With L1 Level' ) as DaysCountGreater3";
+            SqlCommand cmd = new SqlCommand(strSQL);
+            cmd.Connection = con;
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            DataSet ds1 = new DataSet();
+            da.Fill(ds1);
+            cmd.ExecuteNonQuery();
 
 
+            con.Close();
 
 
-<!-- Bootstrap 5 CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+      
+}
 
-<!-- Bootstrap Datetimepicker CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.min.css">
+this is my aspx ,
 
-<!-- Moment.js (Required for Datetimepicker) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
+   
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+       <script type="text/javascript">
+        Chart.register(ChartDataLabels);
 
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Bootstrap Datetimepicker JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/js/bootstrap-datetimepicker.min.js"></script>
-
-
-
-
-
-$(document).ready(function () {
-    if ($.fn.datetimepicker) {
-        console.log("Bootstrap Datetimepicker is loaded!");
-
-        // Initialize the datetimepicker
-        $("#TransactionDate").datetimepicker({
-            format: "DD/MM/YYYY HH:mm", // Format: Date & Time
-            showTodayButton: true,
-            sideBySide: true, // Enables side-by-side time selection
-            icons: {
-                time: "fa fa-clock",
-                date: "fa fa-calendar",
-                up: "fa fa-chevron-up",
-                down: "fa fa-chevron-down",
-                previous: "fa fa-chevron-left",
-                next: "fa fa-chevron-right",
-                today: "fa fa-crosshairs",
-                clear: "fa fa-trash",
-                close: "fa fa-times"
+        var pieCtx = document.getElementById('pieChart').getContext('2d');
+        var pieChart = new Chart(pieCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Concept Stage', 'Under Trial', 'Implemented Successfully'],
+                datasets: [{
+                    data: [@ViewBag.totalConcept, @ViewBag.totalTrail, @ViewBag.totalImplementedSuccess],
+        backgroundColor: [
+            '#f9b037',
+            '#5a7bf9',
+            '#ed7b8e'
+        ],
+            borderColor: [
+                '#f9b037',
+                '#5a7bf9',
+                '#ed7b8e'
+            ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+                plugins: {
+                datalabels: {
+                    formatter: (value, context) => {
+                        let total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                        let percentage = ((value / total) * 100).toFixed(1) + '%';
+                        return percentage;
+                    },
+                        color: '#000',
+                            font: {
+                        weight: 'bold',
+                            size: 12
+                    },
+                    anchor: 'center',
+                        align: 'center'
+                }
             }
-        });
 
-        // Ensure the calendar opens when clicking the input field
-        $("#TransactionDate").on("focus click", function () {
-            $(this).datetimepicker("show");
-        });
-    } else {
-        console.error("Bootstrap Datetimepicker is NOT loaded!");
-    }
-});
+        }
 
+    });
+    </script>
+</asp:Content>
+<asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
+    
+     <div class="jumbotron mb-0 pb-0" style=" background-color:#dddddd;margin-top:-50px">
+        <div class="form-inline row">
+                        <div class="form-group col-sm-12 justify-content-center " style="font-size:0.9em">
+               <h5 style="font-size:20px;font-family: 'Montserrat';font-weight: 600">PENDING APPLICATION DASHBOARD 2 </h5>
+              </div>
+          </div>
 
+            <canvas id="pieChart"></canvas>
 
-
-
-var totalBenefitsQuery = @"SELECT COUNT(*) 
-                           FROM App_Innovation 
-                           WHERE Innovation IS NOT NULL AND Status = 'Approved' 
-                           AND CreatedOn >= @startDate AND CreatedOn <= @endDate";
-int totalBenefits = connection.QuerySingleOrDefault<int>(totalBenefitsQuery, new { startDate, endDate });
-
-if (totalBenefits == 0)
-{
-    ViewBag.totalsafety = 0;
-    ViewBag.totalsustainability = 0;
-    ViewBag.totalothers = 0;
-}
-else
-{
-    var totalSafetyQuery = @"SELECT COUNT(*) 
-                             FROM App_Innovation 
-                             WHERE CreatedOn >= @startDate AND CreatedOn <= @endDate 
-                             AND Innovation LIKE '%safe%' AND Status = 'Approved'";
-    int totalSafety = connection.QuerySingleOrDefault<int>(totalSafetyQuery, new { startDate, endDate });
-
-    var totalSustainQuery = @"SELECT COUNT(*) 
-                              FROM App_Innovation 
-                              WHERE CreatedOn >= @startDate AND CreatedOn <= @endDate 
-                              AND Innovation LIKE '%sustain%' AND Status = 'Approved'";
-    int totalSustain = connection.QuerySingleOrDefault<int>(totalSustainQuery, new { startDate, endDate });
-
-    int totalOthers = totalBenefits - (totalSafety + totalSustain);
-
-    ViewBag.totalsafety = totalSafety;
-    ViewBag.totalsustainability = totalSustain;
-    ViewBag.totalothers = totalOthers;
-}
+       
+        </div>
 
 
+    
+</asp:Content>
 
 
-
-and this is my existing 
-
-var totalBenefitsQuery = "select count(*) from App_Innovation where Innovation is not null and Status = 'Approved' and CreatedOn >= @startDate and CreatedOn <= @endDate";
-int totalBenefits = connection.QuerySingleOrDefault<int>(totalBenefitsQuery, new { startDate, endDate });
-
-if (totalBenefits == 0)
-{
-				
-				ViewBag.totalsafety = 0;
-				ViewBag.totalsustainability = 0;
-				ViewBag.totalothers = 0;
-}
-else
-{
-				var totalsafetyQuery = "select Count(*) from App_Innovation where CreatedOn >= @startDate and CreatedOn <= @endDate and Innovation like '%safe%' and Status = 'Approved'";
-				int totalsafety = connection.QuerySingleOrDefault<int>(totalsafetyQuery, new { startDate, endDate });
-
-				int remainingBenefits = totalBenefits - totalsafety;
-
-				string adjustedSustainQuery = "select count(distinct IB.Master_Id) as sustain from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%sustain%' and IB.Master_ID not in (select distinct IB.Master_ID from App_Innovation_Benefits as IB left join App_Innovation as IA on IB.Master_ID = IA.Id where IA.CreatedOn >= @startDate and IA.CreatedOn <= @endDate and IA.Status = 'Approved' and IB.Benefits like '%safe%')";
-				int totalsustain = connection.QuerySingleOrDefault<int>(adjustedSustainQuery, new { startDate, endDate });
-
-				int totalothers = remainingBenefits - totalsustain;
-
-				ViewBag.totalsafety = totalsafety;
-				ViewBag.totalsustainability = totalsustain;
-				ViewBag.totalothers = totalothers;
-}
-
-
-
-i want to implement this query in place of above code , firstly it counts total Innovations and then it counts safe innovations and then sustain and rest is others 
-select count(*) from App_Innovation where Innovation is not null and Status = 'Approved'
-
-select Count(*) from App_Innovation where CreatedOn >= '04-01-2024 00:00:00' and 
-CreatedOn <='03-31-2025 00:00:00' and Innovation  like '%safe%' and Status = 'Approved' 
-
-select count(*) from App_Innovation where  CreatedOn >= '04-01-2024 00:00:00' and 
-CreatedOn <='03-31-2025 00:00:00' and Innovation like '%sustain%' and Status = 'Approved'
-
-
+i want to use chart.js in this , how to send the data from cs to js and shows on chart
