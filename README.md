@@ -1,3 +1,38 @@
+$(document).ready(function () {
+    if ($.fn.datetimepicker) {
+        console.log("Bootstrap Datetimepicker is loaded!");
+
+        // Initialize the datetimepicker
+        $("#TransactionDate").datetimepicker({
+            format: "DD/MM/YYYY HH:mm", // Format: Date & Time
+            showTodayButton: true,
+            sideBySide: true, // Enables side-by-side time selection
+            icons: {
+                time: "fa fa-clock",
+                date: "fa fa-calendar",
+                up: "fa fa-chevron-up",
+                down: "fa fa-chevron-down",
+                previous: "fa fa-chevron-left",
+                next: "fa fa-chevron-right",
+                today: "fa fa-crosshairs",
+                clear: "fa fa-trash",
+                close: "fa fa-times"
+            }
+        });
+
+        // Ensure the calendar opens when clicking the input field
+        $("#TransactionDate").on("focus click", function () {
+            $(this).datetimepicker("show");
+        });
+    } else {
+        console.error("Bootstrap Datetimepicker is NOT loaded!");
+    }
+});
+
+
+
+
+
 var totalBenefitsQuery = @"SELECT COUNT(*) 
                            FROM App_Innovation 
                            WHERE Innovation IS NOT NULL AND Status = 'Approved' 
