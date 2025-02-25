@@ -1,194 +1,128 @@
-using System;
-using System.Data;
-using System.Data.SqlClient;
-using System.Web.UI;
+i have this js 	
+document.getElementById('form2').addEventListener('submit', function (event) {
+		event.preventDefault();
 
-public partial class YourPage : Page
+		var isValid = true;
+		var elements = this.querySelectorAll('input, select, textarea');
+		var actionType = document.getElementById('actionField').value; // Get action type
+
+		elements.forEach(function (element) {
+			if ([
+				'ApprovalFile', 'Id', 'fileInput', 'dropdown-template', 'status', 'remarks',
+				'StatusField', 'Parameterid', 'Paracode', 'created', 'ScoreId', 'scorecode',
+				'actionType', 'daretotry', 'daretotry-dropdown'
+			].includes(element.id)) {
+				return;
+			}
+
+			if (element.value.trim() === '') {
+				isValid = false;
+				element.classList.add('is-invalid');
+			} else {
+				element.classList.remove('is-invalid');
+			}
+		});
+
+		if (isValid) {
+			let message = actionType === "Delete" ? "Data Deleted Successfully" : "Data Saved Successfully";
+			let iconColor = actionType === "Delete" ? "#f34848" : "#28a745";
+
+			Swal.fire({
+				title: message,
+				width: 600,
+				padding: "3em",
+				color: iconColor,
+				background: "#fff",
+				backdrop: `rgba(0,0,123,0.4)`,
+				timer: 3000
+			}).then(() => {
+				this.submit();
+			});
+		}
+	});
+
+	function setAction(actionValue) {
+		document.getElementById('actionField').value = actionValue;
+	}
+this is my method 
+
+[HttpPost]
+public async Task<IActionResult> EditDocument(AppTechnicalService technicalService, string action, string RefNo = "")
 {
-    protected void Page_Load(object sender, EventArgs e)
-    {
-        if (!IsPostBack)
-        {
-            Bindchart_wagesL1();
-        }
-    }
+	if (action == "Delete")
+	{
+		var existingTechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+		if (existingTechnicalService != null)
+		{
+			context.AppTechnicalServices.Remove(existingTechnicalService);
+			await context.SaveChangesAsync();
+			TempData["Message"] = "Document deleted successfully!";
+			return RedirectToAction("EditDocument", "Technical");
+		}
+	}
+	else if (action == "Save")
+	{
+		if (ModelState.IsValid)
+		{
+			var existingTechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+			if (existingTechnicalService != null)
+			{
+				// If new files are uploaded, replace previous attachments
+				if (technicalService.Attach != null && technicalService.Attach.Any())
+				{
+					var uploadPath = configuration["FileUpload:Path"];
+					var newAttachments = new List<string>();
 
-    private void Bindchart_wagesL1()
-    {
-        string connectionString = System.Web.Configuration.WebConfigurationManager.ConnectionStrings["connect"].ConnectionString;
+					foreach (var file in technicalService.Attach)
+					{
+						if (file.Length > 0)
+						{
+							var uniqueId = Guid.NewGuid().ToString();
+							var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
+							var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+							var fileExtension = Path.GetExtension(file.FileName);
+							var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+							var fullPath = Path.Combine(uploadPath, formattedFileName);
 
-        using (SqlConnection con = new SqlConnection(connectionString))
-        {
-            con.Open();
-            string query = @"
-                SELECT 
-                    (SELECT COUNT(*) FROM App_Online_Wages WHERE DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE()) = 1 AND status = 'Pending With L1 Level') AS DaysCount1,
-                    (SELECT COUNT(*) FROM App_Online_Wages WHERE DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE()) = 2 AND status = 'Pending With L1 Level') AS DaysCount2,
-                    (SELECT COUNT(*) FROM App_Online_Wages WHERE DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE()) = 3 AND status = 'Pending With L1 Level') AS DaysCount3,
-                    (SELECT COUNT(*) FROM App_Online_Wages WHERE DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE()) > 3 AND status = 'Pending With L1 Level') AS DaysCountGreater3";
+							using (var stream = new FileStream(fullPath, FileMode.Create))
+							{
+								await file.CopyToAsync(stream);
+							}
 
-            using (SqlCommand cmd = new SqlCommand(query, con))
-            using (SqlDataAdapter da = new SqlDataAdapter(cmd))
-            {
-                DataTable dt = new DataTable();
-                da.Fill(dt);
+							newAttachments.Add(formattedFileName);
+						}
+					}
 
-                if (dt.Rows.Count > 0)
-                {
-                    string chartData = $"{dt.Rows[0]["DaysCount1"]},{dt.Rows[0]["DaysCount2"]},{dt.Rows[0]["DaysCount3"]},{dt.Rows[0]["DaysCountGreater3"]}";
-                    HiddenChartData.Value = chartData; // Store in HiddenField
-                }
-            }
-        }
-    }
+					// Replace old attachments with new ones
+					existingTechnicalService.Attachment = string.Join(",", newAttachments);
+				}
+
+				// Preserve existing attachments if no new file is uploaded
+				if (technicalService.Attach == null || !technicalService.Attach.Any())
+				{
+					technicalService.Attachment = existingTechnicalService.Attachment;
+				}
+
+				var CreatedBy = HttpContext.Session.GetString("Session");
+				existingTechnicalService.CreatedBy = CreatedBy;
+				existingTechnicalService.CreatedOn = DateTime.Now;
+
+				// Update other fields
+				existingTechnicalService.RefNo = RefNo;
+				existingTechnicalService.FinYear = technicalService.FinYear;
+				existingTechnicalService.Month = technicalService.Month;
+				existingTechnicalService.Department = technicalService.Department;
+				existingTechnicalService.Subject = technicalService.Subject;
+
+				await context.SaveChangesAsync();
+				TempData["Message"] = "Document updated successfully!";
+			}
+		}
+	}
+
+	return RedirectToAction("EditDocument", "Technical");
 }
 
-<asp:HiddenField ID="HiddenChartData" runat="server" />
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-<script type="text/javascript">
-    Chart.register(ChartDataLabels);
-
-    document.addEventListener("DOMContentLoaded", function () {
-        var hiddenField = document.getElementById('<%= HiddenChartData.ClientID %>').value;
-        var chartData = hiddenField.split(',').map(Number); // Convert string to array of numbers
-
-        var pieCtx = document.getElementById('pieChart').getContext('2d');
-        var pieChart = new Chart(pieCtx, {
-            type: 'pie',
-            data: {
-                labels: ['1 Day', '2 Days', '3 Days', '> 3 Days'],
-                datasets: [{
-                    data: chartData,
-                    backgroundColor: ['#f9b037', '#5a7bf9', '#ed7b8e', '#76c893'],
-                    borderColor: ['#f9b037', '#5a7bf9', '#ed7b8e', '#76c893'],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    datalabels: {
-                        formatter: (value, context) => {
-                            let total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                            let percentage = ((value / total) * 100).toFixed(1) + '%';
-                            return percentage;
-                        },
-                        color: '#000',
-                        font: { weight: 'bold', size: 12 },
-                        anchor: 'center',
-                        align: 'center'
-                    }
-                }
-            }
-        });
-    });
-</script>
+in this for delete i want a confirm message, when i click on confirm then data is deleted shows 
 
 
-
-
-
-i have this cs 
-        protected void Page_Load(object sender, EventArgs e)
-        {
-            Bindchart_wagesL1();
-        }
-
-        private void Bindchart_wagesL1()
-        {
-            SqlConnection con = new SqlConnection(System.Web.Configuration.WebConfigurationManager.ConnectionStrings["connect"].ConnectionString);
-            con.Open();
-            string strSQL = string.Empty;
-            strSQL = "select (select count(*) as Application_Count1 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 1 and status = 'Pending With L1 Level') as DaysCount1, " +
-                     "(select count(*) as Application_Count2 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 2 and status = 'Pending With L1 Level' ) as DaysCount2, (select count(*) as Application_Count3 from App_Online_Wages " +
-                     "where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) = 3 and status = 'Pending With L1 Level' ) as DaysCount3, (select count(*) as Application_Count3 from App_Online_Wages where (DATEDIFF(DAY, ISNULL(ReSubmitedOn, CREATEDON), GETDATE())) > 3 " +
-                      " and status = 'Pending With L1 Level' ) as DaysCountGreater3";
-            SqlCommand cmd = new SqlCommand(strSQL);
-            cmd.Connection = con;
-            SqlDataAdapter da = new SqlDataAdapter(cmd);
-            DataSet ds1 = new DataSet();
-            da.Fill(ds1);
-            cmd.ExecuteNonQuery();
-
-
-            con.Close();
-
-
-      
-}
-
-this is my aspx ,
-
-<asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-   
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-       <script type="text/javascript">
-        Chart.register(ChartDataLabels);
-
-        var pieCtx = document.getElementById('pieChart').getContext('2d');
-        var pieChart = new Chart(pieCtx, {
-            type: 'pie',
-            data: {
-                labels: ['Concept Stage', 'Under Trial', 'Implemented Successfully'],
-                datasets: [{
-                    data: [@ViewBag.totalConcept, @ViewBag.totalTrail, @ViewBag.totalImplementedSuccess],
-        backgroundColor: [
-            '#f9b037',
-            '#5a7bf9',
-            '#ed7b8e'
-        ],
-            borderColor: [
-                '#f9b037',
-                '#5a7bf9',
-                '#ed7b8e'
-            ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-                plugins: {
-                datalabels: {
-                    formatter: (value, context) => {
-                        let total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                        let percentage = ((value / total) * 100).toFixed(1) + '%';
-                        return percentage;
-                    },
-                        color: '#000',
-                            font: {
-                        weight: 'bold',
-                            size: 12
-                    },
-                    anchor: 'center',
-                        align: 'center'
-                }
-            }
-
-        }
-
-    });
-    </script>
-</asp:Content>
-<asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
-    
-     <div class="jumbotron mb-0 pb-0" style=" background-color:#dddddd;margin-top:-50px">
-        <div class="form-inline row">
-                        <div class="form-group col-sm-12 justify-content-center " style="font-size:0.9em">
-               <h5 style="font-size:20px;font-family: 'Montserrat';font-weight: 600">PENDING APPLICATION DASHBOARD 2 </h5>
-              </div>
-          </div>
-
-            <canvas id="pieChart"></canvas>
-
-       
-        </div>
-
-
-    
-</asp:Content>
-
-
-i want to use chart.js in this , how to send the data from cs to js and shows on chart
