@@ -1,3 +1,71 @@
+document.getElementById('form2').addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    var isValid = true;
+    var elements = this.querySelectorAll('input, select, textarea');
+    var actionType = document.getElementById('actionField').value; // Get action type
+
+    elements.forEach(function (element) {
+        if ([
+            'ApprovalFile', 'Id', 'fileInput', 'dropdown-template', 'status', 'remarks',
+            'StatusField', 'Parameterid', 'Paracode', 'created', 'ScoreId', 'scorecode',
+            'actionType', 'daretotry', 'daretotry-dropdown'
+        ].includes(element.id)) {
+            return;
+        }
+
+        if (element.value.trim() === '') {
+            isValid = false;
+            element.classList.add('is-invalid');
+        } else {
+            element.classList.remove('is-invalid');
+        }
+    });
+
+    if (isValid) {
+        if (actionType === "Delete") {
+            // Show confirmation popup for delete
+            Swal.fire({
+                title: "Are you sure?",
+                text: "You won't be able to revert this!",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#d33",
+                cancelButtonColor: "#3085d6",
+                confirmButtonText: "Yes, delete it!"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: "Deleted!",
+                        text: "Data Deleted Successfully",
+                        icon: "success",
+                        timer: 3000
+                    }).then(() => {
+                        event.target.submit(); // Submit the form after confirmation
+                    });
+                }
+            });
+        } else {
+            // Success message for saving data
+            Swal.fire({
+                title: "Data Saved Successfully",
+                icon: "success",
+                timer: 3000
+            }).then(() => {
+                event.target.submit(); // Submit the form for saving
+            });
+        }
+    }
+});
+
+// Function to set the action type dynamically
+function setAction(actionValue) {
+    document.getElementById('actionField').value = actionValue;
+}
+
+
+
+
 i have this js 	
 document.getElementById('form2').addEventListener('submit', function (event) {
 		event.preventDefault();
