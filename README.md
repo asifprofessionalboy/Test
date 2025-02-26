@@ -1,3 +1,88 @@
+<form asp-action="UserPermission_Button" asp-controller="User" method="post">
+    <fieldset class="mt-2" style="border:1px solid #bfbebe;padding:5px 20px;border-radius:6px">
+        <legend class="legend"><b>Select Permission for the User</b></legend>
+        <div class="form" id="formContainer" style="display:none;">
+            <div class="w-100 border" style="overflow:auto;height:250px;">
+                <table class="table-hover table-responsive-sm" cellspacing="0" cellpadding="4" style="color:#333;width:100%;border-collapse:collapse;">
+                    <tbody>
+                        <tr style="color:White;background-color:#49477a;font-size:Smaller;font-weight:bold;">
+                            <th align="left" scope="col">Form Name</th>
+                            <th>Read</th>
+                            <th>Create</th>
+                            <th>Modify</th>
+                            <th>Delete</th>
+                            <th>All</th>
+                        </tr>
+
+                        @if (ViewBag.formList != null)
+                        {
+                            var formList = ViewBag.formList as List<AppFormDetail>;
+                            int rowIndex = 0;
+
+                            @foreach (var form in formList)
+                            {
+                                string bgColor = (rowIndex % 2 == 1 && rowIndex != 0) ? "#e3dff3" : "transparent";
+                                <tr style="color:#333;background-color:@bgColor;font-size:Smaller;">
+                                    <td>
+                                        <span>@form.Description</span>
+                                        <input type="hidden" name="FormPermissions[@rowIndex].FormId" value="@form.Id" />
+                                    </td>
+                                    <td><input type="checkbox" name="FormPermissions[@rowIndex].AllowRead" value="true"></td>
+                                    <td><input type="checkbox" name="FormPermissions[@rowIndex].AllowWrite" value="true"></td>
+                                    <td><input type="checkbox" name="FormPermissions[@rowIndex].AllowModify" value="true"></td>
+                                    <td><input type="checkbox" name="FormPermissions[@rowIndex].AllowDelete" value="true"></td>
+                                    <td><input type="checkbox" name="FormPermissions[@rowIndex].AllowAll" value="true"></td>
+                                </tr>
+                                rowIndex++;
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="row m-0 justify-content-center mt-2">
+                <input type="hidden" name="UserId" id="UserId" value="" />
+                <input type="submit" value="Save" id="MainContent_btnSave" class="btn btn-primary btn-sm ">
+            </div>
+        </div>
+    </fieldset>
+</form>
+
+[HttpPost]
+public IActionResult UserPermission_Button(Guid UserId, List<AppUserFormPermission> FormPermissions)
+{
+    if (UserId == Guid.Empty || FormPermissions == null)
+    {
+        TempData["Error"] = "Invalid user or no permissions selected.";
+        return RedirectToAction("UserPermission");
+    }
+
+    // Remove existing permissions for the user (optional, if needed)
+    var existingPermissions = context.AppUserFormPermissions.Where(x => x.UserId == UserId).ToList();
+    if (existingPermissions.Any())
+    {
+        context.AppUserFormPermissions.RemoveRange(existingPermissions);
+    }
+
+    // Add new permissions
+    foreach (var permission in FormPermissions)
+    {
+        if (permission.AllowRead || permission.AllowWrite || permission.AllowModify || permission.AllowDelete || permission.AllowAll)
+        {
+            permission.UserId = UserId; // Assign the UserId
+            permission.FormId = permission.FormId; // Ensure FormId is set
+
+            context.AppUserFormPermissions.Add(permission);
+        }
+    }
+
+    context.SaveChanges(); // Save changes to the database
+
+    TempData["Success"] = "Permissions saved successfully.";
+    return RedirectToAction("UserPermission");
+}
+
+
+
 i have this model 
 
     public partial class AppUserFormPermission
