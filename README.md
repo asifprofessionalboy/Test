@@ -1,3 +1,29 @@
+var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("Pno").addEventListener("input", function () {
+        var pno = this.value;
+        var user = pnoEnameList.find(u => u.Pno === pno);
+
+        if (user) {
+            document.getElementById("Name").value = user.Ename;
+            document.getElementById("formContainer").style.display = "block";
+        } else {
+            document.getElementById("Name").value = "";
+            document.getElementById("formContainer").style.display = "none";
+
+            // Uncheck all checkboxes
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+    });
+});
+
+ 
+ 
+ 
+ 
  @if (ViewBag.formList != null)
  {
      var formList = ViewBag.formList as List<AppFormDetail>;
