@@ -1,3 +1,21 @@
+using (var connection = context1.Database.GetDbConnection()) // Use context1 for DB connection
+{
+    string query = @"
+        SELECT 
+            e.Pno, 
+            e.Id, 
+            e.Ename, 
+            l.UserId 
+        FROM AppEmployeeMasters e
+        LEFT JOIN AppLogin l ON e.Id = l.Id";
+
+    var PnoEnameList = connection.Query(query).ToList();
+    ViewBag.PnoEnameList = PnoEnameList;
+}
+
+
+
+
 var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
 
 document.addEventListener("DOMContentLoaded", function () {
