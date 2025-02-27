@@ -1,3 +1,44 @@
+var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("Pno").addEventListener("input", function () {
+        var pno = this.value;
+        var user = pnoEnameList.find(u => u.Pno === pno);
+
+        if (user) {
+            document.getElementById("Name").value = user.Ename;
+            document.getElementById("UserId").value = user.UserId; // Set UserId from AppLogin
+            
+            document.getElementById("formContainer").style.display = "block";
+        } else {
+            document.getElementById("Name").value = "";
+            document.getElementById("UserId").value = "";
+            document.getElementById("formContainer").style.display = "none";
+
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+    });
+});
+
+
+
+var PnoEnameList = (from emp in context1.AppEmployeeMasters
+                    join login in context1.AppLogins on emp.Id equals login.Id
+                    select new
+                    {
+                        Pno = emp.Pno,
+                        Id = emp.Id,
+                        Ename = emp.Ename,
+                        UserId = login.UserId // Fetching UserId from AppLogin
+                    }).ToList();
+
+ViewBag.PnoEnameList = PnoEnameList;
+
+
+
+
 i have this js 
 
   var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
