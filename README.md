@@ -1,122 +1,149 @@
-using (var connection = context1.Database.GetDbConnection()) // Use context1 for DB connection
-{
-    string query = @"
-        SELECT 
-            e.Pno, 
-            e.Id, 
-            e.Ename, 
-            l.UserId 
-        FROM AppEmployeeMasters e
-        LEFT JOIN AppLogin l ON e.Id = l.Id";
+this is my polygon js
+<script>
+    function OnOff() {
 
-    var PnoEnameList = connection.Query(query).ToList();
-    ViewBag.PnoEnameList = PnoEnameList;
-}
+        var punchIn = document.getElementById('PunchIn');
+        var punchOut = document.getElementById('PunchOut');
+
+        punchIn.disabled = true;//to be seen
+        punchOut.disabled = true;
+
+        punchIn.classList.add("disabled");
+        punchOut.classList.add("disabled");
 
 
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    const roundTo = (num, places) => +(Math.round(num + "e" + places) + "e-" + places);
+                    const lat = roundTo(position.coords.latitude,6);
+                    const long = roundTo(position.coords.longitude,6);
 
+                    
 
-var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
+                    const loc = @Html.Raw(Json.Serialize(ViewBag.PolyData));
 
-document.addEventListener("DOMContentLoaded", function () {
-    document.getElementById("Pno").addEventListener("input", function () {
-        var pno = this.value;
-        var user = pnoEnameList.find(u => u.Pno === pno);
+                        // loc.forEach(loc => {
+                        //     console.log(loc);
+                        // });
 
-        if (user) {
-            document.getElementById("Name").value = user.Ename;
-            document.getElementById("UserId").value = user.UserId; // Set UserId from AppLogin
-            
-            document.getElementById("formContainer").style.display = "block";
-        } else {
-            document.getElementById("Name").value = "";
-            document.getElementById("UserId").value = "";
-            document.getElementById("formContainer").style.display = "none";
+                    let isInsidePolygon = false;
+                    loc.forEach(polygon => {
+                        if (IspointInPolygon({ latitude: lat, longitude: long }, polygon)) {
+                            isInsidePolygon = true;
+                            
+                        }
+                    });
+                    if (isInsidePolygon) {
+                        punchIn.disabled = false;//to be seen
+                        punchOut.disabled = false;
 
-            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                checkbox.checked = false;
-            });
+                        punchIn.classList.remove("disabled");
+                        punchOut.classList.remove("disabled");
+                    }
+                    else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Oops...",
+                            text: "You are not in range of location of your attendance!"
+                        });
+
+                        punchIn.disabled = true;//to be disabled
+                        punchOut.disabled = true;
+
+                        punchIn.classList.add("disabled");
+                        punchOut.classList.add("disabled");
+                    }
+                    
+                },
+                function (error) {
+                    alert('Error fetching location' + error.message);
+                }
+            );
         }
-    });
-});
+        else{
+            alert("Geo location is not supported by this browser");
+        }
+    }
+    function IspointInPolygon(point, polygon) {
+       
+        let x = point.latitude, y = point.longitude;
+        let inside = false;
+        console.log(polygon);
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          
+            let xi = polygon[i].latitude;
+           
+            let yi = polygon[i].Longitude;
+           
+            let xj = polygon[j].latitude;
+           
+            let yj = polygon[j].Longitude;
+            
+            let intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+ 
+            if (intersect) {
+                inside = !inside;
+            }
+        }
+       
+        return inside;
+    }
+        
+      
+        
+    window.onload = OnOff;
+
+</script>
+
+this is my method 
+
+   public IActionResult GetLocations()
+   {
+
+       var UserId = HttpContext.Request.Cookies["Session"];
+       string connectionString = GetConnectionString();
+       string query = @"select ps.Worksite from GEOFENCEDB.DBO.App_Position_Worksite as ps 
+                           inner join GEOFENCEDB.DBO.App_Emp_position as es on es.position = ps.position 
+                           where es.Pno = '" + UserId + "'";
+
+       using (var connection = new SqlConnection(connectionString))
+       {
+           string locations = connection.QuerySingleOrDefault<string>(query);
+
+           string s = locations;
+           s = "'" + s;
+
+           s = s.Replace(",", "','");
+           s = s + "'";
+
+           string query2 = @"select Longitude,Latitude from GEOFENCEDB.DBO.App_LocationMaster 
+                                 where work_site in (" + s + ")";
 
 
+           var locations2 = connection.Query<Location>(query2).ToList();
 
-var PnoEnameList = (from emp in context1.AppEmployeeMasters
-                    join login in context1.AppLogins on emp.Id equals login.Id
-                    select new
-                    {
-                        Pno = emp.Pno,
-                        Id = emp.Id,
-                        Ename = emp.Ename,
-                        UserId = login.UserId // Fetching UserId from AppLogin
-                    }).ToList();
+           var polygons = new List<List<Dictionary<string, double>>>();
 
-ViewBag.PnoEnameList = PnoEnameList;
+           var polygon = new List<Dictionary<string, double>>();
 
+           foreach(var location in locations2)
+           {
+               polygon.Add(new Dictionary<string, double>
+               {
+                   {"latitude",(double)location.Latitude },
+                   {"Longitude",(double)location.Longitude },
+               });
+           }
+           polygons.Add(polygon);
+           ViewBag.PolyData = polygons;
 
-
-
-i have this js 
-
-  var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
-
-  document.addEventListener("DOMContentLoaded", function () {
-      document.getElementById("Pno").addEventListener("input", function () {
-          var pno = this.value;
-          var user = pnoEnameList.find(u => u.Pno === pno);
-
-          if (user) {
-              document.getElementById("Name").value = user.Ename;
-              
-              document.getElementById("formContainer").style.display = "block";
-              document.getElementById("UserId").value = user.Id;
-          } else {
-              document.getElementById("Name").value = "";
-              document.getElementById("UserId").value = "";
-              document.getElementById("formContainer").style.display = "none";
-
-              
-              document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                  checkbox.checked = false;
-              });
-          }
-      });
-  });
-
-this is my controller logic 
-
- var PnoEnameList = context1.AppEmployeeMasters
-        .Select(x => new
-        {
-            Pno = x.Pno,
-            Id = x.Id,
-            Ename = x.Ename,
-        })
-        .ToList();
- ViewBag.PnoEnameList = PnoEnameList;
+           return View();
+       }
 
 
-and this is my form  <div class="col-md-2 mb-1">
-     <input type="number" id="Pno" class="form-control form-control-sm" placeholder="Max 6 digits" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" maxlength="6" autocomplete="off">
- </div>
- <div class="col-md-1 mb-1">
-     <label class="control-label">User Name:</label>
- </div>
- <div class="col-md-3 mb-1">
-     <input type="text" readonly id="Name" class="form-control form-control-sm">
- </div>  
+   }
 
 
-
-in this i want a logic that when user input the pno in id pno it fetches the loginId from App_login place in hidden field
-
-this is my login model and my hidden field
-
- public partial class AppLogin
- {
-     public Guid Id { get; set; }
-     public string UserId { get; set; } = null!;
-     public string Password { get; set; } = null!;
-}
- <input type="hidden" id="UserId" name="UserId" />
+i want to change logic of js to circle with harvesine not polygon ,
+please make this issue free and best logic to implement location 
