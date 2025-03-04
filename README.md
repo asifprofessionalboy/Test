@@ -1,210 +1,143 @@
-<script>
-    function OnOff() {
-        var punchIn = document.getElementById('PunchIn');
-        var punchOut = document.getElementById('PunchOut');
+i have this two buttons 
 
-        punchIn.disabled = true;
-        punchOut.disabled = true;
-        punchIn.classList.add("disabled");
-        punchOut.classList.add("disabled");
+<form asp-action="GeoFencing" id="form" asp-controller="Geo" >
+<div class="row mt-5 form-group" style="margin-top:50%;">
+    <div class="col d-flex justify-content-center ">
+        <button class="Btn form-group" id="PunchIn">
+            Punch In
+        </button>
+    </div>
 
-        Swal.fire({
-            title: 'Please wait...',
-            text: 'Fetching your current location.',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
+        <div class="col d-flex justify-content-center form-group">
+            <button class="Btn2 form-group" id="PunchOut" style="">
+                Punch Out
+            </button>
+            </div>
+</div>
+</form>
 
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function (position) {
-                    Swal.close(); 
+and this is my action method 
+ [HttpPost]
+ protected IActionResult DataSaved()
+ {
+  
+     try
+     {
+        
+     }
+     catch (Exception ex)
+     {
 
-                    // Get user's current location
-                    const lat = roundTo(position.coords.latitude, 6);
-                    const lon = roundTo(position.coords.longitude, 6);
-
-                    const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
-                    console.log(locations);
-
-                    let isInsideRadius = false;
-                    let minDistance = Number.MAX_VALUE; // Store minimum distance
-
-                    locations.forEach((location) => {
-                        const allowedRange = parseFloat(location.range || location.Range);
-                        const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
-                        console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
-
-                        if (distance <= allowedRange) {
-                            isInsideRadius = true;
-                        } else {
-                            minDistance = Math.min(minDistance, distance); // Track nearest distance
-                        }
-                    });
-
-                    if (isInsideRadius) {
-                        punchIn.disabled = false;
-                        punchOut.disabled = false;
-                        punchIn.classList.remove("disabled");
-                        punchOut.classList.remove("disabled");
-                        Swal.fire({
-                            title: 'Within Range',
-                            text: 'You are within the allowed range for attendance.',
-                            icon: 'success'
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: "error",
-                            title: "Out of Range",
-                            text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
-                        });
-                    }
-                },
-                function (error) {
-                    Swal.close();
-                    alert('Error fetching location: ' + error.message);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-        } else {
-            Swal.close();
-            alert("Geolocation is not supported by this browser");
-        }
-    }
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000; 
-        const toRad = angle => (angle * Math.PI) / 180;
-        let dLat = toRad(lat2 - lat1);
-        let dLon = toRad(lon2 - lon1);
-        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    function roundTo(num, places) {
-        return +(Math.round(num + "e" + places) + "e-" + places);
-    }
-
-    window.onload = OnOff;
-</script>
-
-
-
-
-<script>
-    function OnOff() {
-        var punchIn = document.getElementById('PunchIn');
-        var punchOut = document.getElementById('PunchOut');
-
-       
-        punchIn.disabled = true;
-        punchOut.disabled = true;
-        punchIn.classList.add("disabled");
-        punchOut.classList.add("disabled");
-
-      
-        Swal.fire({
-            title: 'Please wait...',
-            text: 'Fetching your current location.',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function (position) {
-                    Swal.close(); 
-
-                    // const lat = roundTo(position.coords.latitude, 6);
-                    // const lon = roundTo(position.coords.longitude, 6);
-
-                    const lat = 22.79675;
-                    const lon = 86.183915;
-                   
-
-                    const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
-                    console.log(locations);
-
-                    let isInsideRadius = false;
-                    locations.forEach((location) => {
-                        const allowedRange = parseFloat(location.range || location.Range);
-                        const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
-                        console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
+     }
     
+ }
+  
+i want to use this below code in Dapper , when i punch in it executes if(tm!=null) if i punch out it executes tmout
 
-
-                        if (distance <= allowedRange) {
-                            isInsideRadius = true;
-                        }
-                    });
-
-                    if (isInsideRadius) {
-                        punchIn.disabled = false;
-                        punchOut.disabled = false;
-                        punchIn.classList.remove("disabled");
-                        punchOut.classList.remove("disabled");
-                        Swal.fire({
-                            title: 'Within Range',
-                            text: 'You are within the allowed range for attendance.',
-                            icon: 'success'
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: "error",
-                            title: "Out of Range",
-                            text: "You are not within the allowed location range for attendance!"
-                        });
-                    }
-                },
-                function (error) {
-                    Swal.close();
-                    alert('Error fetching location: ' + error.message);
-                },
+ protected void StoreData(string ddMMyy, string tm, string tmOut, string Pno, string EntryType)
+        {
+            if (Convert.ToDateTime(ddMMyy).Month == System.DateTime.Now.Month)
+            {
+                int intTm = 0;
+                int intTmout = 0;
+                ArrayList insquery = new ArrayList();
+                
+                try
                 {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-        } else {
-            Swal.close();
-            alert("Geolocation is not supported by this browser");
-        }
-    }
+                    if (tm != "")
+                    {
+                        string[] strtm;
+                        strtm = tm.Split(':');
 
+                        intTm = Convert.ToInt32(strtm[0]) * 60 + Convert.ToInt32(strtm[1]);
+
+                        OracleCommand cmd = new OracleCommand("INSERT INTO T_TRBDGDAT_EARS (TRBDGDA_BD_DATE,TRBDGDA_BD_TIME,TRBDGDA_BD_INOUT,TRBDGDA_BD_READER,TRBDGDA_BD_CHKHS,TRBDGDA_BD_SUBAREA,TRBDGDA_BD_PNO) " +
+                                                "VALUES (:TRBDGDA_BD_DATE,:TRBDGDA_BD_TIME,:TRBDGDA_BD_INOUT,:TRBDGDA_BD_READER,:TRBDGDA_BD_CHKHS,:TRBDGDA_BD_SUBAREA,:TRBDGDA_BD_PNO)");
+
+                        
+                       // cmd.Parameters.Add(":TRBDGDA_BD_DATE", ddMMyy);
+                        cmd.Parameters.Add(":TRBDGDA_BD_DATE", ddMMyy);
+                        cmd.Parameters.Add(":TRBDGDA_BD_TIME", intTm);
+                        cmd.Parameters.Add(":TRBDGDA_BD_INOUT", "I");
+                        cmd.Parameters.Add(":TRBDGDA_BD_READER", "2");
+                        cmd.Parameters.Add(":TRBDGDA_BD_CHKHS", "2");
+                        cmd.Parameters.Add(":TRBDGDA_BD_SUBAREA", "JUSC12");
+                        cmd.Parameters.Add(":TRBDGDA_BD_PNO", Pno); //.Substring(2, 6)
+                        insquery.Add(cmd);
+
+                        cmd = new OracleCommand("INSERT INTO rfidjusco.T_TRPUNCHDATA_EARS (PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_PSRNO) " +
+                                                "VALUES (:PDE_PUNCHDATE,:PDE_PUNCHTIME,:PDE_INOUT,:PDE_MACHINEID,:PDE_READERNO,:PDE_CHKHS,:PDE_SUBAREA,:PDE_PSRNO)");
+                        cmd.Parameters.Add(":PDE_PUNCHDATE", ddMMyy);
+                        cmd.Parameters.Add(":PDE_PUNCHTIME", tm);
+                        cmd.Parameters.Add(":PDE_INOUT", "I");
+                        cmd.Parameters.Add(":PDE_MACHINEID", "2");
+                        cmd.Parameters.Add(":PDE_READERNO", "2");
+                        cmd.Parameters.Add(":PDE_CHKHS", "2");
+                        cmd.Parameters.Add(":PDE_SUBAREA", "JUSC12");
+                        cmd.Parameters.Add(":PDE_PSRNO", Pno); //.Substring(2, 6)
+                        insquery.Add(cmd);
+
+                        cmd = new OracleCommand("INSERT INTO rfidview.T_TRPUNCHDATA_EARS_HIS (PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_PSRNO,REMARKS,CREATEDBY,REFNO) " +
+                                               "VALUES (:PDE_PUNCHDATE,:PDE_PUNCHTIME,:PDE_INOUT,:PDE_MACHINEID,:PDE_READERNO,:PDE_CHKHS,:PDE_SUBAREA,:PDE_PSRNO,:REMARKS,:CREATEDBY,:REFNO)");
+                        cmd.Parameters.Add(":PDE_PUNCHDATE", ddMMyy);
+                        cmd.Parameters.Add(":PDE_PUNCHTIME", tm);
+                        cmd.Parameters.Add(":PDE_INOUT", "I");
+                        cmd.Parameters.Add(":PDE_MACHINEID", "2");
+                        cmd.Parameters.Add(":PDE_READERNO", "2");
+                        cmd.Parameters.Add(":PDE_CHKHS", "2");
+                        cmd.Parameters.Add(":PDE_SUBAREA", "JUSC12");
+                        cmd.Parameters.Add(":PDE_PSRNO", Pno);//.Substring(2, 6)
+                        cmd.Parameters.Add(":REMARKS", EntryType);
+                        cmd.Parameters.Add(":CREATEDBY", Session["UserName"].ToString());
+                        cmd.Parameters.Add(":REFNO", "");
+                        insquery.Add(cmd);
+                        ExecuteNonQuery(insquery, true);
+                    }
+                    if (tmOut != "")
+                    {
+                        ArrayList insquery1 = new ArrayList();
+                        string[] strtm;
+                        strtm = tmOut.Split(':');
+
+                        intTm = Convert.ToInt32(strtm[0]) * 60 + Convert.ToInt32(strtm[1]);
+
+                        OracleCommand cmd = new OracleCommand("INSERT INTO T_TRBDGDAT_EARS (TRBDGDA_BD_DATE,TRBDGDA_BD_TIME,TRBDGDA_BD_INOUT,TRBDGDA_BD_READER,TRBDGDA_BD_CHKHS,TRBDGDA_BD_SUBAREA,TRBDGDA_BD_PNO) " +
+                                               "VALUES (:TRBDGDA_BD_DATE,:TRBDGDA_BD_TIME,:TRBDGDA_BD_INOUT,:TRBDGDA_BD_READER,:TRBDGDA_BD_CHKHS,:TRBDGDA_BD_SUBAREA,:TRBDGDA_BD_PNO)");
+                        cmd.Parameters.Add(":TRBDGDA_BD_DATE", ddMMyy);
+                        cmd.Parameters.Add(":TRBDGDA_BD_TIME", intTm);
+                        cmd.Parameters.Add(":TRBDGDA_BD_INOUT", "I");
+                        cmd.Parameters.Add(":TRBDGDA_BD_READER", "2");
+                        cmd.Parameters.Add(":TRBDGDA_BD_CHKHS", "2");
+                        cmd.Parameters.Add(":TRBDGDA_BD_SUBAREA", "JUSC12");
+                        cmd.Parameters.Add(":TRBDGDA_BD_PNO", Pno); //.Substring(2, 6)
+                        insquery1.Add(cmd);
+                        // for out time suggested by Promod on 23/07/2017
+                        cmd = new OracleCommand("INSERT INTO rfidjusco.T_TRPUNCHDATA_EARS (PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_PSRNO) " +
+                                               "VALUES (:PDE_PUNCHDATE,:PDE_PUNCHTIME,:PDE_INOUT,:PDE_MACHINEID,:PDE_READERNO,:PDE_CHKHS,:PDE_SUBAREA,:PDE_PSRNO)");
+                        cmd.Parameters.Add(":PDE_PUNCHDATE", ddMMyy);
+                        cmd.Parameters.Add(":PDE_PUNCHTIME", tmOut);
+                        cmd.Parameters.Add(":PDE_INOUT", "I");
+                        cmd.Parameters.Add(":PDE_MACHINEID", "2");
+                        cmd.Parameters.Add(":PDE_READERNO", "2");
+                        cmd.Parameters.Add(":PDE_CHKHS", "2");
+                        cmd.Parameters.Add(":PDE_SUBAREA", "JUSC12");
+                        cmd.Parameters.Add(":PDE_PSRNO", Pno); //.Substring(2, 6)
+                        insquery1.Add(cmd);
+
+                        cmd = new OracleCommand("INSERT INTO rfidview.T_TRPUNCHDATA_EARS_HIS (PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_PSRNO,REMARKS,CREATEDBY,REFNO) " +
+                                               "VALUES (:PDE_PUNCHDATE,:PDE_PUNCHTIME,:PDE_INOUT,:PDE_MACHINEID,:PDE_READERNO,:PDE_CHKHS,:PDE_SUBAREA,:PDE_PSRNO,:REMARKS,:CREATEDBY,:REFNO)");
+                        cmd.Parameters.Add(":PDE_PUNCHDATE", ddMMyy);
+                        cmd.Parameters.Add(":PDE_PUNCHTIME", tmOut);
+                        cmd.Parameters.Add(":PDE_INOUT", "I");
+                        cmd.Parameters.Add(":PDE_MACHINEID", "2");
+                        cmd.Parameters.Add(":PDE_READERNO", "2");
+                        cmd.Parameters.Add(":PDE_CHKHS", "2");
+                        cmd.Parameters.Add(":PDE_SUBAREA", "JUSC12");
+                        cmd.Parameters.Add(":PDE_PSRNO", Pno);//.Substring(2, 6)
+                        cmd.Parameters.Add(":REMARKS", EntryType);
+                        cmd.Parameters.Add(":CREATEDBY", Session["UserName"].ToString());
+                        cmd.Parameters.Add(":REFNO", "");
+                        insquery1.Add(cmd);
+                        //****************************END*******************
+                        ExecuteNonQuery(insquery1, true);
     
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000; 
-        const toRad = angle => (angle * Math.PI) / 180;
-        let dLat = toRad(lat2 - lat1);
-        let dLon = toRad(lon2 - lon1);
-        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    function roundTo(num, places) {
-        return +(Math.round(num + "e" + places) + "e-" + places);
-    }
-
-    window.onload = OnOff;
-</script>
-
-in this js if the user is out of range then it shows how much meters he far from range, if the user's range is 50m and user's is in 150m then shows to user that you are far or the distance in this  Swal.fire({
-                            icon: "error",
-                            title: "Out of Range",
-                            text: "You are not within the allowed location range for attendance!"
-                        });
