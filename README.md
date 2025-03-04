@@ -1,4 +1,48 @@
- var hiddenField2 = document.getElementById('<%= HiddenChartData2.ClientID %>').value;
+var pieCtx2 = document.getElementById('pieChart2').getContext('2d');
+var pieChart2 = new Chart(pieCtx2, {
+    type: 'pie',
+    data: {
+        labels: filteredLabels,
+        datasets: [{
+            data: filteredData,
+            backgroundColor: filteredColors,
+            borderColor: filteredColors,
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false, // Allow chart to resize dynamically
+        layout: {
+            padding: 20 // Add padding for better spacing
+        },
+        plugins: {
+            legend: {
+                display: true,
+                position: 'bottom', // Move legend below the chart
+                labels: {
+                    boxWidth: 12,
+                    padding: 9
+                }
+            },
+            datalabels: {
+                anchor: 'end',
+                align: 'start',
+                color: '#000',
+                font: {
+                    weight: 'bold'
+                }
+            }
+        }
+    }
+});
+
+ 
+ 
+ 
+ 
+ var hiddenField2 = 
+ document.getElementById('<%= HiddenChartData2.ClientID %>').value;
         var chartData2 = hiddenField2.split(',').map(Number); // Convert string to array of numbers
 
         var labels = ['1 Pending Day', '2 Pending Day', '3 Pending Day', 'More Than 3 pending Day'];
