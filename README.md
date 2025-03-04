@@ -1,4 +1,20 @@
-var pieCtx2 = document.getElementById('pieChart2').getContext('2d');
+.chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 400px; /* Adjust as needed */
+    height: 300px; /* Maintain a fixed height */
+}
+
+canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+
+
+ var pieCtx2 = document.getElementById('pieChart2').getContext('2d');
 var pieChart2 = new Chart(pieCtx2, {
     type: 'pie',
     data: {
