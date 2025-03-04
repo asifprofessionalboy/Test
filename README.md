@@ -1,3 +1,27 @@
+<form asp-action="GeoFencing" id="form" asp-controller="Geo" method="post">
+    <input type="hidden" name="EntryType" id="EntryType" />
+
+    <div class="row mt-5 form-group" style="margin-top:50%;">
+        <div class="col d-flex justify-content-center ">
+            <button type="submit" class="Btn form-group" id="PunchIn" onclick="setEntryType('Punch In')">
+                Punch In
+            </button>
+        </div>
+
+        <div class="col d-flex justify-content-center form-group">
+            <button type="submit" class="Btn2 form-group" id="PunchOut" onclick="setEntryType('Punch Out')">
+                Punch Out
+            </button>
+        </div>
+    </div>
+</form>
+
+function setEntryType(type) {
+    document.getElementById("EntryType").value = type;
+}
+
+
+
 [HttpPost]
 public IActionResult GeoFencing(string entryType)
 {
