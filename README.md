@@ -1,74 +1,56 @@
-using Dapper;
-using System.Data;
-using System.Data.SqlClient; // Use Oracle.ManagedDataAccess.Client for Oracle
+this is my chart.js 
+    Chart.register(ChartDataLabels);
+    document.addEventListener("DOMContentLoaded", function ()
 
-public void StoreData(string ddMMyy, string tm, string tmOut, string Pno, string EntryType)
-{
-    using (var connection = new SqlConnection("Your_Connection_String"))
     {
-        connection.Open();
-        
-        if (!string.IsNullOrEmpty(tm))
-        {
-            var query = @"
-                INSERT INTO T_TRBDGDAT_EARS 
-                (TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER, 
-                 TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA, TRBDGDA_BD_PNO) 
-                VALUES 
-                (@TRBDGDA_BD_DATE, @TRBDGDA_BD_TIME, @TRBDGDA_BD_INOUT, @TRBDGDA_BD_READER, 
-                 @TRBDGDA_BD_CHKHS, @TRBDGDA_BD_SUBAREA, @TRBDGDA_BD_PNO)";
+        var hiddenField1 = document.getElementById('<%= HiddenChartData1.ClientID %>').value;
+        var chartData1 = hiddenField1.split(',').map(Number); // Convert string to array of numbers
 
-            var parameters = new
+        var pieCtx1 = document.getElementById('pieChart1').getContext('2d');
+        var pieChart1 = new Chart(pieCtx1, {
+            type: 'pie',
+            data: {
+                labels: ['1 Pending Day', '2 Pending Day', '3 Pending Day', 'More Than 3 pending Day'],
+
+                datasets: [{
+                    data: chartData1,
+                    backgroundColor: ['#f9b037', '#5a7bf9', '#ed7b8e', '#76c893'],
+                    borderColor: ['#f9b037', '#5a7bf9', '#ed7b8e', '#76c893'],
+                    borderWidth: 1
+                }]
+            },
+            options:
             {
-                TRBDGDA_BD_DATE = ddMMyy,
-                TRBDGDA_BD_TIME = ConvertTimeToMinutes(tm),
-                TRBDGDA_BD_INOUT = "I",
-                TRBDGDA_BD_READER = "2",
-                TRBDGDA_BD_CHKHS = "2",
-                TRBDGDA_BD_SUBAREA = "JUSC12",
-                TRBDGDA_BD_PNO = Pno
-            };
+                responsive: true,
+                plugins: {
 
-            connection.Execute(query, parameters);
-        }
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align:'start',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 9,
+                            //usePointStyle: true,
+                        }
 
-        if (!string.IsNullOrEmpty(tmOut))
-        {
-            var queryOut = @"
-                INSERT INTO T_TRBDGDAT_EARS 
-                (TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER, 
-                 TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA, TRBDGDA_BD_PNO) 
-                VALUES 
-                (@TRBDGDA_BD_DATE, @TRBDGDA_BD_TIME, @TRBDGDA_BD_INOUT, @TRBDGDA_BD_READER, 
-                 @TRBDGDA_BD_CHKHS, @TRBDGDA_BD_SUBAREA, @TRBDGDA_BD_PNO)";
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'start',
+                        color: '#000',
+                        font: {
+                            weight: 'bold'
 
-            var parametersOut = new
-            {
-                TRBDGDA_BD_DATE = ddMMyy,
-                TRBDGDA_BD_TIME = ConvertTimeToMinutes(tmOut),
-                TRBDGDA_BD_INOUT = "O",
-                TRBDGDA_BD_READER = "2",
-                TRBDGDA_BD_CHKHS = "2",
-                TRBDGDA_BD_SUBAREA = "JUSC12",
-                TRBDGDA_BD_PNO = Pno
-            };
+                        }
 
-            connection.Execute(queryOut, parametersOut);
-        }
-    }
-}
+                    }
+                }
+            }
 
-// Convert HH:mm format to total minutes
-private int ConvertTimeToMinutes(string time)
-{
-    var parts = time.Split(':');
-    return (Convert.ToInt32(parts[0]) * 60) + Convert.ToInt32(parts[1]);
-}
+            
 
 
+        });
 
-
-{
-  "success": false,
-  "message": "Incorrect syntax near ':'."
-}
+in this there is three 4 value is coming 0,0,17,0 . i want that value is 0 then dont show on piechart
