@@ -1,114 +1,31 @@
-.chart-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    max-width: 400px; /* Adjust as needed */
-    height: 300px; /* Maintain a fixed height */
-}
+this is my two query 
 
-canvas {
-    max-width: 100%;
-    max-height: 100%;
-}
+select PDE_PUNCHTIME as PunchIn from vbdesk_ACPL.dbo.T_TRPUNCHDATA_EARS  where PDE_INOUT like '%I%' and PDE_PunchDate >='2025-04-03'
 
+select PDE_PUNCHTIME as PunchOut from T_TRPUNCHDATA_EARS  where PDE_INOUT like '%O%' and PDE_PunchDate >='2025-04-03'  
 
+i want to use these 2 query in my report , one to show PunchIn And One is to show PunchOut
 
- var pieCtx2 = document.getElementById('pieChart2').getContext('2d');
-var pieChart2 = new Chart(pieCtx2, {
-    type: 'pie',
-    data: {
-        labels: filteredLabels,
-        datasets: [{
-            data: filteredData,
-            backgroundColor: filteredColors,
-            borderColor: filteredColors,
-            borderWidth: 1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false, // Allow chart to resize dynamically
-        layout: {
-            padding: 20 // Add padding for better spacing
-        },
-        plugins: {
-            legend: {
-                display: true,
-                position: 'bottom', // Move legend below the chart
-                labels: {
-                    boxWidth: 12,
-                    padding: 9
-                }
-            },
-            datalabels: {
-                anchor: 'end',
-                align: 'start',
-                color: '#000',
-                font: {
-                    weight: 'bold'
-                }
-            }
-        }
-    }
-});
+ private DataTable GetStudentData()
+        {
+           
+            string query = "select * from T_TRPUNCHDATA_EARS where PDE_PunchDate >='2025-04-03'";
 
- 
- 
- 
- 
- var hiddenField2 = 
- document.getElementById('<%= HiddenChartData2.ClientID %>').value;
-        var chartData2 = hiddenField2.split(',').map(Number); // Convert string to array of numbers
+           
+            DataTable dt = new DataTable();
 
-        var labels = ['1 Pending Day', '2 Pending Day', '3 Pending Day', 'More Than 3 pending Day'];
-        var filteredData = [];
-        var filteredLabels = [];
-        var filteredColors = [];
-        var colors = ['#f9b037', '#5a7bf9', '#ed7b8e', '#76c893'];
-
-        for (var i = 0; i < chartData2.length; i++) {
-            if (chartData2[i] !== 0) {
-                filteredData.push(chartData2[i]);
-                filteredLabels.push(labels[i]);
-                filteredColors.push(colors[i]);
-            }
-        }
-
-        var pieCtx2 = document.getElementById('pieChart2').getContext('2d');
-        var pieChart2 = new Chart(pieCtx2, {
-            type: 'pie',
-            data: {
-                labels: filteredLabels,
-                datasets: [{
-                    data: filteredData,
-                    backgroundColor: filteredColors,
-                    borderColor: filteredColors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        align: 'start',
-                        labels: {
-                            boxWidth: 12,
-                            padding: 9
-                        }
-                    },
-                    datalabels: {
-                        anchor: 'end',
-                        align: 'start',
-                        color: '#000',
-                        font: {
-                            weight: 'bold'
-                        }
+           
+            using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
+            {
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+                    {
+                        
+                        sda.Fill(dt);
                     }
                 }
             }
-        });
 
-i have two chartjs , let one has 3 legends and one has 2 legends , because of legend increasing chart size is small for that 3 , i want that it is responsive 
+            return dt;
+        }
