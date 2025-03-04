@@ -1,3 +1,65 @@
+[HttpPost]
+public IActionResult GeoFencing(string entryType)
+{
+    try
+    {
+        string currentDate = DateTime.Now.ToString("dd-MM-yyyy");
+        string currentTime = DateTime.Now.ToString("HH:mm"); // Current time in HH:mm format
+        string Pno = "123456"; // Get from session or user identity
+        string remarks = entryType == "PunchIn" ? "Entry" : "Exit";
+
+        if (entryType == "PunchIn")
+        {
+            StoreData(currentDate, currentTime, null, Pno, remarks);
+        }
+        else if (entryType == "PunchOut")
+        {
+            StoreData(currentDate, null, currentTime, Pno, remarks);
+        }
+
+        return Json(new { success = true, message = $"{entryType} recorded successfully!" });
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+private void StoreData(string ddMMyy, string tm, string tmOut, string Pno, string EntryType)
+{
+    using (var connection = new OracleConnection("Your_Oracle_Connection_String"))
+    {
+        connection.Open();
+
+        if (!string.IsNullOrEmpty(tm))
+        {
+            int intTm = Convert.ToInt32(tm.Split(':')[0]) * 60 + Convert.ToInt32(tm.Split(':')[1]);
+
+            string query = @"INSERT INTO T_TRBDGDAT_EARS (TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER, 
+                            TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA, TRBDGDA_BD_PNO) 
+                            VALUES (:Date, :Time, 'I', '2', '2', 'JUSC12', :Pno)";
+
+            connection.Execute(query, new { Date = ddMMyy, Time = intTm, Pno });
+        }
+
+        if (!string.IsNullOrEmpty(tmOut))
+        {
+            int intTmOut = Convert.ToInt32(tmOut.Split(':')[0]) * 60 + Convert.ToInt32(tmOut.Split(':')[1]);
+
+            string query = @"INSERT INTO T_TRBDGDAT_EARS (TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER, 
+                            TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA, TRBDGDA_BD_PNO) 
+                            VALUES (:Date, :Time, 'O', '2', '2', 'JUSC12', :Pno)";
+
+            connection.Execute(query, new { Date = ddMMyy, Time = intTmOut, Pno });
+        }
+    }
+}
+
+
+
+
+
+
 i have this two buttons 
 
 <form asp-action="GeoFencing" id="form" asp-controller="Geo" >
