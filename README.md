@@ -1,3 +1,26 @@
+function redirectToIframePage() {
+    var iframeUrl = encodeURIComponent("https://servicesdev.juscoltd.com/AttendanceReport/Webform1.aspx");
+    window.location.href = "/Geo/AttendanceReport?url=" + iframeUrl;
+}
+
+
+public IActionResult AttendanceReport(string url)
+{
+    if (string.IsNullOrEmpty(url))
+    {
+        return RedirectToAction("Login", "User"); // Handle unauthorized access
+    }
+
+    ViewBag.ReportUrl = url; // Pass URL to the view
+    return View();
+}
+
+<div class="container">
+    <iframe src="@ViewBag.ReportUrl" width="100%" height="600px" frameborder="0" class="report"></iframe>
+</div>
+
+
+
 this is my report url 
 
 https://servicesdev.juscoltd.com/AttendanceReport/webform1
