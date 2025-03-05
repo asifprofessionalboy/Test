@@ -1,4 +1,24 @@
-<!DOCTYPE html>
+
+@{
+    var iframeUrl = Context.Request.Query["url"]; // Get the URL from the query string
+}
+
+<iframe src="@iframeUrl" width="800" height="500" style="border: 1px solid black;"></iframe>
+
+
+<
+<button onclick="redirectToIframePage()">Go to iFrame Page</button>
+
+<script>
+    function redirectToIframePage() {
+        var iframeUrl = encodeURIComponent("https://www.example.com"); // Replace with your URL
+        window.location.href = "/YourController/IframeView?url=" + iframeUrl;
+    }
+</script>
+
+
+
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
