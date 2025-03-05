@@ -1,46 +1,37 @@
-this is my query in my report 
- private DataTable GetAttendanceData()
-        {
-            string query = @"
-       select PDE_PUNCHDATE,
-min(case when PDE_INOUT like '%I%' then PDE_PUNCHTIME end ) as punchintime,
-max(case when PDE_INOUT like '%O%' then PDE_PUNCHTIME end) as Punchouttime
-from vbdesk_ACPL.dbo.T_TRPUNCHDATA_EARS  where PDE_PSRNO = '151514'
-group by PDE_PUNCHDATE order by PDE_PUNCHDATE DESC
-    ";
+this is my report url 
 
-            DataTable dt = new DataTable();
+https://servicesdev.juscoltd.com/AttendanceReport/webform1
 
-            using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
-            {
-                using (SqlCommand cmd = new SqlCommand(query, con))
-                {
-                    using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
-                    {
-                        sda.Fill(dt);
-                    }
-                }
-            }
+this is my view method when clicking on button 
 
-            return dt;
-        }
-
-this is my view method in my another Application ,
-
- public IActionResult AttendanceReport()
+ 
+public IActionResult AttendanceReport()
  {
-     if (HttpContext.Session.GetString("Session") != null)
-     {
-
-     }
-     else
-     {
-         return RedirectToAction("Login", "User");
-     }
+    
      return View();
  }
-and i am calling the report using Iframe , i want to make this dynamic using session, which of the user login in query it sets the pno
- where PDE_PSRNO = '151514'
+
+this is my button 
+<div class="text-center">
+    <button onclick="redirectToIframePage()" class="btn btn-primary mt-2">Check your Attendance</button>
+</div>
+
+this is my script 
+<script>
+    function redirectToIframePage() {
+        var iframeUrl = encodeURIComponent("https://servicesdev.juscoltd.com/AttendanceReport/AttendanceReport/Webform1.aspx"); // Replace with your URL
+       window.location.href = "/Geo/AttendanceReport?url=" + iframeUrl;
+
+        
+    }
+</script>
+
+and this is my iframe 
+
+<div class="container">
+    <iframe src="@iframeUrl" width="100%" height="600px" frameborder="0" class="report"></iframe>
+  
+</div>
 
 
- <iframe src="@iframeUrl" width="100%" height="600px" frameborder="0"></iframe>
+when clicking on button it shows 404 why?
