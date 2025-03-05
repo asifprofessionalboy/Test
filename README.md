@@ -1,90 +1,46 @@
+this is my query in my report 
+ private DataTable GetAttendanceData()
+        {
+            string query = @"
+       select PDE_PUNCHDATE,
+min(case when PDE_INOUT like '%I%' then PDE_PUNCHTIME end ) as punchintime,
+max(case when PDE_INOUT like '%O%' then PDE_PUNCHTIME end) as Punchouttime
+from vbdesk_ACPL.dbo.T_TRPUNCHDATA_EARS  where PDE_PSRNO = '151514'
+group by PDE_PUNCHDATE order by PDE_PUNCHDATE DESC
+    ";
 
-@{
-    var iframeUrl = Context.Request.Query["url"]; // Get the URL from the query string
-}
+            DataTable dt = new DataTable();
 
-<iframe src="@iframeUrl" width="800" height="500" style="border: 1px solid black;"></iframe>
+            using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
+            {
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+                    {
+                        sda.Fill(dt);
+                    }
+                }
+            }
 
-
-<
-<button onclick="redirectToIframePage()">Go to iFrame Page</button>
-
-<script>
-    function redirectToIframePage() {
-        var iframeUrl = encodeURIComponent("https://www.example.com"); // Replace with your URL
-        window.location.href = "/YourController/IframeView?url=" + iframeUrl;
-    }
-</script>
-
-
-
-!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Load iFrame on Button Click</title>
-</head>
-<body>
-
-    <button id="loadIframe">Load iFrame</button>
-    
-    <iframe id="myIframe" width="600" height="400" style="display:none; border: 1px solid #000;"></iframe>
-
-    <script>
-        document.getElementById("loadIframe").addEventListener("click", function() {
-            var iframe = document.getElementById("myIframe");
-            iframe.src = "https://www.example.com"; // Replace with your URL
-            iframe.style.display = "block"; // Show iframe after loading
-        });
-    </script>
-
-</body>
-</html>
-
-
-
-
-const pathname = window.location.pathname.toLowerCase();
-
-let baseUrl = window.location.origin;
-if (pathname.includes('/log_innovation')) {
-    baseUrl += '/Log_Innovation';
-} else if (pathname.includes('/innovation')) {
-    baseUrl += '/Innovation';
-}
-
-const url = `${baseUrl}/Innovation/GetDivisionCount?FinYear4=${finyear}`;
-
-fetch(url)
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+            return dt;
         }
-        return response.json();
-    })
-    .then(data => {
-        console.log(data);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
+
+this is my view method in my another Application ,
+
+ public IActionResult AttendanceReport()
+ {
+     if (HttpContext.Session.GetString("Session") != null)
+     {
+
+     }
+     else
+     {
+         return RedirectToAction("Login", "User");
+     }
+     return View();
+ }
+and i am calling the report using Iframe , i want to make this dynamic using session, which of the user login in query it sets the pno
+ where PDE_PSRNO = '151514'
 
 
-
-
-i have these 3 base url for project , i want to make this dynamic 
-
-const baseUrl = window.location.origin +'/Log_Innovation';
-const baseUrl = window.location.origin +'/Innovation';
-const baseUrl = window.location.origin;
-const url = `${baseUrl}/Innovation/GetDivisionCount?FinYear4=${finyear}`;
-
-       
-fetch(url)
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json();
-    })
+ <iframe src="@iframeUrl" width="100%" height="600px" frameborder="0"></iframe>
