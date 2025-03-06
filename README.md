@@ -1,156 +1,45 @@
-protected void Page_Load(object sender, EventArgs e)
-{
-    if (!IsPostBack)
-    {
-        // Get psrNo from query string
-        string psrNo = Request.QueryString["pno"];
 
-        if (string.IsNullOrEmpty(psrNo))
-        {
-            Response.Write("<script>alert('Invalid request. psrNo is missing.');</script>");
-            return;
-        }
-
-        LoadReport(psrNo); // Pass psrNo to LoadReport
-    }
-}
-
-private void LoadReport(string psrNo)
-{
-    DataTable inoData = GetAttendanceData(psrNo); // Pass psrNo
-
-    ReportViewer1.LocalReport.ReportPath = Server.MapPath("Attendance_Report.rdlc");
-    ReportViewer1.LocalReport.DataSources.Clear();
-
-    ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
-    ReportViewer1.LocalReport.DataSources.Add(rds);
-    
-    ReportViewer1.LocalReport.Refresh();
-}
-
-private DataTable GetAttendanceData(string psrNo)
-{
-    string query = @"
-        SELECT PDE_PUNCHDATE,
-            MIN(CASE WHEN PDE_INOUT LIKE '%I%' THEN PDE_PUNCHTIME END) AS PunchInTime,
-            MAX(CASE WHEN PDE_INOUT LIKE '%O%' THEN PDE_PUNCHTIME END) AS PunchOutTime
-        FROM vbdesk_ACPL.dbo.T_TRPUNCHDATA_EARS  
-        WHERE PDE_PSRNO = @PsrNo
-        GROUP BY PDE_PUNCHDATE 
-        ORDER BY PDE_PUNCHDATE DESC";
-
-    DataTable dt = new DataTable();
-
-    using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
-    {
-        using (SqlCommand cmd = new SqlCommand(query, con))
-        {
-            cmd.Parameters.AddWithValue("@PsrNo", psrNo);
-
-            using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
-            {
-                sda.Fill(dt);
-            }
-        }
-    }
-
-    return dt;
-}
-
-
-this is my report side 
- protected void Page_Load(object sender, EventArgs e)
-        {
-            if (!IsPostBack)
-            {
-               
-                LoadReport();
-            }
-        }
-
-        private void LoadReport()
-        {
-            
-            DataTable inoData = GetAttendanceData();
-
-          
-            ReportViewer1.LocalReport.ReportPath = Server.MapPath("Attendance_Report.rdlc");
-
-           
-            ReportViewer1.LocalReport.DataSources.Clear();
-
-         
-            ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
-
-          
-            ReportViewer1.LocalReport.DataSources.Add(rds);
-
-         
-            ReportViewer1.LocalReport.Refresh();
-        }
-
-        private DataTable GetAttendanceData(string psrNo)
-        {
-            string query = @"
-        SELECT PDE_PUNCHDATE,
-            MIN(CASE WHEN PDE_INOUT LIKE '%I%' THEN PDE_PUNCHTIME END) AS PunchInTime,
-            MAX(CASE WHEN PDE_INOUT LIKE '%O%' THEN PDE_PUNCHTIME END) AS PunchOutTime
-        FROM vbdesk_ACPL.dbo.T_TRPUNCHDATA_EARS  
-        WHERE PDE_PSRNO = @PsrNo
-        GROUP BY PDE_PUNCHDATE 
-        ORDER BY PDE_PUNCHDATE DESC";
-
-            DataTable dt = new DataTable();
-
-            using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
-            {
-                using (SqlCommand cmd = new SqlCommand(query, con))
-                {
-                    cmd.Parameters.AddWithValue("@PsrNo", psrNo);  // Dynamic User ID
-
-                    using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+                    if (((DropDownList)LineWalk_ListRecord.Rows[i].FindControl("Status")).SelectedValue != "Close")
                     {
-                        sda.Fill(dt);
+                        bool hasClosing_Remarks = !string.IsNullOrEmpty(PageRecordDataSet.Tables["App_LineWalk_Details"].Rows[i]["Status"].ToString());
+
+                        {
+                            ((CustomValidator)LineWalk_ListRecord.Rows[i].FindControl("CustomValidator66")).Enabled = !hasClosing_Remarks;
+
+                        }
+
+                        //DropDownList ddlstatus = (DropDownList)LineWalk_ListRecord.Rows[i].FindControl("Status");
+                        //CustomValidator cv = (CustomValidator)LineWalk_ListRecord.Rows[i].FindControl("CustomValidator66");
+                        //if(ddlstatus != null && cv != null)
+                        //{
+                        //    bool isClosing = ddlstatus.SelectedValue == "Close";
+
+                        //    cv.Enabled = isClosing;
+                        //}
+
+
+
                     }
-                }
-            }
 
-            return dt;
-        } ,
 
-        this is in another app view side 
-         public IActionResult AttendanceReport(string url)
- {
-     // Retrieve UserId (PsrNo) from cookies
-     string psrNo = HttpContext.Request.Cookies["Session"]; 
+  <asp:TemplateField HeaderText="Status" SortExpression="Status" HeaderStyle-Width="3%"  >
+                                            <ItemTemplate>
+                                                <asp:DropDownList ID="Status" runat="server" CssClass="form-control form-control-sm"  Width="100%" Font-Size="X-Small" Font-Bold="true" AutoPostBack="true"  OnSelectedIndexChanged="Status_SelectedIndexChanged">
+                                                                <asp:ListItem value="Open">Open</asp:ListItem> 
+                                                                <asp:ListItem value="Close">Close</asp:ListItem> 
+                                                               
+                                                 </asp:DropDownList>
+                                                
+                                            </ItemTemplate>
+                                        </asp:TemplateField>
 
-     if (string.IsNullOrEmpty(psrNo))
-     {
-         return RedirectToAction("Login", "User"); // Redirect if not logged in
-     }
+ <asp:TemplateField HeaderText="Closing Remarks" SortExpression="Remarks" HeaderStyle-Width="8%"  >
+                                            <ItemTemplate>
+                                                <asp:TextBox ID="Closing_Remarks" runat="server" CssClass="form-control form-control-sm"  Width="100%" Font-Size="X-Small" Font-Bold="true" TextMode="MultiLine"   />
+                                                <asp:CustomValidator ID="CustomValidator66" runat="server" ClientValidationFunction="Validate" ValidationGroup="save"  ControlToValidate="Closing_Remarks" ValidateEmptyText="true"></asp:CustomValidator>
+                                        
+                                            </ItemTemplate>
+                                        </asp:TemplateField>
 
-     // If URL is missing, construct Attendance Report URL with PsrNo
-     if (string.IsNullOrEmpty(url))
-     {
-         url = $"https://servicesdev.juscoltd.com/AttendanceReport/Webform1.aspx?pno={psrNo}";
-     }
-     else
-     {
-         url += $"?pno={psrNo}";
-     }
 
-     ViewBag.ReportUrl = url; // Pass URL to View
-     return View();
- }
- <div class="container">
-    <iframe src="@ViewBag.ReportUrl" width="200%" height="600px" frameborder="0" class="report"></iframe>
-</div>
- function redirectToIframePage() {
-     window.location.href = "/GeoFencing/Geo/AttendanceReport";
- }
- <div class="text-center">
-    <button onclick="redirectToIframePage()" class="btn btn-primary mt-2">Check your Attendance</button>
-</div>
-i want only that why i am getting error on Load Report 
-Severity	Code	Description	Project	File	Line	Suppression State
-Error	CS7036	There is no argument given that corresponds to the required formal parameter 'psrNo' of 'WebForm1.GetAttendanceData(string)'	AspNet-Rdlc	C:\Users\AEUPC9300H\Desktop\GeoFencingReport\AspNet-Rdlc\AspNet-Rdlc\WebForm1.aspx.cs	27	Active
+if dropdown value is close then i want to Required the closing remarks if the dropdown value is open , dont validate remarks 
