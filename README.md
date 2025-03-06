@@ -1,3 +1,14 @@
+SELECT 
+    CONVERT(VARCHAR, PDE_PUNCHDATE, 103) AS PDE_PUNCHDATE, -- 103 = dd/MM/yyyy
+    MIN(CASE WHEN PDE_INOUT LIKE '%I%' THEN PDE_PUNCHTIME END) AS PunchInTime,
+    MAX(CASE WHEN PDE_INOUT LIKE '%O%' THEN PDE_PUNCHTIME END) AS PunchOutTime
+FROM vbdesk_ACPL.dbo.T_TRPUNCHDATA_EARS  
+WHERE PDE_PSRNO = @PsrNo
+GROUP BY PDE_PUNCHDATE 
+ORDER BY PDE_PUNCHDATE DESC;
+
+
+
 <asp:TemplateField HeaderText="Status" SortExpression="Status" HeaderStyle-Width="3%">
     <ItemTemplate>
         <asp:DropDownList ID="Status" runat="server" CssClass="form-control form-control-sm"  
