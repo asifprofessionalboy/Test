@@ -1,3 +1,80 @@
+public IActionResult UserPermission()
+{
+    string connectionString = GetConnectionString();
+
+    using (var connection = new SqlConnection(connectionString))
+    {
+        string query = @"
+        SELECT e.Pno, e.Ename, l.Id 
+        FROM userLoginDB.dbo.App_EmployeeMaster e
+        INNER JOIN App_Login l ON e.Pno COLLATE DATABASE_DEFAULT = l.UserId COLLATE DATABASE_DEFAULT";
+
+        var PnoEnameList = connection.Query(query).ToList();
+        ViewBag.PnoEnameList = PnoEnameList;
+    }
+
+    var formList = context.AppFormDetails.Select(x => new AppFormDetail
+    {
+        Id = x.Id,
+        Description = x.Description
+    }).OrderBy(x => x.Description).ToList();
+    ViewBag.formList = formList;
+
+    // Fetch existing user permissions and pass to view
+    var userPermissions = context.AppUserFormPermissions.ToList();
+    ViewBag.UserPermissions = userPermissions;
+
+    return View();
+}
+
+<script>
+    var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
+    var userPermissions = @Html.Raw(JsonConvert.SerializeObject(ViewBag.UserPermissions));
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("Pno").addEventListener("input", function () {
+            var pno = this.value;
+            var user = pnoEnameList.find(u => u.Pno === pno);
+
+            if (user) {
+                document.getElementById("Name").value = user.Ename;
+                document.getElementById("UserId").value = user.Id;
+                document.getElementById("formContainer").style.display = "block";
+
+                // Fetch existing permissions for this user
+                var userPermissionsList = userPermissions.filter(p => p.UserId === user.Id);
+
+                // Reset checkboxes
+                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+
+                // Loop through the permissions and check the corresponding checkboxes
+                userPermissionsList.forEach(permission => {
+                    document.querySelector(`input[name="FormPermissions[][FormId][value='${permission.FormId}']"]`)
+                        ?.closest("tr")?.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                            if (permission.AllowRead && checkbox.name.includes("AllowRead")) checkbox.checked = true;
+                            if (permission.AllowWrite && checkbox.name.includes("AllowWrite")) checkbox.checked = true;
+                            if (permission.AllowModify && checkbox.name.includes("AllowModify")) checkbox.checked = true;
+                            if (permission.AllowDelete && checkbox.name.includes("AllowDelete")) checkbox.checked = true;
+                            if (permission.AllowAll && checkbox.name.includes("AllowAll")) checkbox.checked = true;
+                        });
+                });
+
+            } else {
+                document.getElementById("Name").value = "";
+                document.getElementById("UserId").value = "";
+                document.getElementById("formContainer").style.display = "none";
+
+                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            }
+        });
+    });
+</script>
+
+
 this is my model where data is stored  
 public partial class AppUserFormPermissionViewModel
  {
