@@ -14,6 +14,57 @@ document.addEventListener("DOMContentLoaded", function () {
             var userPermissionsList = userPermissions.filter(p => p.UserId === user.Id);
             console.log(userPermissionsList);
 
+            // Reset all checkboxes before setting new values
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+
+            // Loop through user permissions and check the appropriate checkboxes
+            userPermissionsList.forEach(permission => {
+                // Find the row containing the corresponding FormId
+                let row = document.querySelector(`input[type="hidden"][name^="FormPermissions"][value="${permission.FormId}"]`)?.closest("tr");
+
+                if (row) {
+                    if (permission.AllowRead) row.querySelector('input[name^="FormPermissions"][name*="AllowRead"]').checked = true;
+                    if (permission.AllowWrite) row.querySelector('input[name^="FormPermissions"][name*="AllowWrite"]').checked = true;
+                    if (permission.AllowModify) row.querySelector('input[name^="FormPermissions"][name*="AllowModify"]').checked = true;
+                    if (permission.AllowDelete) row.querySelector('input[name^="FormPermissions"][name*="AllowDelete"]').checked = true;
+                    if (permission.AllowAll) row.querySelector('input[name^="FormPermissions"][name*="AllowAll"]').checked = true;
+                }
+            });
+
+        } else {
+            // If user is not found, reset everything
+            document.getElementById("Name").value = "";
+            document.getElementById("UserId").value = "";
+            document.getElementById("formContainer").style.display = "none";
+
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+    });
+});
+
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("Pno").addEventListener("input", function () {
+        var pno = this.value;
+        var user = pnoEnameList.find(u => u.UserId === pno);
+
+        if (user) {
+            document.getElementById("Name").value = user.Name;
+            document.getElementById("UserId").value = user.Id;
+            document.getElementById("formContainer").style.display = "block";
+
+            console.log(userPermissions);
+
+            // Fetch existing permissions for this user
+            var userPermissionsList = userPermissions.filter(p => p.UserId === user.Id);
+            console.log(userPermissionsList);
+
             // Reset all checkboxes
             document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = false;
