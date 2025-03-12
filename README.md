@@ -1,288 +1,108 @@
-<script>
-    $(document).ready(function () {
-        $('#form').on('submit', function (e) {
-            e.preventDefault();
-            var form = $(this);
-            var formData = form.serialize(); // Serialize form data
+this is for my existing data  
+ var userPermissions = context.AppUserFormPermissions.ToList();
+ ViewBag.UserPermissions = userPermissions;
 
-            $.ajax({
-                type: form.attr('method'),
-                url: form.attr('action'),
-                data: formData,
-                success: function (response) {
-                    if (response.success) {
-                        var now = new Date();
-                        var formattedDateTime = now.toLocaleString();
-
-                        Swal.fire({
-                            title: "Success!",
-                            text: response.message + "\nDate & Time: " + formattedDateTime,
-                            icon: "success",
-                            width: 600,
-                            padding: "3em",
-                            color: "#716add",
-                            backdrop: `rgba(0,0,123,0.4) left top no-repeat`
-                        }).then(() => {
-                            window.location.href = "/Geo/GeoFencing"; // Redirect after success
-                        });
-                    } else {
-                        Swal.fire({
-                            title: "Error!",
-                            text: response.message,
-                            icon: "error"
-                        });
-                    }
-                },
-                error: function () {
-                    Swal.fire({
-                        title: "Error!",
-                        text: "An error occurred while saving data.",
-                        icon: "error"
-                    });
-                }
-            });
-        });
-    });
-
-    function setEntryType(type) {
-        document.getElementById("EntryType").value = type;
-    }
-</script>
-
-[HttpPost]
-public IActionResult AttendanceData(string EntryType)
-{
-    try
+and this is my checkbox 
+    @if (ViewBag.formList != null)
     {
-        var UserId = HttpContext.Request.Cookies["Session"];
+        var formList = ViewBag.formList as List<AppFormDetail>;
+        int rowIndex = 0;
 
-        string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-        string currentTime = DateTime.Now.ToString("HH:mm");
-        string Pno = UserId;
-
-        if (EntryType == "Punch In")
+        @foreach (var form in formList)
         {
-            StoreData(currentDate, currentTime, null, Pno);
+            string bgColor = (rowIndex % 2 == 1 && rowIndex != 0) ? "#e3dff3" : "transparent";
+            <tr style="color:#333333; background-color:@bgColor; font-size:Smaller;">
+                <td style="width:50%;">
+                    <input type="hidden" name="FormPermissions[@rowIndex].FormId" value="@form.Id" />
+                    <span>@form.Description</span>
+                </td>
+
+                <td style="width:100px;">
+                    <input type="checkbox" name="FormPermissions[@rowIndex].AllowRead" value="true">
+                    <label class="control-label">&nbsp;Read</label>
+                </td>
+                <td style="width:100px;">
+                    <input type="checkbox" name="FormPermissions[@rowIndex].AllowWrite" value="true">
+                    <label class="control-label">&nbsp;Create</label>
+                </td>
+                <td style="width:100px;">
+                    <input type="checkbox" name="FormPermissions[@rowIndex].AllowModify" value="true">
+                    <label class="control-label">&nbsp;Modify</label>
+                </td>
+                <td style="width:100px;">
+                    <input type="checkbox" name="FormPermissions[@rowIndex].AllowDelete" value="true">
+                    <label class="control-label">&nbsp;Delete</label>
+                </td>
+                <td style="width:100px;">
+                    <input type="checkbox" name="FormPermissions[@rowIndex].AllowAll" value="true">
+                    <label class="control-label">&nbsp;All</label>
+                </td>
+            </tr>
+            rowIndex++;
         }
-        else
-        {
-            StoreData(currentDate, null, currentTime, Pno);
-        }
-
-        return Json(new { success = true, message = "Data Saved Successfully" });
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-
-
-
-this is my button and js for success message 
-<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
-    <input type="hidden" name="EntryType" id="EntryType" />
-
-    <div class="row mt-5 form-group" style="margin-top:50%;">
-        <div class="col d-flex justify-content-center ">
-            <button type="submit" class="Btn form-group" id="PunchIn" onclick="setEntryType('Punch In')">
-                Punch In
-            </button>
-        </div>
-
-        <div class="col d-flex justify-content-center form-group">
-            <button type="submit" class="Btn2 form-group" id="PunchOut" onclick="setEntryType('Punch Out')">
-                Punch Out
-            </button>
-        </div>
-    </div>
-</form>
-
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script>
-    $(document).ready(function () {
-        $('#form').on('submit', function (e) {
-            e.preventDefault();
-            var form = $(this);
-
-           
-            var now = new Date();
-            var formattedDateTime = now.toLocaleString(); 
-
-            Swal.fire({
-                title: "Data Saved Successfully",
-                text: "Date & Time: " + formattedDateTime, 
-                width: 600,
-                padding: "3em",
-                color: "#716add",
-                backdrop: `
-                        rgba(0,0,123,0.4)
-                        left top
-                        no-repeat
-                    `
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    form.off('submit');
-                    form.submit();
-                }
-            });
-
-        });
-    });
-    function setEntryType(type) {
-        document.getElementById("EntryType").value = type;
     }
 
-</script>
+  var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
+  var userPermissions = @Html.Raw(JsonConvert.SerializeObject(ViewBag.UserPermissions));
 
-and this is my method 
- [HttpPost]
- public IActionResult AttendanceData(string EntryType)
- {
-     try
-     {
-         var UserId = HttpContext.Request.Cookies["Session"];
+  document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("Pno").addEventListener("input", function () {
+          var pno = this.value;
+          var user = pnoEnameList.find(u => u.UserId === pno);
+         
+          if (user) {
+              document.getElementById("Name").value = user.Name;
+              document.getElementById("UserId").value = user.Id;
+              document.getElementById("formContainer").style.display = "block";
+                      console.log(userPermissions);
+              // Fetch existing permissions for this user
+              var userPermissionsList = userPermissions.filter(p => p.UserId === user.Id);
+                  console.log(userPermissionsList);
+              // Reset checkboxes
+              document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                  checkbox.checked = false;
+              });
 
-         string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-         string currentTime = DateTime.Now.ToString("HH:mm"); 
-         string Pno = UserId;
-        
+              // Loop through the permissions and check the corresponding checkboxes
+              userPermissionsList.forEach(permission => {
+                  document.querySelector(`input[name="FormPermissions[][FormId][value='${permission.FormId}']"]`)
+                      ?.closest("tr")?.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                          if (permission.AllowRead && checkbox.name.includes("AllowRead")) checkbox.checked = true;
+                          if (permission.AllowWrite && checkbox.name.includes("AllowWrite")) checkbox.checked = true;
+                          if (permission.AllowModify && checkbox.name.includes("AllowModify")) checkbox.checked = true;
+                          if (permission.AllowDelete && checkbox.name.includes("AllowDelete")) checkbox.checked = true;
+                          if (permission.AllowAll && checkbox.name.includes("AllowAll")) checkbox.checked = true;
+                      });
+              });
 
-         if (EntryType == "Punch In")
-         {
-             StoreData(currentDate, currentTime, null, Pno);
-         }
-         else 
-         {
-             StoreData(currentDate, null, currentTime, Pno);
-         }
+          } else {
+              document.getElementById("Name").value = "";
+              document.getElementById("UserId").value = "";
+              document.getElementById("formContainer").style.display = "none";
 
-         return RedirectToAction("GeoFencing");
-     }
-     catch (Exception ex)
-     {
-         return Json(new { success = false, message = ex.Message });
-     }
+              document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                  checkbox.checked = false;
+              });
+          }
+      });
+  });
 
- }
+this type of data is coming in console 
 
- public void StoreData(string ddMMyy, string tmIn, string tmOut, string Pno)
- {
-     using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
-     {
-         connection.Open();
+0
+: 
+{Id: '028bf0ff-16d5-43f4-9199-23a9ac1af236', UserId: '15fae783-d72d-468b-b75c-e388dc0f9b7e', FormId: 'd73cefbf-65a2-4e7b-a052-f950b7962a2d', AllowRead: true, AllowWrite: false, …}
+1
+: 
+{Id: '812078da-4ecb-4144-8004-24257da43778', UserId: '15fae783-d72d-468b-b75c-e388dc0f9b7e', FormId: '5f323068-8bff-49c5-9795-2ceecd0bb138', AllowRead: true, AllowWrite: false, …}
+2
+: 
+{Id: '5c8ac2b5-3385-4062-a653-785daccfd498', UserId: '15fae783-d72d-468b-b75c-e388dc0f9b7e', FormId: 'd48679a0-f8ba-4658-bb9e-c564e95da013', AllowRead: true, AllowWrite: true, …}
+3
+: 
+{Id: 'a0336d8c-5950-426f-b7d8-a63ab6bfce17', UserId: '15fae783-d72d-468b-b75c-e388dc0f9b7e', FormId: 'c40d7ed7-84bc-4f3a-b711-af1a34ef83dc', AllowRead: true, AllowWrite: false, …}
+4
+: 
+{Id: '603d59d5-46ff-4235-9dbe-c47039f5e18b', UserId: '15fae783-d72d-468b-b75c-e388dc0f9b7e', FormId: '2cd119c4-6deb-42a0-b6e4-1570f22d3aa6', AllowRead: true, AllowWrite: false, …}
 
-         if (!string.IsNullOrEmpty(tmIn))
-         {
-             var query = @"
-         INSERT INTO T_TRBDGDAT_EARS(TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER,
-         TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA, TRBDGDA_BD_PNO) 
-         VALUES 
-         (@TRBDGDA_BD_DATE,
-         @TRBDGDA_BD_TIME, 
-         @TRBDGDA_BD_INOUT,
-         @TRBDGDA_BD_READER, 
-         @TRBDGDA_BD_CHKHS, 
-         @TRBDGDA_BD_SUBAREA, 
-         @TRBDGDA_BD_PNO)";
-
-             var parameters = new
-             {
-                 TRBDGDA_BD_DATE = ddMMyy,
-                 TRBDGDA_BD_TIME = ConvertTimeToMinutes(tmIn),
-                 TRBDGDA_BD_INOUT = "I",
-                 TRBDGDA_BD_READER = "2",
-                 TRBDGDA_BD_CHKHS = "2",
-                 TRBDGDA_BD_SUBAREA = "JUSC12",
-                 TRBDGDA_BD_PNO = Pno
-             };
-
-             connection.Execute(query, parameters);
-
-             var Punchquery = @"
-         INSERT INTO T_TRPUNCHDATA_EARS(PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,
-         PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_PSRNO) 
-         VALUES 
-         (@PDE_PUNCHDATE,
-         @PDE_PUNCHTIME, 
-         @PDE_INOUT,
-         @PDE_MACHINEID, 
-         @PDE_READERNO, 
-         @PDE_CHKHS, 
-         @PDE_SUBAREA, 
-         @PDE_PSRNO)";
-
-             var parameters2 = new
-             {
-                 PDE_PUNCHDATE = ddMMyy,
-                 PDE_PUNCHTIME = tmIn,
-                 PDE_INOUT = "I",
-                 PDE_MACHINEID = "2",
-                 PDE_READERNO = "2",
-                 PDE_CHKHS = "2",
-                 PDE_SUBAREA = "JUSC12",
-                 PDE_PSRNO = Pno
-             };
-
-             connection.Execute(Punchquery, parameters2);
-         }
-
-         if (!string.IsNullOrEmpty(tmOut))
-         {
-             var queryOut = @"
-         INSERT INTO T_TRBDGDAT_EARS(TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER, 
-          TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA, TRBDGDA_BD_PNO) 
-         VALUES 
-         (@TRBDGDA_BD_DATE,
-         @TRBDGDA_BD_TIME, 
-         @TRBDGDA_BD_INOUT, 
-         @TRBDGDA_BD_READER, 
-         @TRBDGDA_BD_CHKHS,
-         @TRBDGDA_BD_SUBAREA,
-         @TRBDGDA_BD_PNO)";
-
-             var parametersOut = new
-             {
-                 TRBDGDA_BD_DATE = ddMMyy,
-                 TRBDGDA_BD_TIME = ConvertTimeToMinutes(tmOut),
-                 TRBDGDA_BD_INOUT = "O",
-                 TRBDGDA_BD_READER = "2",
-                 TRBDGDA_BD_CHKHS = "2",
-                 TRBDGDA_BD_SUBAREA = "JUSC12",
-                 TRBDGDA_BD_PNO = Pno
-             };
-
-             connection.Execute(queryOut, parametersOut);
-
-             var Punchquery = @"
-         INSERT INTO T_TRPUNCHDATA_EARS(PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,
-         PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_PSRNO) 
-         VALUES 
-         (@PDE_PUNCHDATE,
-         @PDE_PUNCHTIME, 
-         @PDE_INOUT,
-         @PDE_MACHINEID, 
-         @PDE_READERNO, 
-         @PDE_CHKHS, 
-         @PDE_SUBAREA, 
-         @PDE_PSRNO)";
-
-             var parameters2 = new
-             {
-                 PDE_PUNCHDATE = ddMMyy,
-                 PDE_PUNCHTIME = tmOut,
-                 PDE_INOUT = "O",
-                 PDE_MACHINEID = "2",
-                 PDE_READERNO = "2",
-                 PDE_CHKHS = "2",
-                 PDE_SUBAREA = "JUSC12",
-                 PDE_PSRNO = Pno
-             };
-
-             connection.Execute(Punchquery, parameters2);
-         }
-     }
- }
-
-in this i want that when data is saved successfully then shows success message, it shows when button is click, but i want when data is properly and successfully stored then shows alert
+i want that if i put userId then it matches with UserId and Id of the User and if matches and existing data then and if value is true then checkbox will be checked
