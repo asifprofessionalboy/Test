@@ -1,3 +1,89 @@
+
+[HttpPost]
+public async Task<IActionResult> Login(AppLogin login, string returnUrl = null)
+{
+    if (!string.IsNullOrEmpty(login.UserId) && string.IsNullOrEmpty(login.Password))
+    {
+        ViewBag.FailedMsg = "Login Failed: Password is required";
+        return View(login);
+    }
+
+    var user = await context.AppLogins
+        .Where(x => x.UserId == login.UserId)
+        .FirstOrDefaultAsync();
+
+    if (user != null)
+    {
+        bool isPasswordValid = hash_Password.VerifyPassword(login.Password, user.Password, user.PasswordSalt);
+
+        if (isPasswordValid)
+        {
+            var userLoginData = await context1.AppEmployeeMasters
+                .Where(x => x.Pno == login.UserId)
+                .FirstOrDefaultAsync();
+
+            if (userLoginData == null)
+            {
+                ViewBag.FailedMsg = "Login Failed: User data not found";
+                return View(login);
+            }
+
+            string userName = userLoginData.Ename ?? "Guest";
+
+            // Convert UserId to Guid
+            if (!Guid.TryParse(userLoginData.Pno, out Guid userGuid))
+            {
+                ViewBag.FailedMsg = "Login Failed: Invalid UserId format";
+                return View(login);
+            }
+
+            // Store in Session
+            HttpContext.Session.SetString("Session", userGuid.ToString());  // Store UserId as GUID
+            HttpContext.Session.SetString("UserName", userName);
+            HttpContext.Session.SetString("UserSession", login.UserId);
+
+            // Create authentication cookie
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, userName),
+                new Claim(ClaimTypes.NameIdentifier, userGuid.ToString()) // Store UserId as GUID
+            };
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var authProperties = new AuthenticationProperties
+            {
+                IsPersistent = true
+            };
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity), authProperties);
+
+            // Redirect after login
+            if (!string.IsNullOrEmpty(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
+            else
+            {
+                return RedirectToAction("Homepage", "Technical");
+            }
+        }
+        else
+        {
+            ViewBag.FailedMsg = "Login Failed: Incorrect password";
+        }
+    }
+    else
+    {
+        ViewBag.FailedMsg = "Login Failed: User not found";
+    }
+
+    return View(login);
+}
+
+
+
+
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
