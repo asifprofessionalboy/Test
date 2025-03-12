@@ -1,89 +1,18 @@
-this is my controller logic to create 
-
-[Authorize(Policy = "CanWrite")]
-public IActionResult TechnicalService()
+i have this model for Permission of the user 
+public partial class AppUserFormPermission
 {
-   
-		var viewModel = new AppTechnicalService
-		{
-			Attach = new List<IFormFile>(),
-
-		};
-		var Dept = GetDepartmentDD();
-        ViewBag.Department = Dept;
-
-		var Month = GetMonthDD();
-		ViewBag.Month = Month;
-
-        var subjectDDs = GetSubjectDD();
-        ViewBag.Subjects = subjectDDs;
-
-
-        return View(viewModel);
-	
-	
-
-    
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public Guid FormId { get; set; }
+    public bool AllowRead { get; set; }
+    public bool AllowWrite { get; set; }
+    public bool? AllowDelete { get; set; }
+    public bool? AllowAll { get; set; }
+    public bool? AllowModify { get; set; }
+    public bool DownTime { get; set; }
 }
 
-[HttpPost]
-public async Task<IActionResult> TechnicalService(AppTechnicalService service)
-{
-	if (ModelState.IsValid)
-	{
-		if (service.Attach != null && service.Attach.Any())
-		{
-			var uploadPath = configuration["FileUpload:Path"];
-			foreach (var file in service.Attach)
-			{
-				if (file.Length > 0)
-				{
-					var uniqueId = Guid.NewGuid().ToString();
-					var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
-					var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
-					var fileExtension = Path.GetExtension(file.FileName);
-					var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
-					var fullPath = Path.Combine(uploadPath, formattedFileName);
+this is the data in my table 
+dffd1b83-9359-4f69-883b-a23247084ed3	15fae783-d72d-468b-b75c-e388dc0f9b7e	d48679a0-f8ba-4658-bb9e-c564e95da013	True	True	True	True	True	False
 
-					using (var stream = new FileStream(fullPath, FileMode.Create))
-					{
-						await file.CopyToAsync(stream);
-					}
-
-					service.Attachment += $"{formattedFileName},";
-				}
-			}
-
-			if (!string.IsNullOrEmpty(service.Attachment))
-			{
-				service.Attachment = service.Attachment.TrimEnd(',');
-			}
-		}
-
-		var User = HttpContext.Session.GetString("Session");
-
-		var appTechnicalService = new AppTechnicalService
-		{
-			Department = service.Department,
-			Subject = service.Subject,
-			FinYear = service.FinYear,
-			CreatedBy = User,
-			Attachment = service.Attachment,
-			Month = service.Month
-		};
-
-		
-		context.AppTechnicalServices.Add(appTechnicalService);
-		await context.SaveChangesAsync();
-		await context.Entry(appTechnicalService).ReloadAsync();
-
-		
-		await SubmitNotification();
-
-		return RedirectToAction("TechnicalService", "Technical");
-	}
-
-	return View(service);
-}
-
-how to authorize this view if user has permission to AllowWrite true in Database then how to do it , here when i click on TechnicalService view then it redirects me to login 
+every form has there FormId , and UserId of the , check if the user has the permission of the page , if the permission then he can open the page but if not then shows access denied
