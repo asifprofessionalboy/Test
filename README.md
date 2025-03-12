@@ -1,3 +1,57 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add authentication services
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login"; // Redirect to Login if unauthorized
+        options.AccessDeniedPath = "/Account/AccessDenied"; // Redirect if access denied
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(30); // Session timeout
+        options.SlidingExpiration = true; // Renew session on activity
+    });
+
+// Add authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("CanRead", policy => policy.Requirements.Add(new PermissionRequirement("Form-Read")));
+    options.AddPolicy("CanWrite", policy => policy.Requirements.Add(new PermissionRequirement("Form-Write")));
+    options.AddPolicy("CanDelete", policy => policy.Requirements.Add(new PermissionRequirement("Form-Delete")));
+    options.AddPolicy("CanModify", policy => policy.Requirements.Add(new PermissionRequirement("Form-Modify")));
+});
+
+// Register authorization handler
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
+
+// Add controllers with default authorization
+builder.Services.AddControllersWithViews(options =>
+{
+    var policy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+    options.Filters.Add(new AuthorizeFilter(policy)); // Ensure all controllers require authentication
+});
+
+var app = builder.Build();
+
+// Middleware setup
+app.UseAuthentication(); // Ensure authentication is enabled
+app.UseAuthorization(); // Ensure authorization policies are enforced
+
+app.UseStaticFiles();
+app.UseRouting();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.Run();
+
+
+
+
 [HttpPost]
 public async Task<IActionResult> Login(AppLogin login, string returnUrl = null)
 {
