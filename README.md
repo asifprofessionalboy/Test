@@ -1,84 +1,51 @@
-i have these 2 methods, One is for view and other is for Button submit. i want that if the user has permission for CanWrite then submit otherwise shows AccessDenied. if read then he can only view the Viewer side
+ protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
+ {
+     var httpContext = _httpContextAccessor.HttpContext;
 
-[Authorize(Policy = "CanWrite")]
-public IActionResult TechnicalService()
-{
+     if (httpContext == null || !httpContext.User.Identity.IsAuthenticated)
+     {
+         return;
+     }
 
-    var viewModel = new AppTechnicalService
-		{
-			Attach = new List<IFormFile>(),
+     var userIdString = httpContext.Session.GetString("ID"); 
+     if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out Guid userId))
+     {
+         return;
+     }
 
-		};
-		var Dept = GetDepartmentDD();
-        ViewBag.Department = Dept;
+   
+     string? formName = httpContext.GetRouteData()?.Values["action"]?.ToString();
 
-		var Month = GetMonthDD();
-		ViewBag.Month = Month;
+     if (string.IsNullOrEmpty(formName))
+     {
+         return;
+     }
 
-        var subjectDDs = GetSubjectDD();
-        ViewBag.Subjects = subjectDDs;
+   
+     var form = await _context.AppFormDetails
+         .Where(f => f.FormName == formName)
+         .Select(f => new { f.Id })
+         .FirstOrDefaultAsync();
 
+     if (form == null)
+     {
+         return;
+     }
 
-        return View(viewModel);
+     Guid formId = form.Id;
 
-}
-[Authorize(Policy = "CanWrite")]
-[HttpPost]
-public async Task<IActionResult> TechnicalService(AppTechnicalService service)
-{
-	if (ModelState.IsValid)
-	{
-		if (service.Attach != null && service.Attach.Any())
-		{
-			var uploadPath = configuration["FileUpload:Path"];
-			foreach (var file in service.Attach)
-			{
-				if (file.Length > 0)
-				{
-					var uniqueId = Guid.NewGuid().ToString();
-					var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
-					var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
-					var fileExtension = Path.GetExtension(file.FileName);
-					var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
-					var fullPath = Path.Combine(uploadPath, formattedFileName);
+    
+     var hasPermission = await _context.AppUserFormPermissions
+         .Where(p => p.UserId == userId && p.FormId == formId)
+         .AnyAsync(p =>
+             (requirement.Permission == "AllowWrite" && p.AllowWrite == true) ||
+             (requirement.Permission == "AllowRead" && p.AllowRead == true) ||
+             (requirement.Permission == "AllowDelete" && p.AllowDelete == true) ||
+             (requirement.Permission == "AllowModify" && p.AllowModify == true)
+         );
 
-					using (var stream = new FileStream(fullPath, FileMode.Create))
-					{
-						await file.CopyToAsync(stream);
-					}
-
-					service.Attachment += $"{formattedFileName},";
-				}
-			}
-
-			if (!string.IsNullOrEmpty(service.Attachment))
-			{
-				service.Attachment = service.Attachment.TrimEnd(',');
-			}
-		}
-
-		var User = HttpContext.Session.GetString("Session");
-
-		var appTechnicalService = new AppTechnicalService
-		{
-			Department = service.Department,
-			Subject = service.Subject,
-			FinYear = service.FinYear,
-			CreatedBy = User,
-			Attachment = service.Attachment,
-			Month = service.Month
-		};
-
-		
-		context.AppTechnicalServices.Add(appTechnicalService);
-		await context.SaveChangesAsync();
-		await context.Entry(appTechnicalService).ReloadAsync();
-
-		
-		await SubmitNotification();
-
-		return RedirectToAction("TechnicalService", "Technical");
-	}
-
-	return View(service);
-}
+     if (hasPermission)
+     {
+         context.Succeed(requirement);
+     }
+ }
