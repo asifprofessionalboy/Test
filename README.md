@@ -1,143 +1,151 @@
-[Authorize(Policy = "CanRead")]
-public IActionResult TechnicalService()
-{
-    var viewModel = new AppTechnicalService
-    {
-        Attach = new List<IFormFile>(),
-    };
-    
-    ViewBag.Department = GetDepartmentDD();
-    ViewBag.Month = GetMonthDD();
-    ViewBag.Subjects = GetSubjectDD();
+this is my controller method for Delete and Modify
+		[Authorize(Policy = "CanModify")]
+		[HttpPost]
+		public async Task<IActionResult> EditDocument(AppTechnicalService technicalService, string action, string RefNo = "")
+		{
+			
+			
+				if (ModelState.IsValid)
+				{
+					var existingTechnicalService = await context.AppTechnicalServices.FindAsync(technicalService.Id);
+					if (existingTechnicalService != null)
+					{
+						
+						if (technicalService.Attach != null && technicalService.Attach.Any())
+						{
+							var uploadPath = configuration["FileUpload:Path"];
+							var newAttachments = new List<string>();
 
-    return View(viewModel);
-}
+							foreach (var file in technicalService.Attach)
+							{
+								if (file.Length > 0)
+								{
+									var uniqueId = Guid.NewGuid().ToString();
+									var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
+									var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+									var fileExtension = Path.GetExtension(file.FileName);
+									var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+									var fullPath = Path.Combine(uploadPath, formattedFileName);
 
-[Authorize(Policy = "CanWrite")]
+									using (var stream = new FileStream(fullPath, FileMode.Create))
+									{
+										await file.CopyToAsync(stream);
+									}
+
+									newAttachments.Add(formattedFileName);
+								}
+							}
+
+							// Replace old attachments with new ones
+							existingTechnicalService.Attachment = string.Join(",", newAttachments);
+						}
+
+						// Preserve existing attachments if no new file is uploaded
+						if (technicalService.Attach == null || !technicalService.Attach.Any())
+						{
+							technicalService.Attachment = existingTechnicalService.Attachment;
+						}
+
+						var CreatedBy = HttpContext.Session.GetString("Session");
+						existingTechnicalService.CreatedBy = CreatedBy;
+						existingTechnicalService.CreatedOn = DateTime.Now;
+
+						// Update other fields
+						existingTechnicalService.RefNo = RefNo;
+						existingTechnicalService.FinYear = technicalService.FinYear;
+						existingTechnicalService.Month = technicalService.Month;
+						existingTechnicalService.Department = technicalService.Department;
+						existingTechnicalService.Subject = technicalService.Subject;
+
+						await context.SaveChangesAsync();
+						TempData["Message"] = "Document updated successfully!";
+					}
+				}
+			
+
+			return RedirectToAction("EditDocument", "Technical");
+		}
+
+[Authorize(Policy = "CanDelete")]
 [HttpPost]
-public async Task<IActionResult> TechnicalService(AppTechnicalService service)
+public IActionResult DeleteDocument(Guid id)
 {
-    if (!ModelState.IsValid)
-    {
-        return View(service);
-    }
-
-    if (service.Attach != null && service.Attach.Any())
-    {
-        var uploadPath = configuration["FileUpload:Path"];
-        foreach (var file in service.Attach)
-        {
-            if (file.Length > 0)
-            {
-                var uniqueId = Guid.NewGuid().ToString();
-                var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
-                var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
-                var fileExtension = Path.GetExtension(file.FileName);
-                var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
-                var fullPath = Path.Combine(uploadPath, formattedFileName);
-
-                using (var stream = new FileStream(fullPath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-
-                service.Attachment += $"{formattedFileName},";
-            }
-        }
-
-        service.Attachment = service.Attachment.TrimEnd(',');
-    }
-
-    var User = HttpContext.Session.GetString("Session");
-
-    var appTechnicalService = new AppTechnicalService
-    {
-        Department = service.Department,
-        Subject = service.Subject,
-        FinYear = service.FinYear,
-        CreatedBy = User,
-        Attachment = service.Attachment,
-        Month = service.Month
-    };
-
-    context.AppTechnicalServices.Add(appTechnicalService);
-    await context.SaveChangesAsync();
-    await context.Entry(appTechnicalService).ReloadAsync();
-
-    await SubmitNotification();
-
-    return RedirectToAction("TechnicalService", "Technical");
+	var Data = context.AppTechnicalServices.FirstOrDefault(c => c.Id == id);
+	if (Data != null)
+	{
+		context.AppTechnicalServices.Remove(Data);
+		context.SaveChanges();
+		TempData["Message"] = "Customer deleted successfully!";
+	}
+	
+	return RedirectToAction("EditDocument");
 }
 
- 
- @inject Microsoft.AspNetCore.Authorization.IAuthorizationService AuthorizationService
+, these are my two buttons
 
-@{
-    var canWrite = (await AuthorizationService.AuthorizeAsync(User, "CanWrite")).Succeeded;
-}
+<input type="submit" value="Save" class="btn" id="SubmitBtn" style="border-radius:7px" />
+<input type="submit" value="Delete" class="btn" id="DeleteBtn" style="border: 1px solid;background: #f34848;padding:10px;border-radius:7px;"/>
 
-<form asp-action="TechnicalService" method="post" enctype="multipart/form-data">
-    @* Form fields here *@
 
-    @if (canWrite)
-    {
-        <button type="submit" class="btn btn-primary">Submit</button>
-    }
-    else
-    {
-        <p class="text-danger">You only have read access. You cannot submit this form.</p>
-    }
-</form>
+and these are my js , in this i want that show alerts when successfully data is stored not before 
 
- 
- protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
- {
-     var httpContext = _httpContextAccessor.HttpContext;
+document.addEventListener("DOMContentLoaded", function () {
+	var deleteButton = document.getElementById("DeleteBtn");
 
-     if (httpContext == null || !httpContext.User.Identity.IsAuthenticated)
-     {
-         return;
-     }
+	deleteButton.addEventListener("click", function () {
+		var editId = document.getElementById("EditId").value;
+		if (editId) {
+			if (confirm("Are you sure you want to delete this Subject?")) {
+				fetch(`/Technical/DeleteDocument/${editId}`, {
+					method: "POST"
+				}).then(response => {
+					if (response.ok) {
 
-     var userIdString = httpContext.Session.GetString("ID"); 
-     if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out Guid userId))
-     {
-         return;
-     }
+						location.reload();
+					} else {
+						alert("Error deleting transaction.");
+					}
+				});
+			}
+		}
+	});
+});
 
-   
-     string? formName = httpContext.GetRouteData()?.Values["action"]?.ToString();
+document.addEventListener("DOMContentLoaded", function () {
+	var submitBtn = document.getElementById("SubmitBtn");
 
-     if (string.IsNullOrEmpty(formName))
-     {
-         return;
-     }
+	submitBtn.addEventListener("click", function (event) {
+		var editId = document.getElementById("EditId").value;
+		if (editId) {
+			event.preventDefault();
 
-   
-     var form = await _context.AppFormDetails
-         .Where(f => f.FormName == formName)
-         .Select(f => new { f.Id })
-         .FirstOrDefaultAsync();
+			var isValid = true;
+			var elements = this.querySelectorAll('input, select, textarea');
 
-     if (form == null)
-     {
-         return;
-     }
+			elements.forEach(function (element) {
+				if (element.id === 'ApprovalFile' || element.id === 'fileInput' || element.id === 'dropdown-template' || element.id === 'status' || element.id === 'remarks' || element.id === 'StatusField' || element.id === 'Parameterid' || element.id === 'Paracode' || element.id === 'created' || element.id === 'ScoreId' || element.id === 'scorecode' || element.id === 'actionType' || element.id === 'daretotry' || element.id === 'daretotry-dropdown') {
+					return;
+				}
 
-     Guid formId = form.Id;
 
-    
-     var hasPermission = await _context.AppUserFormPermissions
-         .Where(p => p.UserId == userId && p.FormId == formId)
-         .AnyAsync(p =>
-             (requirement.Permission == "AllowWrite" && p.AllowWrite == true) ||
-             (requirement.Permission == "AllowRead" && p.AllowRead == true) ||
-             (requirement.Permission == "AllowDelete" && p.AllowDelete == true) ||
-             (requirement.Permission == "AllowModify" && p.AllowModify == true)
-         );
+				if (element.value.trim() === '') {
+					isValid = false;
+					element.classList.add('is-invalid');
+				} else {
+					element.classList.remove('is-invalid');
+				}
+			});
 
-     if (hasPermission)
-     {
-         context.Succeed(requirement);
-     }
- }
+
+			if (isValid) {
+				Swal.fire({
+					title: "Data Saved Successfully",
+					icon: "success",
+					timer: 3000
+				}).then(() => {
+					this.submit(); // Submit the form for saving
+				});
+			}
+		}
+	});
+});
