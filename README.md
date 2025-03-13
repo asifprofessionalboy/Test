@@ -1,3 +1,51 @@
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var successMessage = '@TempData["Success"]';
+    if (successMessage) {
+        Swal.fire({
+            title: successMessage,
+            icon: "success",
+            timer: 3000
+        });
+    }
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var deleteButton = document.getElementById("DeleteBtn");
+
+    deleteButton.addEventListener("click", function (event) {
+        event.preventDefault(); // Prevent direct form submission
+
+        Swal.fire({
+            title: "Are you sure?",
+            text: "You won't be able to recover this document!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, delete it!"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById("deleteForm").submit();
+            }
+        });
+    });
+
+    // Show success alert after reload
+    var successMessage = '@TempData["Success"]';
+    if (successMessage) {
+        Swal.fire({
+            title: successMessage,
+            icon: "success",
+            timer: 3000
+        });
+    }
+});
+</script>
+
+
 this is my controller method for Delete and Modify
 		[Authorize(Policy = "CanModify")]
 		[HttpPost]
