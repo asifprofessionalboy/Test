@@ -1,3 +1,11 @@
+<form id="deleteForm" method="post" action="/Technical/DeleteDocument">
+    <input type="hidden" id="EditId" name="id" value="@Model.Id" />
+    <input type="submit" value="Delete" class="btn" id="DeleteBtn" style="border: 1px solid;background: #f34848;padding:10px;border-radius:7px;"/>
+</form>
+
+
+
+
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     var successMessage = '@TempData["Success"]';
