@@ -1,3 +1,135 @@
+[HttpPost("UploadPhoto")]
+public IActionResult UploadPhoto([FromBody] PhotoUploadRequest request)
+{
+    var employee = _context.TblEmployees.FirstOrDefault(e => e.Pno == request.Pno);
+    if (employee == null)
+        return BadRequest(new { message = "Employee not found" });
+
+    // Convert Base64 Image to Byte Array
+    byte[] imageBytes = Convert.FromBase64String(request.Image.Split(',')[1]);
+
+    // Store Image in Database
+    employee.Photo = imageBytes;
+    _context.SaveChanges();
+
+    return Ok(new { message = "Photo uploaded successfully!" });
+}
+
+// Request Model
+public class PhotoUploadRequest
+{
+    public string Pno { get; set; }
+    public string Image { get; set; } // Base64 Image
+}
+@model YourNamespace.Models.Person
+
+@{
+    ViewData["Title"] = "Add Person";
+}
+
+<h2>Add Person</h2>
+
+<form asp-action="Create" method="post" enctype="multipart/form-data">
+    <div class="form-group">
+        <label asp-for="Pno">Pno</label>
+        <input asp-for="Pno" class="form-control" readonly value="@Guid.NewGuid()" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Name">Name</label>
+        <input asp-for="Name" class="form-control" required />
+    </div>
+
+    <div class="form-group">
+        <label>Upload Photo</label>
+        <input type="file" id="photoInput" name="photoFile" class="form-control" accept="image/*" required />
+    </div>
+
+    <div class="form-group">
+        <img id="previewImage" src="" alt="Image Preview" style="width: 200px; display: none;" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save Details</button>
+</form>
+
+<script>
+    document.getElementById("photoInput").addEventListener("change", function (event) {
+        let reader = new FileReader();
+        reader.onload = function () {
+            let img = document.getElementById("previewImage");
+            img.src = reader.result;
+            img.style.display = "block";
+        };
+        reader.readAsDataURL(event.target.files[0]);
+    });
+</script>
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using YourNamespace.Data;
+using YourNamespace.Models;
+
+public class PersonController : Controller
+{
+    private readonly ApplicationDbContext _context;
+
+    public PersonController(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    // GET: Person/Create
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    // POST: Person/Create
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(Person person, IFormFile photoFile)
+    {
+        if (ModelState.IsValid)
+        {
+            if (photoFile != null)
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    await photoFile.CopyToAsync(memoryStream);
+                    person.Photo = memoryStream.ToArray(); // Convert Image to Byte Array
+                }
+            }
+
+            _context.Add(person);
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
+        }
+        return View(person);
+    }
+
+    // GET: Person/Details/{pno}
+    public async Task<IActionResult> Details(Guid pno)
+    {
+        var person = await _context.Persons.FirstOrDefaultAsync(m => m.Pno == pno);
+        if (person == null) return NotFound();
+        return View(person);
+    }
+
+    // GET: Photo from Database
+    public async Task<IActionResult> GetPhoto(Guid pno)
+    {
+        var person = await _context.Persons.FirstOrDefaultAsync(m => m.Pno == pno);
+        if (person == null || person.Photo == null)
+            return NotFound();
+
+        return File(person.Photo, "image/jpeg"); // Return image file
+    }
+}
+
+
 [Authorize]
 [HttpPost]
 public async Task<IActionResult> EditDocument(AppTechnicalService technicalService, string action, string RefNo = "")
