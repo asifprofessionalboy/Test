@@ -1,3 +1,65 @@
+@model YourNamespace.Models.Person
+
+@{
+    ViewData["Title"] = "Face Recognition";
+}
+
+<h2>Face Recognition Login</h2>
+
+<form id="photoForm" asp-action="VerifyFace" method="post" enctype="multipart/form-data">
+    <div class="form-group">
+        <label>Pno</label>
+        <input type="text" id="pno" name="Pno" class="form-control" required />
+    </div>
+
+    <div class="form-group">
+        <video id="video" width="320" height="240" autoplay></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <div class="form-group">
+        <button type="button" id="captureBtn" class="btn btn-primary">Capture Photo</button>
+    </div>
+
+    <input type="hidden" id="photoInput" name="photoData" />
+
+    <button type="submit" class="btn btn-success">Verify Face</button>
+</form>
+
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const captureBtn = document.getElementById("captureBtn");
+    const photoInput = document.getElementById("photoInput");
+
+    // Access user webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => { video.srcObject = stream; })
+        .catch(err => { console.error("Camera Access Denied", err); });
+
+    // Capture image from video
+    captureBtn.addEventListener("click", () => {
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        photoInput.value = canvas.toDataURL("image/png"); // Convert to Base64
+    });
+</script>
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Emgu.CV;
+using Emgu.CV.Structure;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using YourNamespace.Data;
+using YourNamespace.Models;
+
+
+
 [HttpPost("UploadPhoto")]
 public IActionResult UploadPhoto([FromBody] PhotoUploadRequest request)
 {
