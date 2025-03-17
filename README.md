@@ -1,3 +1,19 @@
+<video id="video" autoplay playsinline></video>
+
+
+
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }) 
+  .then(function (stream) {
+    let video = document.querySelector("video");
+    video.srcObject = stream;
+    video.play();
+  })
+  .catch(function (error) {
+    console.error("Error accessing camera: ", error);
+  });
+
+
+
 @model YourNamespace.Models.Person
 
 @{
