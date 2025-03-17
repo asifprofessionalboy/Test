@@ -1,168 +1,77 @@
-<video id="video" autoplay playsinline></video>
-
-
-
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }) 
-  .then(function (stream) {
-    let video = document.querySelector("video");
-    video.srcObject = stream;
-    video.play();
-  })
-  .catch(function (error) {
-    console.error("Error accessing camera: ", error);
-  });
-
-
-
-@model YourNamespace.Models.Person
-
-@{
-    ViewData["Title"] = "Face Recognition";
-}
-
-<h2>Face Recognition Login</h2>
-
-<form id="photoForm" asp-action="VerifyFace" method="post" enctype="multipart/form-data">
-    <div class="form-group">
-        <label>Pno</label>
-        <input type="text" id="pno" name="Pno" class="form-control" required />
+this is used for storing users image and pno and name , i want in this not attachment, i want to use camera to capture the photo then it stored
+<div class="card rounded-9">
+    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
+        Upload Image
+    </div>
+    <div class="col-md-12">
+        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
+            <div class="row">
+<form asp-action="UploadImage" method="post" enctype="multipart/form-data">
+    <div class="form-group row">
+        <div class="col-sm-1">
+                            <label asp-for="Pno">Pno</label>
+        </div>
+                        <div class="col-sm-3">
+                            <input asp-for="Pno" class="form-control" />
+                        </div>
+                        <div class="col-sm-1">
+                            <label asp-for="Name">Name</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input asp-for="Name" class="form-control" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Upload Photo</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input type="file" id="photoInput" name="photoFile" class="form-control" accept="image/*" required />
+                        </div>
+       
+       
     </div>
 
-    <div class="form-group">
-        <video id="video" width="320" height="240" autoplay></video>
-        <canvas id="canvas" style="display: none;"></canvas>
-    </div>
+  
 
     <div class="form-group">
-        <button type="button" id="captureBtn" class="btn btn-primary">Capture Photo</button>
+        <img id="previewImage" src="" alt="Image Preview" style="width: 200px; display: none;" />
     </div>
 
-    <input type="hidden" id="photoInput" name="photoData" />
-
-    <button type="submit" class="btn btn-success">Verify Face</button>
+    <button type="submit" class="btn btn-primary">Save Details</button>
 </form>
+</div>
+</fieldset>
+</div>
+</div>
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UploadImage(AppPerson person, IFormFile photoFile)
+{
+    if (ModelState.IsValid)
+    {
+        if (photoFile != null)
+        {
+            using (var memoryStream = new MemoryStream())
+            {
+                await photoFile.CopyToAsync(memoryStream);
+                person.Image = memoryStream.ToArray(); // Convert Image to Byte Array
+            }
+        }
+
+        context.AppPeople.Add(person);
+        await context.SaveChangesAsync();
+        return RedirectToAction("");
+    }
+    return View(person);
+}
 
 <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const captureBtn = document.getElementById("captureBtn");
-    const photoInput = document.getElementById("photoInput");
-
-    // Access user webcam
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => { video.srcObject = stream; })
-        .catch(err => { console.error("Camera Access Denied", err); });
-
-    // Capture image from video
-    captureBtn.addEventListener("click", () => {
-        const context = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        photoInput.value = canvas.toDataURL("image/png"); // Convert to Base64
+    document.getElementById("photoInput").addEventListener("change", function (event) {
+        let reader = new FileReader();
+        reader.onload = function () {
+            let img = document.getElementById("previewImage");
+            img.src = reader.result;
+            img.style.display = "block";
+        };
+        reader.readAsDataURL(event.target.files[0]);
     });
 </script>
-
-public class PersonController : Controller
-{
-    private readonly ApplicationDbContext _context;
-
-    public PersonController(ApplicationDbContext context)
-    {
-        _context = context;
-    }
-
-    // POST: Verify Face
-    [HttpPost]
-    public async Task<IActionResult> VerifyFace(string Pno, string photoData)
-    {
-        if (string.IsNullOrEmpty(Pno) || string.IsNullOrEmpty(photoData))
-        {
-            return BadRequest("Invalid Data");
-        }
-
-        // Convert Base64 image to byte array
-        byte[] uploadedImageBytes = ConvertBase64ToByteArray(photoData);
-
-        // Retrieve stored user photo
-        var person = await _context.Persons.FirstOrDefaultAsync(p => p.Pno.ToString() == Pno);
-        if (person == null || person.Photo == null)
-        {
-            return NotFound("No image found for this Pno");
-        }
-
-        // Convert stored image to Mat (OpenCV format)
-        Mat uploadedMat = ConvertByteArrayToMat(uploadedImageBytes);
-        Mat storedMat = ConvertByteArrayToMat(person.Photo);
-
-        // Perform face recognition comparison
-        bool isMatch = CompareFaces(uploadedMat, storedMat);
-
-        if (isMatch)
-        {
-            return Content("Face Matched! Access Granted.");
-        }
-        else
-        {
-            return Content("Face Did Not Match! Access Denied.");
-        }
-    }
-
-    // Convert Base64 string to Byte Array
-    private byte[] ConvertBase64ToByteArray(string base64String)
-    {
-        base64String = base64String.Replace("data:image/png;base64,", "");
-        return Convert.FromBase64String(base64String);
-    }
-
-    // Convert Byte Array to OpenCV Mat
-    private Mat ConvertByteArrayToMat(byte[] imageBytes)
-    {
-        Mat mat = new Mat();
-        using (MemoryStream ms = new MemoryStream(imageBytes))
-        {
-            mat = CvInvoke.Imdecode(ms.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color);
-        }
-        return mat;
-    }
-
-    // Face Recognition Using OpenCV
-    private bool CompareFaces(Mat img1, Mat img2)
-    {
-        var faceCascade = new CascadeClassifier("haarcascade_frontalface_default.xml");
-
-        // Detect faces in both images
-        var faces1 = faceCascade.DetectMultiScale(img1, 1.1, 10);
-        var faces2 = faceCascade.DetectMultiScale(img2, 1.1, 10);
-
-        if (faces1.Length == 0 || faces2.Length == 0)
-            return false; // No face detected
-
-        // Extract face regions
-        Mat faceRegion1 = new Mat(img1, faces1[0]);
-        Mat faceRegion2 = new Mat(img2, faces2[0]);
-
-        // Convert to grayscale for comparison
-        CvInvoke.CvtColor(faceRegion1, faceRegion1, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-        CvInvoke.CvtColor(faceRegion2, faceRegion2, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-
-        // Resize both face images to the same size
-        CvInvoke.Resize(faceRegion1, faceRegion1, new System.Drawing.Size(100, 100));
-        CvInvoke.Resize(faceRegion2, faceRegion2, new System.Drawing.Size(100, 100));
-
-        // Compare Histograms
-        double similarity = CvInvoke.CompareHist(faceRegion1, faceRegion2, Emgu.CV.CvEnum.HistogramCompMethod.Correl);
-        return similarity > 0.7; // Threshold for matching
-    }
-}
-
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Emgu.CV;
-using Emgu.CV.Structure;
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using YourNamespace.Data;
-using YourNamespace.Models;
