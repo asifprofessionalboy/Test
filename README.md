@@ -1,196 +1,128 @@
-<div class="card rounded-9">
-    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
-        Capture Photo
+this is my view 
+<form asp-action="SubjectMaster" id="form" asp-controller="Master" method="post">
+    <input type="hidden" asp-for="Id" id="SubjectId" name="Id" />
+
+    <div class="row">
+                <div class="col-sm-1 d-flex align-items-center">
+                    <label for="Subject" class="control-label">Subject</label>
+                </div>
+
+                <div class="col-sm-3">
+                    <input asp-for="Subject" class="form-control form-control-sm" id="Subject" type="text" autocomplete="off">
+                </div>
+                <div class="col-sm-1 d-flex align-items-center">
+                    <label for="CreatedBy" class="control-label">Created By</label>
+                </div>
+
+                <div class="col-sm-3">
+                    <input asp-for="CreatedBy" class="form-control form-control-sm" id="CreatedBy" value="@ViewBag.user" type="text" readonly>
+                </div>
+        <div class="col-sm-1 d-flex align-items-center">
+                    <label for="CreatedOn" class="control-label">CreatedOn</label>
+                </div>
+
+                <div class="col-sm-3">
+                    <input asp-for="CreatedOn" class="form-control form-control-sm" id="CreatedOn" value="@ViewBag.CreatedOn" type="text" readonly>
+                </div>
+       </div>
+
+    <div class="mt-4 text-center">
+        <button class="btn btn-primary" id="submitButton" type="submit">Submit</button>
+
+        <button class="btn btn-danger" id="deleteButton" style="display: none;">Delete</button>
+
+        
+
     </div>
-    <div class="col-md-12">
-        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
-            <div class="row">
-                <form asp-action="UploadImage" method="post">
-                    <div class="form-group row">
-                        <div class="col-sm-1">
-                            <label>Pno</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <input id="Pno" name="Pno" class="form-control" required />
-                        </div>
-                        <div class="col-sm-1">
-                            <label>Name</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <input id="Name" name="Name" class="form-control" required />
-                        </div>
-                        <div class="col-sm-1">
-                            <label>Capture Photo</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <video id="video" width="200" height="150" autoplay></video>
-                            <canvas id="canvas" style="display:none;"></canvas>
-
-                            <!-- Preview of Captured Image -->
-                            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
-
-                            <!-- Buttons to Capture and Retake Photo -->
-                            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
-                            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
-
-                            <!-- Hidden input to store captured photo -->
-                            <input type="hidden" id="photoData" name="photoData" />
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
-                </form>
-            </div>
-        </fieldset>
-    </div>
-</div>
-
-<script>
-    // Start the camera when the page loads
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then(function (stream) {
-            document.getElementById("video").srcObject = stream;
-        })
-        .catch(function (error) {
-            console.error("Error accessing camera: ", error);
-        });
-
-    document.getElementById("captureBtn").addEventListener("click", function () {
-        let video = document.getElementById("video");
-        let canvas = document.getElementById("canvas");
-        let context = canvas.getContext("2d");
-
-        // Capture the image from the video feed
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Convert the captured image to Base64
-        let imageData = canvas.toDataURL("image/png");
-        document.getElementById("previewImage").src = imageData;
-        document.getElementById("previewImage").style.display = "block";
-        document.getElementById("photoData").value = imageData;
-
-        // Hide video and capture button, Show Retake button
-        video.style.display = "none";
-        document.getElementById("captureBtn").style.display = "none";
-        document.getElementById("retakeBtn").style.display = "inline-block";
-        document.getElementById("submitBtn").disabled = false; // Enable submit button
-    });
-
-    // Retake Photo Functionality
-    document.getElementById("retakeBtn").addEventListener("click", function () {
-        let video = document.getElementById("video");
-
-        // Show video and capture button again
-        video.style.display = "block";
-        document.getElementById("captureBtn").style.display = "inline-block";
-        document.getElementById("retakeBtn").style.display = "none";
-        document.getElementById("previewImage").style.display = "none";
-        document.getElementById("submitBtn").disabled = true; // Disable submit button
-    });
-</script>
-
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
-{
-    if (!string.IsNullOrEmpty(photoData))
-    {
-        // Convert Base64 to byte array
-        byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
-
-        var person = new Person
-        {
-            Pno = Guid.Parse(Pno), // Convert string Pno to GUID
-            Name = Name,
-            Photo = imageBytes // Store Image as Byte Array
-        };
-
-        context.Persons.Add(person);
-        await context.SaveChangesAsync();
-        return RedirectToAction("SuccessPage");
-    }
-    
-    return View();
-}
-
-
-
-this is used for storing users image and pno and name , i want in this not attachment, i want to use camera to capture the photo then it stored
-<div class="card rounded-9">
-    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
-        Upload Image
-    </div>
-    <div class="col-md-12">
-        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
-            <div class="row">
-<form asp-action="UploadImage" method="post" enctype="multipart/form-data">
-    <div class="form-group row">
-        <div class="col-sm-1">
-                            <label asp-for="Pno">Pno</label>
-        </div>
-                        <div class="col-sm-3">
-                            <input asp-for="Pno" class="form-control" />
-                        </div>
-                        <div class="col-sm-1">
-                            <label asp-for="Name">Name</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <input asp-for="Name" class="form-control" required />
-                        </div>
-                        <div class="col-sm-1">
-                            <label>Upload Photo</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <input type="file" id="photoInput" name="photoFile" class="form-control" accept="image/*" required />
-                        </div>
-       
-       
-    </div>
-
-  
-
-    <div class="form-group">
-        <img id="previewImage" src="" alt="Image Preview" style="width: 200px; display: none;" />
-    </div>
-
-    <button type="submit" class="btn btn-primary">Save Details</button>
 </form>
-</div>
-</fieldset>
-</div>
-</div>
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UploadImage(AppPerson person, IFormFile photoFile)
-{
-    if (ModelState.IsValid)
-    {
-        if (photoFile != null)
-        {
-            using (var memoryStream = new MemoryStream())
-            {
-                await photoFile.CopyToAsync(memoryStream);
-                person.Image = memoryStream.ToArray(); // Convert Image to Byte Array
-            }
-        }
 
-        context.AppPeople.Add(person);
-        await context.SaveChangesAsync();
-        return RedirectToAction("");
+this is my js
+
+   document.addEventListener("DOMContentLoaded", function () {
+       var newButton = document.getElementById("newButton"); // Ensure this button exists
+       var subjectMaster = document.getElementById("SubjectMaster");
+       var refNoLinks = document.querySelectorAll(".refNoLink");
+       var deleteButton = document.getElementById("deleteButton");
+
+       if (newButton) {
+           newButton.addEventListener("click", function () {
+               subjectMaster.style.display = "block";
+               document.getElementById("Subject").value = "";
+              
+               document.getElementById("SubjectId").value = ""; // Reset ID
+               deleteButton.style.display = "none";
+           });
+       }
+
+       refNoLinks.forEach(link => {
+           link.addEventListener("click", function (event) {
+               event.preventDefault();
+               subjectMaster.style.display = "block";
+
+               document.getElementById("Subject").value = this.getAttribute("data-subject");
+               document.getElementById("CreatedBy").value = this.getAttribute("data-createdBy");
+               document.getElementById("CreatedOn").value = this.getAttribute("data-createdOn");
+               document.getElementById("SubjectId").value = this.getAttribute("data-id"); // Set ID
+
+               deleteButton.style.display = "inline-block";
+           });
+       });
+
+       deleteButton.addEventListener("click", function () {
+           var subjectId = document.getElementById("SubjectId").value;
+           if (subjectId) {
+               if (confirm("Are you sure you want to delete this Subject?")) {
+                   fetch(`/Master/DeleteSubject/${subjectId}`, {
+                       method: "POST"
+                   }).then(response => {
+                       if (response.ok) {
+                           
+                           location.reload();
+                       } else {
+                           alert("Error deleting transaction.");
+                       }
+                   });
+               }
+           }
+       });
+   });
+
+this is my controller logic
+[HttpPost]
+public async Task<IActionResult> SubjectMaster(AppSubjectMaster model)
+{
+
+    var User = HttpContext.Session.GetString("Session");
+    if (model == null)
+    {
+        return BadRequest("Invalid data.");
     }
-    return View(person);
+
+    if (model.Id == Guid.Empty) 
+    {
+        model.CreatedBy = User;
+        model.CreatedOn = DateTime.Now;
+        context.AppSubjectMasters.Add(model);
+    }
+    else  
+    {
+        var existingRecord = await context.AppSubjectMasters.FindAsync(model.Id);
+        if (existingRecord != null)
+        {
+            
+            existingRecord.Subject = model.Subject;
+            existingRecord.CreatedBy = User;
+            existingRecord.CreatedOn = DateTime.Now;
+            context.AppSubjectMasters.Update(existingRecord);
+        }
+        else
+        {
+            return NotFound("Record not found.");
+        }
+    }
+
+    await context.SaveChangesAsync();
+    return RedirectToAction("SubjectMaster");
 }
 
-<script>
-    document.getElementById("photoInput").addEventListener("change", function (event) {
-        let reader = new FileReader();
-        reader.onload = function () {
-            let img = document.getElementById("previewImage");
-            img.src = reader.result;
-            img.style.display = "block";
-        };
-        reader.readAsDataURL(event.target.files[0]);
-    });
-</script>
+i want same logic for two buttons one is for delete another for update and make authorization policy
