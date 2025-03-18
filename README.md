@@ -1,3 +1,39 @@
+using Emgu.CV;
+using Emgu.CV.Face;
+using Emgu.CV.Util;
+using System.Collections.Generic;
+
+private void TrainRecognizer(LBPHFaceRecognizer faceRecognizer, Mat grayStored)
+{
+    // Create a vector of images
+    VectorOfMat trainingImages = new VectorOfMat();
+    trainingImages.Push(grayStored);
+
+    // Create a vector of labels
+    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+    // Train the recognizer
+    faceRecognizer.Train(trainingImages, labels);
+}
+
+using Emgu.CV;
+using Emgu.CV.Util;
+using System;
+using System.IO;
+
+public class ImageProcessing
+{
+    public static Mat ConvertByteArrayToMat(byte[] byteArray)
+    {
+        using (MemoryStream ms = new MemoryStream(byteArray))
+        {
+            return CvInvoke.Imdecode(new VectorOfByte(ms.ToArray()), Emgu.CV.CvEnum.ImreadModes.Color);
+        }
+    }
+}
+
+
+
 private bool VerifyFace(Bitmap captured, Bitmap stored)
 {
     try
