@@ -1,3 +1,58 @@
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        // Convert Bitmap to Mat
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        // Convert to grayscale
+        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+        // Load pre-trained face detector
+        var faceCascade = new CascadeClassifier("haarcascade_frontalface_default.xml");
+
+        // Detect face in the captured image
+        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false; // No face found in one of the images
+        }
+
+        // Crop the first detected face
+        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+        Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+        // Resize to ensure consistency
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+        // Face Recognition using LBPH
+        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
+        {
+            faceRecognizer.Train(new List<Mat> { storedFace }, new List<int> { 1 });
+
+            var result = faceRecognizer.Predict(capturedFace);
+            
+            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+            return result.Label == 1 && result.Distance < 80; // Adjust threshold if needed
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
+    }
+}
+
+
+
+
 <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
