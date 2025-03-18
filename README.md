@@ -1,3 +1,21 @@
+private Mat BitmapToMat(Bitmap bitmap)
+{
+    // Convert Bitmap to MemoryStream
+    using (MemoryStream ms = new MemoryStream())
+    {
+        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+        byte[] imageData = ms.ToArray();
+
+        // Decode image from byte array to Mat
+        Mat mat = new Mat();
+        CvInvoke.Imdecode(new VectorOfByte(imageData), Emgu.CV.CvEnum.ImreadModes.Grayscale, mat);
+
+        return mat;
+    }
+}
+
+
+
 using Emgu.CV;
 using Emgu.CV.Face;
 using Emgu.CV.Util;
