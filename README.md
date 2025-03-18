@@ -1,3 +1,56 @@
+[HttpGet("Submit")]
+public IActionResult GetAllDetails(string WorkOrderNo, string VendorCode)
+{
+    try
+    {
+        // Fetch the datasets
+        var leaveDetails = compliance.Leave_details(WorkOrderNo, VendorCode);
+        var bonusDetails = compliance.Bonus_details(WorkOrderNo, VendorCode);
+        var rrAlertLatest = compliance.RR_Alert_latest(WorkOrderNo, VendorCode);
+
+        // Convert DataSets to List of Dictionaries
+        var leaveDetailsList = new List<object>();
+        var bonusDetailsList = new List<object>();
+
+        if (leaveDetails != null && leaveDetails.Tables.Count > 0)
+        {
+            foreach (DataTable table in leaveDetails.Tables)
+            {
+                leaveDetailsList.Add(ConvertDataTableToDictionaryList(table));
+            }
+        }
+
+        if (bonusDetails != null && bonusDetails.Tables.Count > 0)
+        {
+            foreach (DataTable table in bonusDetails.Tables)
+            {
+                bonusDetailsList.Add(ConvertDataTableToDictionaryList(table));
+            }
+        }
+
+        // Convert DataTable to List of Dictionary
+        var rrAlertList = ConvertDataTableToDictionaryList(rrAlertLatest);
+
+        // Combine all data in a single response object
+        var response = new
+        {
+            LeaveDetails = leaveDetailsList,
+            BonusDetails = bonusDetailsList,
+            RRAlertLatest = rrAlertList
+        };
+
+        return Ok(response);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error Occurred while fetching details");
+        return StatusCode(500, ex.Message);
+    }
+}
+
+
+
+
 i have these three different datasets function. these functions fetches data from . i want to show output at once 
 public DataSet Leave_details(string WorkOrder, string VendorCode)
         {
