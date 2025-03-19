@@ -1,4 +1,56 @@
 protected void Page_Load(object sender, EventArgs e)
+{
+    if (!IsPostBack)
+    {
+        string Pno = Session["UserName"]?.ToString();
+
+        BL_ImprestCard_Request blobj = new BL_ImprestCard_Request();
+        DataSet ds2 = blobj.Chk_Pno(Pno);
+
+        if (ds2.Tables[0].Rows.Count > 0)
+        {
+            Response.Redirect("~/Default.aspx");
+        }
+        else
+        {
+            // Set a hidden field value or a JavaScript variable
+            ScriptManager.RegisterStartupScript(this, this.GetType(), "OpenModal", "showModal();", true);
+        }
+    }
+}
+
+<script>
+    function showModal() {
+        $('#myModal').modal('show'); // Use Bootstrap modal
+    }
+</script>
+<div id="myModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Declaration for Taking Imprest Card</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Responsibilities of the card holder:</p>
+                <ul>
+                    <li>The card holder will be responsible for Imprest card’s security...</li>
+                    <!-- Add other points -->
+                </ul>
+                <p>I have taken the possession of HDFC MONEY PLUS CARD bearing No. ………</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary">Agree</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+protected void Page_Load(object sender, EventArgs e)
         {
             //ImprestCard_Records.DataSource = PageRecordsDataSet;
 
