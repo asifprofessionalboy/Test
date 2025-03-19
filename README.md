@@ -1,138 +1,68 @@
-leave everything i have this two buttons 
-<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
-    <div class="form-group text-center">
-        <video id="video" width="320" height="240" autoplay playsinline></video>
-        <canvas id="canvas" style="display: none;"></canvas>
-    </div>
-    <input type="hidden" name="Type" id="EntryType" />
+protected void Page_Load(object sender, EventArgs e)
+        {
+            //ImprestCard_Records.DataSource = PageRecordsDataSet;
 
-    <div class="row mt-5 form-group">
-        <div class="col d-flex justify-content-center">
-            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
-                Punch In
-            </button>
-        </div>
 
-        <div class="col d-flex justify-content-center">
-            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
-                Punch Out
-            </button>
-        </div>
-    </div>
-</form>
 
-this is my js for VideoCamera to click picture 
-<script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const EntryTypeInput = document.getElementById("EntryType");
-    const form = document.getElementById("form");
+            if (!IsPostBack)
+            {
+                //GetRecords(GetFilterCondition(), ImprestCard_Records.PageSize, 10, "");
+                //ImprestCard_Records.DataBind();
 
-    // Start Camera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then(function (stream) {
-            video.srcObject = stream;
-            video.play();
-        })
-        .catch(function (error) {
-            console.error("Error accessing camera: ", error);
-        });
+                string Pno = Session["UserName"].ToString();
 
-    function captureImageAndSubmit(entryType) {
-        // Set Entry Type (Punch In / Punch Out)
-        EntryTypeInput.value = entryType;
+                BL_ImprestCard_Request blobj = new BL_ImprestCard_Request();
+                DataSet ds2 = new DataSet();
 
-        // Capture Image
-        const context = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                ds2 = blobj.Chk_Pno(Pno);
+             
+                if(ds2.Tables[0].Rows.Count>0)
+                {
 
-        // Convert Image to Base64
-        const imageData = canvas.toDataURL("image/png");
-        
-        // Append Image Data to Form
-        const imageInput = document.createElement("input");
-        imageInput.type = "hidden";
-        imageInput.name = "ImageData";
-        imageInput.value = imageData;
-        form.appendChild(imageInput);
+                }
 
-        // Submit Form
-        form.submit();
-    }
-</script>
+                else
+                {
+                    Response.Redirect("~/Default.aspx");
+                }
 
-this is my controller method when click on PunchIn and punchOut then this method is call
- [HttpPost]
- public IActionResult AttendanceData(string Type, string ImageData)
- {
-     if (string.IsNullOrEmpty(ImageData))
-     {
-         return Json(new { success = false, message = "Image data is missing!" });
-     }
+            }
+        }
 
-     try
-     {
-         var UserId = HttpContext.Request.Cookies["Session"];
-         string Pno = UserId;
 
-        
-         byte[] imageBytes = Convert.FromBase64String(ImageData.Split(',')[1]);
+this is my page load here i want to open modal when if(ds2.Tables[0].Rows.Count>0) means there is no data in ds2.tables.rows.count,if there is no value then open Modal . if there is value then redirect to homepage 
 
-         using (var ms = new MemoryStream(imageBytes))
-         {
-             Bitmap capturedImage = new Bitmap(ms);
+							Declaration for taking Imprest Card
+Responsibilities of the card holder:
 
-             var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
-             if (user == null || user.Image == null)
-             {
-                 return Json(new { success = false, message = "User Image Not Found!" });
-             }
+1.	The card holder will be responsible for Imprest card‘s security, its safe keeping & secrecy of PIN.
+2.	Once the card is issued, it is not transferable.
+3.	In case of loss of card, the card holder should immediately block the card & inform F&A. Card re-issuance charges are to be borne by the card holder only.
+4.	ATM withdrawals in HDFC ATM is free of charges, non-HDFC ATM usage will be chargeable & the same will be charged to the concerned Imprest card. The charges are mentioned below.
 
-             using (var storedStream = new MemoryStream(user.Image))
-             {
-                 Bitmap storedImage = new Bitmap(storedStream);
+Description of Charges	Amount
+ATM withdrawal charges (HDFC Bank)	Free
+ATM withdrawal charges (Non HDFC Bank)	Up to Rs.1000 – Rs.21 + GST
+Above Rs.1000 – 1% + GST
+(Cash withdrawal per transaction)
+Balance Enquiry in HDFC & NON-HDFC ATMs
+Online Check Free	Rs. 10 + 18% GST
 
-               
-                 bool isFaceMatched = VerifyFace(capturedImage, storedImage);
+hdfcbankprepaid.hdfcbank.com/hdfcportal/index
 
-                 if (!isFaceMatched)
-                 {
-                     return Json(new { success = false, message = "Face does not match!" });
-                 }
 
-                
-                 string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                 string currentTime = DateTime.Now.ToString("HH:mm");
+Please also note:
+•	Card will be pre-loaded with the approved Imprest amount or to the extent of bills submitted for reimbursement whichever is earlier.
+•	Expenses should be restricted to the items related to establishment. 
+•	Items of regular use or repetitive nature should be catered through ARC only. If no such item code exists, then effort should be made to create them rather than processing these payments through Imprest card. 
+•	No expenses for services should be made where Tax deducted at source (TDS) is applicable. 
+•	 If any purchase made from registered GST supplier, invoice must contain company’s name (TSUISL), address, GST no. Taxable value, GST amount.
+•	Expenses should be claimed by submission of appropriate documents/vouchers & time bound expense statement to be submitted to F&A for recoupment with HOD’s approval.
+•	No cash payment to be made more than Rs. 10,000/- to single party on same day.
+•	The cash in hand is subject to verification at any point of time.
+•	In case of separation of employee, the employee needs to hand over the card and cash in hand, otherwise, the same will be recovered from the full & final settlement.
+•	At the end of each FY cash in hand is to be handed over to the F&A cash office.
+I have taken the possession of HDFC MONEY PLUS CARD bearing No…………………………………………. and understood the dos and don’ts, usage of card & the charges associated with it. I shall provide the information related to card and any required documents as and when required by F&A. 
 
-                 if (Type == "Punch In")
-                 {
-                     StoreData(currentDate, currentTime, null, Pno);
-                 }
-                 else
-                 {
-                     StoreData(currentDate, null, currentTime, Pno);
-                 }
 
-                 return Json(new { success = true, message = "Attendance Marked Successfully!" });
-             }
-         }
-     }
-     catch (Exception ex)
-     {
-         return Json(new { success = false, message = ex.Message });
-     }
- }
-
-i want in this , that it captures the Image when i click on PunchIn or punchOut and if Face matches then  it executes the StoreData function otherwise show Face is not matching 
-i want to use FaceRecognition in place of this 
-i have this model where Image is store and compare with this public partial class AppPerson
-{
-    public Guid Id { get; set; }
-    public string? Pno { get; set; }
-    public string? Name { get; set; }
-    public byte[]? Image { get; set; }
-}
-
-if u want any changes for this, please provide and please give me good code for accurate face matching 
+                                                                   Agree  Next 
