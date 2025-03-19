@@ -1,82 +1,36 @@
-i have this logic to store user's details and matches with this stored image of capture image 
-[HttpPost]
- [ValidateAntiForgeryToken]
- public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
- {
-     if (!string.IsNullOrEmpty(photoData))
-     {
-        
-         byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
-
-         var person = new AppPerson
-         {
-             Pno = Pno, 
-             Name = Name,
-             Image = imageBytes 
-         };
-
-         context.AppPeople.Add(person);
-         await context.SaveChangesAsync();
-         return RedirectToAction("GeoFencing");
-     }
-
-     return View();
- }
-
-<div class="card rounded-9">
-    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
-        Capture Photo
+leave everything i have this two buttons 
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
     </div>
-    <div class="col-md-12">
-        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
-            <div class="row">
-                <form asp-action="UploadImage" method="post">
-                    <div class="form-group row">
-                        <div class="col-sm-1">
-                            <label>Pno</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <input id="Pno" name="Pno" class="form-control" required />
-                        </div>
-                        <div class="col-sm-1">
-                            <label>Name</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <input id="Name" name="Name" class="form-control" required />
-                        </div>
-                        <div class="col-sm-1">
-                            <label>Capture Photo</label>
-                        </div>
-                        <div class="col-sm-3">
-                            <video id="video" width="200" height="150" autoplay playsinline></video>
-                            <canvas id="canvas" style="display:none;"></canvas>
+    <input type="hidden" name="Type" id="EntryType" />
 
-                          
-                            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
+    <div class="row mt-5 form-group">
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                Punch In
+            </button>
+        </div>
 
-                           
-                            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
-                            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
-
-                           
-                            <input type="hidden" id="photoData" name="photoData" />
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
-                </form>
-            </div>
-        </fieldset>
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                Punch Out
+            </button>
+        </div>
     </div>
-</div>
+</form>
 
-
-
+this is my js for VideoCamera to click picture 
 <script>
-   
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
+    const form = document.getElementById("form");
+
+    // Start Camera
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(function (stream) {
-            let video = document.querySelector("video");
             video.srcObject = stream;
             video.play();
         })
@@ -84,41 +38,101 @@ i have this logic to store user's details and matches with this stored image of 
             console.error("Error accessing camera: ", error);
         });
 
-   
+    function captureImageAndSubmit(entryType) {
+        // Set Entry Type (Punch In / Punch Out)
+        EntryTypeInput.value = entryType;
 
-
-    document.getElementById("captureBtn").addEventListener("click", function () {
-        let video = document.getElementById("video");
-        let canvas = document.getElementById("canvas");
-        let context = canvas.getContext("2d");
-
-        // Capture the image from the video feed
+        // Capture Image
+        const context = canvas.getContext("2d");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Convert the captured image to Base64
-        let imageData = canvas.toDataURL("image/png");
-        document.getElementById("previewImage").src = imageData;
-        document.getElementById("previewImage").style.display = "block";
-        document.getElementById("photoData").value = imageData;
+        // Convert Image to Base64
+        const imageData = canvas.toDataURL("image/png");
+        
+        // Append Image Data to Form
+        const imageInput = document.createElement("input");
+        imageInput.type = "hidden";
+        imageInput.name = "ImageData";
+        imageInput.value = imageData;
+        form.appendChild(imageInput);
 
-        // Hide video and capture button, Show Retake button
-        video.style.display = "none";
-        document.getElementById("captureBtn").style.display = "none";
-        document.getElementById("retakeBtn").style.display = "inline-block";
-        document.getElementById("submitBtn").disabled = false; // Enable submit button
-    });
-
-    // Retake Photo Functionality
-    document.getElementById("retakeBtn").addEventListener("click", function () {
-        let video = document.getElementById("video");
-
-        // Show video and capture button again
-        video.style.display = "block";
-        document.getElementById("captureBtn").style.display = "inline-block";
-        document.getElementById("retakeBtn").style.display = "none";
-        document.getElementById("previewImage").style.display = "none";
-        document.getElementById("submitBtn").disabled = true; // Disable submit button
-    });
+        // Submit Form
+        form.submit();
+    }
 </script>
+
+this is my controller method when click on PunchIn and punchOut then this method is call
+ [HttpPost]
+ public IActionResult AttendanceData(string Type, string ImageData)
+ {
+     if (string.IsNullOrEmpty(ImageData))
+     {
+         return Json(new { success = false, message = "Image data is missing!" });
+     }
+
+     try
+     {
+         var UserId = HttpContext.Request.Cookies["Session"];
+         string Pno = UserId;
+
+        
+         byte[] imageBytes = Convert.FromBase64String(ImageData.Split(',')[1]);
+
+         using (var ms = new MemoryStream(imageBytes))
+         {
+             Bitmap capturedImage = new Bitmap(ms);
+
+             var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
+             if (user == null || user.Image == null)
+             {
+                 return Json(new { success = false, message = "User Image Not Found!" });
+             }
+
+             using (var storedStream = new MemoryStream(user.Image))
+             {
+                 Bitmap storedImage = new Bitmap(storedStream);
+
+               
+                 bool isFaceMatched = VerifyFace(capturedImage, storedImage);
+
+                 if (!isFaceMatched)
+                 {
+                     return Json(new { success = false, message = "Face does not match!" });
+                 }
+
+                
+                 string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                 string currentTime = DateTime.Now.ToString("HH:mm");
+
+                 if (Type == "Punch In")
+                 {
+                     StoreData(currentDate, currentTime, null, Pno);
+                 }
+                 else
+                 {
+                     StoreData(currentDate, null, currentTime, Pno);
+                 }
+
+                 return Json(new { success = true, message = "Attendance Marked Successfully!" });
+             }
+         }
+     }
+     catch (Exception ex)
+     {
+         return Json(new { success = false, message = ex.Message });
+     }
+ }
+
+i want in this , that it captures the Image when i click on PunchIn or punchOut and if Face matches then  it executes the StoreData function otherwise show Face is not matching 
+i want to use FaceRecognition in place of this 
+i have this model where Image is store and compare with this public partial class AppPerson
+{
+    public Guid Id { get; set; }
+    public string? Pno { get; set; }
+    public string? Name { get; set; }
+    public byte[]? Image { get; set; }
+}
+
+if u want any changes for this, please provide and please give me good code for accurate face matching 
