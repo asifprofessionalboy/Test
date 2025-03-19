@@ -13,6 +13,156 @@ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 
         byte[] imageBytes = Convert.FromBase64String(model.ImageData.Split(',')[1]);
 
+        // Log received image size
+        Console.WriteLine($"Received image size: {imageBytes.Length} bytes");
+
+        using (var ms = new MemoryStream(imageBytes))
+        {
+            Bitmap capturedImage = new Bitmap(ms);
+
+            var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
+            if (user == null || user.Image == null)
+            {
+                return Json(new { success = false, message = "User Image Not Found!" });
+            }
+
+            using (var storedStream = new MemoryStream(user.Image))
+            {
+                Bitmap storedImage = new Bitmap(storedStream);
+
+                // Log before face verification
+                Console.WriteLine("Starting face verification...");
+
+                bool isPartialMatch;
+                bool isFaceMatched = VerifyFace(capturedImage, storedImage, out isPartialMatch);
+
+                if (isFaceMatched)
+                {
+                    return Json(new { success = true, message = "Attendance Marked Successfully!" });
+                }
+                else if (isPartialMatch)
+                {
+                    return Json(new { success = false, message = "Face partially matched! Please try again." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+public bool VerifyFace(Bitmap capturedImage, Bitmap storedImage, out bool isPartialMatch)
+{
+    isPartialMatch = false;
+
+    try
+    {
+        // Convert images to grayscale if necessary
+        Bitmap capturedGray = ConvertToGrayscale(capturedImage);
+        Bitmap storedGray = ConvertToGrayscale(storedImage);
+
+        // Resize images to a standard size for better comparison
+        Bitmap resizedCaptured = ResizeImage(capturedGray, 100, 100);
+        Bitmap resizedStored = ResizeImage(storedGray, 100, 100);
+
+        // Simple pixel comparison (replace with AI-based face detection if needed)
+        int matchCount = 0;
+        int totalPixels = resizedCaptured.Width * resizedCaptured.Height;
+
+        for (int x = 0; x < resizedCaptured.Width; x++)
+        {
+            for (int y = 0; y < resizedCaptured.Height; y++)
+            {
+                Color color1 = resizedCaptured.GetPixel(x, y);
+                Color color2 = resizedStored.GetPixel(x, y);
+
+                if (Math.Abs(color1.R - color2.R) < 30 &&
+                    Math.Abs(color1.G - color2.G) < 30 &&
+                    Math.Abs(color1.B - color2.B) < 30)
+                {
+                    matchCount++;
+                }
+            }
+        }
+
+        double matchPercentage = (matchCount / (double)totalPixels) * 100;
+        Console.WriteLine($"Face Match Percentage: {matchPercentage}%");
+
+        if (matchPercentage > 80) // Adjust threshold as needed
+        {
+            return true;
+        }
+        else if (matchPercentage > 60)
+        {
+            isPartialMatch = true;
+            return false;
+        }
+        return false;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Face comparison error: " + ex.Message);
+        return false;
+    }
+}
+
+function captureImageAndSubmit(entryType) {
+    EntryTypeInput.value = entryType;
+
+    const context = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Flip image horizontally if necessary (check if it is needed)
+    // context.translate(canvas.width, 0);
+    // context.scale(-1, 1);
+    
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = canvas.toDataURL("image/png");
+
+    fetch("/Geo/AttendanceData", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            Type: entryType,
+            ImageData: imageData
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        alert("An error occurred while submitting the image.");
+    });
+}
+
+
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    if (string.IsNullOrEmpty(model.ImageData))
+    {
+        return Json(new { success = false, message = "Image data is missing!" });
+    }
+
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        string Pno = UserId;
+
+        byte[] imageBytes = Convert.FromBase64String(model.ImageData.Split(',')[1]);
+
         using (var ms = new MemoryStream(imageBytes))
         {
             Bitmap capturedImage = new Bitmap(ms);
