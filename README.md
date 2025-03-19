@@ -1,3 +1,108 @@
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    if (string.IsNullOrEmpty(model.ImageData))
+    {
+        return Json(new { success = false, message = "Image data is missing!" });
+    }
+
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        string Pno = UserId;
+
+        byte[] imageBytes = Convert.FromBase64String(model.ImageData.Split(',')[1]);
+
+        using (var ms = new MemoryStream(imageBytes))
+        {
+            Bitmap capturedImage = new Bitmap(ms);
+
+            var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
+            if (user == null || user.Image == null)
+            {
+                return Json(new { success = false, message = "User Image Not Found!" });
+            }
+
+            using (var storedStream = new MemoryStream(user.Image))
+            {
+                Bitmap storedImage = new Bitmap(storedStream);
+
+                bool isPartialMatch;
+                bool isFaceMatched = VerifyFace(capturedImage, storedImage, out isPartialMatch);
+
+                if (isFaceMatched)
+                {
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        StoreData(currentDate, currentTime, null, Pno);
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno);
+                    }
+
+                    return Json(new { success = true, message = "Attendance Marked Successfully!" });
+                }
+                else if (isPartialMatch)
+                {
+                    return Json(new { success = false, message = "Face partially matched! Please try again." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+// Model to handle JSON request
+public class AttendanceRequest
+{
+    public string Type { get; set; }
+    public string ImageData { get; set; }
+}
+
+
+function captureImageAndSubmit(entryType) {
+    EntryTypeInput.value = entryType;
+
+    const context = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = canvas.toDataURL("image/png");
+
+    fetch("/Geo/AttendanceData", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            Type: entryType,
+            ImageData: imageData
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        alert("An error occurred while submitting the image.");
+    });
+}
+
+
+
 <form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
     <div class="form-group text-center">
         <video id="video" width="320" height="240" autoplay playsinline></video>
