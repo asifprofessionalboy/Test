@@ -1,375 +1,164 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Face Recognition Attendance</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-</head>
-<body>
+i have this view side
 
-    <h2>Face Recognition Attendance</h2>
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+    <input type="hidden" name="Type" id="EntryType" />
 
-    <video id="video" width="320" height="240" autoplay></video>
-    <canvas id="canvas" width="320" height="240" style="display: none;"></canvas>
-    
-    <button id="capture">Capture</button>
-    <button id="punchIn">Punch In</button>
-    <button id="punchOut">Punch Out</button>
+    <div class="row mt-5 form-group">
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                Punch In
+            </button>
+        </div>
 
-    <p id="status"></p>
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                Punch Out
+            </button>
+        </div>
+    </div>
+</form>
 
-    <script>
-        $(document).ready(function () {
-            // Access the user's camera
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function (stream) {
-                    document.getElementById("video").srcObject = stream;
-                })
-                .catch(function (err) {
-                    console.log("Error accessing camera: " + err);
-                });
+and this is my js , make sure to work for this 
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
+    const form = document.getElementById("form");
 
-            // Capture Image from Video
-            $("#capture").click(function () {
-                let video = document.getElementById("video");
-                let canvas = document.getElementById("canvas");
-                let context = canvas.getContext("2d");
-
-                context.drawImage(video, 0, 0, 320, 240);
-                let imageData = canvas.toDataURL("image/jpeg");
-
-                sessionStorage.setItem("capturedImage", imageData); // Store captured image
-                alert("Image captured successfully!");
-            });
-
-            // Handle Punch In
-            $("#punchIn").click(function () {
-                let imageData = sessionStorage.getItem("capturedImage");
-                if (!imageData) {
-                    alert("Please capture an image first!");
-                    return;
-                }
-                sendImageToServer(imageData, "Punch In");
-            });
-
-            // Handle Punch Out
-            $("#punchOut").click(function () {
-                let imageData = sessionStorage.getItem("capturedImage");
-                if (!imageData) {
-                    alert("Please capture an image first!");
-                    return;
-                }
-                sendImageToServer(imageData, "Punch Out");
-            });
-
-            // Function to Send Image to Backend
-            function sendImageToServer(imageData, entryType) {
-                $.ajax({
-                    type: "POST",
-                    url: "/Home/AttendanceData",
-                    data: { EntryType: entryType, ImageData: imageData },
-                    success: function (response) {
-                        $("#status").text(response.message);
-                        if (response.success) {
-                            $("#status").css("color", "green");
-                        } else {
-                            $("#status").css("color", "red");
-                        }
-                    },
-                    error: function () {
-                        $("#status").text("Error processing request.");
-                        $("#status").css("color", "red");
-                    }
-                });
-            }
+    // Start Camera
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
         });
-    </script>
 
-</body>
-</html>
+    function captureImageAndSubmit(entryType) {
+        // Set Entry Type (Punch In / Punch Out)
+        EntryTypeInput.value = entryType;
 
-[HttpPost]
-public IActionResult AttendanceData(string EntryType, string ImageData)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        string Pno = UserId;
+        // Capture Image
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Convert Base64 Image Data to Byte Array
-        byte[] imageBytes = Convert.FromBase64String(ImageData.Split(',')[1]);
+        // Convert Image to Base64
+        const imageData = canvas.toDataURL("image/png");
+        
+        // Append Image Data to Form
+        const imageInput = document.createElement("input");
+        imageInput.type = "hidden";
+        imageInput.name = "ImageData";
+        imageInput.value = imageData;
+        form.appendChild(imageInput);
 
-        using (var ms = new MemoryStream(imageBytes))
-        using (var capturedImage = new Bitmap(ms))
-        {
-            var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
-            if (user == null || user.FaceEncoding == null)
-            {
-                return Json(new { success = false, message = "User not found or no face stored!" });
-            }
-
-            // Perform Face Recognition
-            bool isFaceMatched = VerifyFace(capturedImage, user.FaceEncoding);
-
-            if (!isFaceMatched)
-            {
-                return Json(new { success = false, message = "Face does not match!" });
-            }
-
-            // If face matches, store attendance
-            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-            string currentTime = DateTime.Now.ToString("HH:mm");
-
-            if (EntryType == "Punch In")
-            {
-                StoreData(currentDate, currentTime, null, Pno);
-            }
-            else
-            {
-                StoreData(currentDate, null, currentTime, Pno);
-            }
-
-            return Json(new { success = true, message = "Attendance Marked Successfully!" });
-        }
+        // Submit Form
+        form.submit();
     }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
+</script>
+ function OnOff() {
+     var punchIn = document.getElementById('PunchIn');
+     var punchOut = document.getElementById('PunchOut');
 
-using System.Drawing.Imaging;
-using System.IO;
-using FaceRecognitionDotNet;
+     punchIn.disabled = true;
+     punchOut.disabled = true;
+     punchIn.classList.add("disabled");
+     punchOut.classList.add("disabled");
 
-private byte[] GetFaceEncoding(Bitmap image)
-{
-    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "models");
+     Swal.fire({
+         title: 'Please wait...',
+         text: 'Fetching your current location.',
+         allowOutsideClick: false,
+         didOpen: () => {
+             Swal.showLoading();
+         }
+     });
 
-    // Resize image before processing
-    Bitmap resized = new Bitmap(image, new Size(150, 150));
+     if (navigator.geolocation) {
+         navigator.geolocation.getCurrentPosition(
+             function (position) {
+                 Swal.close();
 
-    using (var faceRecognition = FaceRecognition.Create(modelPath))
-    {
-        var faceImage = FaceRecognition.LoadImage(resized);
-        var encodings = faceRecognition.FaceEncodings(faceImage).FirstOrDefault();
+                 // Get user's current location
+                 const lat = roundTo(position.coords.latitude, 6);
+                 const lon = roundTo(position.coords.longitude, 6);
 
-        return encodings?.GetRawEncoding();  // Returns null if no face is detected
-    }
-}
+                 // const lat = 22.79675;
+                 // const lon = 86.183915;
 
+                 const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
+                 console.log(locations);
 
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
-{
-    if (!string.IsNullOrEmpty(photoData))
-    {
-        byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+                 let isInsideRadius = false;
+                 let minDistance = Number.MAX_VALUE; // Store minimum distance
 
-        using (var ms = new MemoryStream(imageBytes))
-        using (var bitmap = new Bitmap(ms))
-        {
-            byte[] faceEncoding = GetFaceEncoding(bitmap);
+                 locations.forEach((location) => {
+                     const allowedRange = parseFloat(location.range || location.Range);
+                     const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
+                     console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
 
-            if (faceEncoding == null)
-            {
-                return Json(new { success = false, message = "No face detected!" });
-            }
+                     if (distance <= allowedRange) {
+                         isInsideRadius = true;
+                     } else {
+                         minDistance = Math.min(minDistance, distance);
+                     }
+                 });
 
-            var person = new AppPerson
-            {
-                Pno = Pno,
-                Name = Name,
-                FaceEncoding = faceEncoding
-            };
+                 if (isInsideRadius) {
+                     punchIn.disabled = false;
+                     punchOut.disabled = false;
+                     punchIn.classList.remove("disabled");
+                     punchOut.classList.remove("disabled");
+                     Swal.fire({
+                         title: 'Within Range',
+                         text: 'You are within the allowed range for attendance.',
+                         icon: 'success'
+                     });
+                 } else {
+                     Swal.fire({
+                         icon: "error",
+                         title: "Out of Range",
+                         text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
+                     });
+                 }
+             },
+             function (error) {
+                 Swal.close();
+                 alert('Error fetching location: ' + error.message);
+             },
+             {
+                 enableHighAccuracy: true,
+                 timeout: 10000,
+                 maximumAge: 0
+             }
+         );
+     } else {
+         Swal.close();
+         alert("Geolocation is not supported by this browser");
+     }
+ }
 
-            context.AppPeople.Add(person);
-            await context.SaveChangesAsync();
-            return Json(new { success = true, message = "Face stored successfully!" });
-        }
-    }
+ function calculateDistance(lat1, lon1, lat2, lon2) {
+     const R = 6371000;
+     const toRad = angle => (angle * Math.PI) / 180;
+     let dLat = toRad(lat2 - lat1);
+     let dLon = toRad(lon2 - lon1);
+     let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+         Math.sin(dLon / 2) * Math.sin(dLon / 2);
+     let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+     return R * c;
+ }
 
-    return Json(new { success = false, message = "Invalid image data!" });
-}
+ function roundTo(num, places) {
+     return +(Math.round(num + "e" + places) + "e-" + places);
+ }
 
-[HttpPost]
-public IActionResult AttendanceData(string EntryType, string ImageData)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        string Pno = UserId;
-
-        // Convert Base64 Image Data to Byte Array
-        byte[] imageBytes = Convert.FromBase64String(ImageData.Split(',')[1]);
-
-        using (var ms = new MemoryStream(imageBytes))
-        using (var capturedImage = new Bitmap(ms))
-        {
-            var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
-            if (user == null || user.FaceEncoding == null)
-            {
-                return Json(new { success = false, message = "User not found or no face stored!" });
-            }
-
-            // Perform Face Recognition
-            bool isFaceMatched = VerifyFace(capturedImage, user.FaceEncoding);
-
-            if (!isFaceMatched)
-            {
-                return Json(new { success = false, message = "Face does not match!" });
-            }
-
-            // If face matches, store attendance
-            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-            string currentTime = DateTime.Now.ToString("HH:mm");
-
-            if (EntryType == "Punch In")
-            {
-                StoreData(currentDate, currentTime, null, Pno);
-            }
-            else
-            {
-                StoreData(currentDate, null, currentTime, Pno);
-            }
-
-            return Json(new { success = true, message = "Attendance Marked Successfully!" });
-        }
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-using FaceRecognitionDotNet;
-
-private byte[] GetFaceEncoding(Bitmap image)
-{
-    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "models");
-
-    using (var faceRecognition = FaceRecognition.Create(modelPath))
-    {
-        var faceImage = FaceRecognition.LoadImage(image);
-        var encodings = faceRecognition.FaceEncodings(faceImage).FirstOrDefault();
-
-        return encodings?.GetRawEncoding();  // Returns null if no face is detected
-    }
-}
-private bool VerifyFace(Bitmap captured, byte[] storedEncoding)
-{
-    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "models");
-
-    using (var faceRecognition = FaceRecognition.Create(modelPath))
-    {
-        var faceImage = FaceRecognition.LoadImage(captured);
-        var capturedEncoding = faceRecognition.FaceEncodings(faceImage).FirstOrDefault();
-
-        if (capturedEncoding == null)
-            return false;  // No face detected
-
-        // Compare faces with a threshold (0.6 is a good value)
-        return FaceRecognition.CompareFaceEncodings(storedEncoding, capturedEncoding.GetRawEncoding(), tolerance: 0.6);
-    }
-}
-
-
-[HttpGet("Submit")]
-public IActionResult GetAllDetails(string WorkOrderNo, string VendorCode)
-{
-    try
-    {
-        // Fetch the datasets
-        var leaveDetails = compliance.Leave_details(WorkOrderNo, VendorCode);
-        var bonusDetails = compliance.Bonus_details(WorkOrderNo, VendorCode);
-        var rrAlertLatest = compliance.RR_Alert_latest(WorkOrderNo, VendorCode);
-
-        // Convert DataSets to List of Dictionaries
-        var leaveDetailsList = new List<object>();
-        var bonusDetailsList = new List<object>();
-
-        if (leaveDetails != null && leaveDetails.Tables.Count > 0)
-        {
-            foreach (DataTable table in leaveDetails.Tables)
-            {
-                leaveDetailsList.Add(ConvertDataTableToDictionaryList(table));
-            }
-        }
-
-        if (bonusDetails != null && bonusDetails.Tables.Count > 0)
-        {
-            foreach (DataTable table in bonusDetails.Tables)
-            {
-                bonusDetailsList.Add(ConvertDataTableToDictionaryList(table));
-            }
-        }
-
-        // Convert DataTable to List of Dictionary
-        var rrAlertList = ConvertDataTableToDictionaryList(rrAlertLatest);
-
-        // Combine all data in a single response object
-        var response = new
-        {
-            LeaveDetails = leaveDetailsList,
-            BonusDetails = bonusDetailsList,
-            RRAlertLatest = rrAlertList
-        };
-
-        return Ok(response);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error Occurred while fetching details");
-        return StatusCode(500, ex.Message);
-    }
-}
-
-
-
-
-i have these three different datasets function. these functions fetches data from . i want to show output at once 
-public DataSet Leave_details(string WorkOrder, string VendorCode)
-        {
-}
-
-public DataSet Bonus_details(string WorkOrder, string VendorCode)
-        {
-}
-
-public DataTable RR_Alert_latest(string WorkOrderNo, string VendorCode)
-        {
- return dt;
-
-}
-public static List<Dictionary<string, object>> ConvertDataTableToDictionaryList(DataTable dt)
-    {
-        var list = new List<Dictionary<string, object>>();
-        foreach (DataRow row in dt.Rows)
-        {
-            var dict = new Dictionary<string, object>();
-            foreach (DataColumn col in dt.Columns)
-            {
-                dict[col.ColumnName] = row[col];
-            }
-            list.Add(dict);
-        }
-        return list;
-    }
-}
- this is my controller 
-
- [HttpGet("Submit")]
-        public IActionResult RR_Alert_Latest(string WorkOrderNo, string VendorCode)
-        {
-
-            try
-            {
-                var data = compliance.RR_Alert_latest(WorkOrderNo, VendorCode);
-                
-                return Ok(data);    
-            }
-            catch(Exception ex)
-            {
-                logger.LogError(ex, "Error Occured while Getting RR_ALert_Latest");
-                return StatusCode(500, ex.Message);
-            }
-        }
+ window.onload = OnOff;
