@@ -1,3 +1,118 @@
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+{
+    if (!string.IsNullOrEmpty(photoData))
+    {
+        byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+
+        using (var ms = new MemoryStream(imageBytes))
+        using (var bitmap = new Bitmap(ms))
+        {
+            byte[] faceEncoding = GetFaceEncoding(bitmap);
+
+            if (faceEncoding == null)
+            {
+                return Json(new { success = false, message = "No face detected!" });
+            }
+
+            var person = new AppPerson
+            {
+                Pno = Pno,
+                Name = Name,
+                FaceEncoding = faceEncoding
+            };
+
+            context.AppPeople.Add(person);
+            await context.SaveChangesAsync();
+            return Json(new { success = true, message = "Face stored successfully!" });
+        }
+    }
+
+    return Json(new { success = false, message = "Invalid image data!" });
+}
+
+[HttpPost]
+public IActionResult AttendanceData(string EntryType, string ImageData)
+{
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        string Pno = UserId;
+
+        // Convert Base64 Image Data to Byte Array
+        byte[] imageBytes = Convert.FromBase64String(ImageData.Split(',')[1]);
+
+        using (var ms = new MemoryStream(imageBytes))
+        using (var capturedImage = new Bitmap(ms))
+        {
+            var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
+            if (user == null || user.FaceEncoding == null)
+            {
+                return Json(new { success = false, message = "User not found or no face stored!" });
+            }
+
+            // Perform Face Recognition
+            bool isFaceMatched = VerifyFace(capturedImage, user.FaceEncoding);
+
+            if (!isFaceMatched)
+            {
+                return Json(new { success = false, message = "Face does not match!" });
+            }
+
+            // If face matches, store attendance
+            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+            string currentTime = DateTime.Now.ToString("HH:mm");
+
+            if (EntryType == "Punch In")
+            {
+                StoreData(currentDate, currentTime, null, Pno);
+            }
+            else
+            {
+                StoreData(currentDate, null, currentTime, Pno);
+            }
+
+            return Json(new { success = true, message = "Attendance Marked Successfully!" });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+using FaceRecognitionDotNet;
+
+private byte[] GetFaceEncoding(Bitmap image)
+{
+    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "models");
+
+    using (var faceRecognition = FaceRecognition.Create(modelPath))
+    {
+        var faceImage = FaceRecognition.LoadImage(image);
+        var encodings = faceRecognition.FaceEncodings(faceImage).FirstOrDefault();
+
+        return encodings?.GetRawEncoding();  // Returns null if no face is detected
+    }
+}
+private bool VerifyFace(Bitmap captured, byte[] storedEncoding)
+{
+    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "models");
+
+    using (var faceRecognition = FaceRecognition.Create(modelPath))
+    {
+        var faceImage = FaceRecognition.LoadImage(captured);
+        var capturedEncoding = faceRecognition.FaceEncodings(faceImage).FirstOrDefault();
+
+        if (capturedEncoding == null)
+            return false;  // No face detected
+
+        // Compare faces with a threshold (0.6 is a good value)
+        return FaceRecognition.CompareFaceEncodings(storedEncoding, capturedEncoding.GetRawEncoding(), tolerance: 0.6);
+    }
+}
+
+
 [HttpGet("Submit")]
 public IActionResult GetAllDetails(string WorkOrderNo, string VendorCode)
 {
