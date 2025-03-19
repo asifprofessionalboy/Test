@@ -1,3 +1,50 @@
+<style>
+    video {
+        transform: scaleX(-1);
+        -webkit-transform: scaleX(-1); /* For Safari */
+        -moz-transform: scaleX(-1); /* For Firefox */
+    }
+</style>
+
+<script>
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
+
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
+
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        // Flip the image back to normal before drawing it
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+        const imageData = canvas.toDataURL("image/png");
+
+        const imageInput = document.createElement("input");
+        imageInput.type = "hidden";
+        imageInput.name = "ImageData";
+        imageInput.value = imageData;
+        form.appendChild(imageInput);
+
+        form.submit();
+    }
+</script>
+
+
+
+
+
 protected void Page_Load(object sender, EventArgs e)
 {
     if (!IsPostBack)
