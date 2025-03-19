@@ -1,199 +1,82 @@
-document.addEventListener("DOMContentLoaded", function () {
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const EntryTypeInput = document.getElementById("EntryType");
-    const form = document.getElementById("form");
-    const punchIn = document.getElementById('PunchIn');
-    const punchOut = document.getElementById('PunchOut');
-
-    // Start Camera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then(function (stream) {
-            video.srcObject = stream;
-            video.play();
-        })
-        .catch(function (error) {
-            console.error("Error accessing camera: ", error);
-            Swal.fire("Error", "Camera access is required for attendance.", "error");
-        });
-
-    function captureImageAndSubmit(entryType) {
-        // Set Entry Type (Punch In / Punch Out)
-        EntryTypeInput.value = entryType;
-
-        // Capture Image
-        const context = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Convert Image to Base64
-        const imageData = canvas.toDataURL("image/png");
-
-        // Append Image Data to Form
-        let imageInput = document.querySelector("input[name='ImageData']");
-        if (!imageInput) {
-            imageInput = document.createElement("input");
-            imageInput.type = "hidden";
-            imageInput.name = "ImageData";
-            form.appendChild(imageInput);
-        }
-        imageInput.value = imageData;
-
-        // Submit Form
-        form.submit();
-    }
-
-    function OnOff() {
-        punchIn.disabled = true;
-        punchOut.disabled = true;
-        punchIn.classList.add("disabled");
-        punchOut.classList.add("disabled");
-
-        Swal.fire({
-            title: 'Please wait...',
-            text: 'Fetching your current location.',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function (position) {
-                    Swal.close();
-                    const lat = roundTo(position.coords.latitude, 6);
-                    const lon = roundTo(position.coords.longitude, 6);
-
-                    const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
-                    console.log("Allowed Locations:", locations);
-
-                    let isInsideRadius = false;
-                    let minDistance = Number.MAX_VALUE;
-
-                    locations.forEach((location) => {
-                        const allowedRange = parseFloat(location.range || location.Range);
-                        const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
-                        console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
-
-                        if (distance <= allowedRange) {
-                            isInsideRadius = true;
-                        } else {
-                            minDistance = Math.min(minDistance, distance);
-                        }
-                    });
-
-                    if (isInsideRadius) {
-                        punchIn.disabled = false;
-                        punchOut.disabled = false;
-                        punchIn.classList.remove("disabled");
-                        punchOut.classList.remove("disabled");
-                        Swal.fire({
-                            title: 'Within Range',
-                            text: 'You are within the allowed range for attendance.',
-                            icon: 'success'
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: "error",
-                            title: "Out of Range",
-                            text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
-                        });
-                    }
-                },
-                function (error) {
-                    Swal.close();
-                    Swal.fire("Error", "Error fetching location: " + error.message, "error");
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-        } else {
-            Swal.close();
-            Swal.fire("Error", "Geolocation is not supported by this browser", "error");
-        }
-    }
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000; // Earth’s mean radius in meters
-        const toRad = angle => (angle * Math.PI) / 180;
-        let dLat = toRad(lat2 - lat1);
-        let dLon = toRad(lon2 - lon1);
-        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    function roundTo(num, places) {
-        return +(Math.round(num + "e" + places) + "e-" + places);
-    }
-
-    // Run location check when page loads
-    OnOff();
-
-    // Attach event listeners to buttons
-    punchIn.addEventListener("click", () => captureImageAndSubmit("Punch In"));
-    punchOut.addEventListener("click", () => captureImageAndSubmit("Punch Out"));
-});
-
+i have this logic to store user's details and matches with this stored image of capture image 
 [HttpPost]
-public IActionResult AttendanceData(string Type, string ImageData)
-{
-    if (string.IsNullOrEmpty(ImageData))
-    {
-        return BadRequest("No image captured.");
-    }
+ [ValidateAntiForgeryToken]
+ public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+ {
+     if (!string.IsNullOrEmpty(photoData))
+     {
+        
+         byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
 
-    // Convert Base64 to Byte Array
-    byte[] imageBytes = Convert.FromBase64String(ImageData.Split(',')[1]); // Remove "data:image/png;base64,"
+         var person = new AppPerson
+         {
+             Pno = Pno, 
+             Name = Name,
+             Image = imageBytes 
+         };
 
-    // Save image (example)
-    string filePath = Path.Combine("wwwroot/images", $"{Guid.NewGuid()}.png");
-    System.IO.File.WriteAllBytes(filePath, imageBytes);
+         context.AppPeople.Add(person);
+         await context.SaveChangesAsync();
+         return RedirectToAction("GeoFencing");
+     }
 
-    return Json(new { success = true, message = "Attendance recorded successfully!" });
-}
+     return View();
+ }
 
-
-
-i have this view side
-
-<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
-    <div class="form-group text-center">
-        <video id="video" width="320" height="240" autoplay playsinline></video>
-        <canvas id="canvas" style="display: none;"></canvas>
+<div class="card rounded-9">
+    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
+        Capture Photo
     </div>
-    <input type="hidden" name="Type" id="EntryType" />
+    <div class="col-md-12">
+        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
+            <div class="row">
+                <form asp-action="UploadImage" method="post">
+                    <div class="form-group row">
+                        <div class="col-sm-1">
+                            <label>Pno</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Pno" name="Pno" class="form-control" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Name</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Name" name="Name" class="form-control" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Capture Photo</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <video id="video" width="200" height="150" autoplay playsinline></video>
+                            <canvas id="canvas" style="display:none;"></canvas>
 
-    <div class="row mt-5 form-group">
-        <div class="col d-flex justify-content-center">
-            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
-                Punch In
-            </button>
-        </div>
+                          
+                            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
 
-        <div class="col d-flex justify-content-center">
-            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
-                Punch Out
-            </button>
-        </div>
+                           
+                            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
+                            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
+
+                           
+                            <input type="hidden" id="photoData" name="photoData" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
+                </form>
+            </div>
+        </fieldset>
     </div>
-</form>
+</div>
 
-and this is my js , make sure to work for this 
+
+
 <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const EntryTypeInput = document.getElementById("EntryType");
-    const form = document.getElementById("form");
-
-    // Start Camera
+   
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then(function (stream) {
+            let video = document.querySelector("video");
             video.srcObject = stream;
             video.play();
         })
@@ -201,126 +84,41 @@ and this is my js , make sure to work for this
             console.error("Error accessing camera: ", error);
         });
 
-    function captureImageAndSubmit(entryType) {
-        // Set Entry Type (Punch In / Punch Out)
-        EntryTypeInput.value = entryType;
+   
 
-        // Capture Image
-        const context = canvas.getContext("2d");
+
+    document.getElementById("captureBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
+        let canvas = document.getElementById("canvas");
+        let context = canvas.getContext("2d");
+
+        // Capture the image from the video feed
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Convert Image to Base64
-        const imageData = canvas.toDataURL("image/png");
-        
-        // Append Image Data to Form
-        const imageInput = document.createElement("input");
-        imageInput.type = "hidden";
-        imageInput.name = "ImageData";
-        imageInput.value = imageData;
-        form.appendChild(imageInput);
+        // Convert the captured image to Base64
+        let imageData = canvas.toDataURL("image/png");
+        document.getElementById("previewImage").src = imageData;
+        document.getElementById("previewImage").style.display = "block";
+        document.getElementById("photoData").value = imageData;
 
-        // Submit Form
-        form.submit();
-    }
+        // Hide video and capture button, Show Retake button
+        video.style.display = "none";
+        document.getElementById("captureBtn").style.display = "none";
+        document.getElementById("retakeBtn").style.display = "inline-block";
+        document.getElementById("submitBtn").disabled = false; // Enable submit button
+    });
+
+    // Retake Photo Functionality
+    document.getElementById("retakeBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
+
+        // Show video and capture button again
+        video.style.display = "block";
+        document.getElementById("captureBtn").style.display = "inline-block";
+        document.getElementById("retakeBtn").style.display = "none";
+        document.getElementById("previewImage").style.display = "none";
+        document.getElementById("submitBtn").disabled = true; // Disable submit button
+    });
 </script>
- function OnOff() {
-     var punchIn = document.getElementById('PunchIn');
-     var punchOut = document.getElementById('PunchOut');
-
-     punchIn.disabled = true;
-     punchOut.disabled = true;
-     punchIn.classList.add("disabled");
-     punchOut.classList.add("disabled");
-
-     Swal.fire({
-         title: 'Please wait...',
-         text: 'Fetching your current location.',
-         allowOutsideClick: false,
-         didOpen: () => {
-             Swal.showLoading();
-         }
-     });
-
-     if (navigator.geolocation) {
-         navigator.geolocation.getCurrentPosition(
-             function (position) {
-                 Swal.close();
-
-                 // Get user's current location
-                 const lat = roundTo(position.coords.latitude, 6);
-                 const lon = roundTo(position.coords.longitude, 6);
-
-                 // const lat = 22.79675;
-                 // const lon = 86.183915;
-
-                 const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
-                 console.log(locations);
-
-                 let isInsideRadius = false;
-                 let minDistance = Number.MAX_VALUE; // Store minimum distance
-
-                 locations.forEach((location) => {
-                     const allowedRange = parseFloat(location.range || location.Range);
-                     const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
-                     console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
-
-                     if (distance <= allowedRange) {
-                         isInsideRadius = true;
-                     } else {
-                         minDistance = Math.min(minDistance, distance);
-                     }
-                 });
-
-                 if (isInsideRadius) {
-                     punchIn.disabled = false;
-                     punchOut.disabled = false;
-                     punchIn.classList.remove("disabled");
-                     punchOut.classList.remove("disabled");
-                     Swal.fire({
-                         title: 'Within Range',
-                         text: 'You are within the allowed range for attendance.',
-                         icon: 'success'
-                     });
-                 } else {
-                     Swal.fire({
-                         icon: "error",
-                         title: "Out of Range",
-                         text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
-                     });
-                 }
-             },
-             function (error) {
-                 Swal.close();
-                 alert('Error fetching location: ' + error.message);
-             },
-             {
-                 enableHighAccuracy: true,
-                 timeout: 10000,
-                 maximumAge: 0
-             }
-         );
-     } else {
-         Swal.close();
-         alert("Geolocation is not supported by this browser");
-     }
- }
-
- function calculateDistance(lat1, lon1, lat2, lon2) {
-     const R = 6371000;
-     const toRad = angle => (angle * Math.PI) / 180;
-     let dLat = toRad(lat2 - lat1);
-     let dLon = toRad(lon2 - lon1);
-     let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-         Math.sin(dLon / 2) * Math.sin(dLon / 2);
-     let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-     return R * c;
- }
-
- function roundTo(num, places) {
-     return +(Math.round(num + "e" + places) + "e-" + places);
- }
-
- window.onload = OnOff;
