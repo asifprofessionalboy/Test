@@ -1,3 +1,58 @@
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+{
+    if (!string.IsNullOrEmpty(photoData) && !string.IsNullOrEmpty(Pno) && !string.IsNullOrEmpty(Name))
+    {
+        try
+        {
+            // Convert Base64 string to byte array
+            byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+
+            // Define the image file path
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images");
+
+            // Ensure directory exists
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            // Set the file name as "Pno-Name.jpg"
+            string fileName = $"{Pno}-{Name}.jpg";
+            string filePath = Path.Combine(folderPath, fileName);
+
+            // Save the image to wwwroot/Images as a JPG file
+            System.IO.File.WriteAllBytes(filePath, imageBytes);
+
+            // Store the image as a JPG file in the database (file path)
+            var person = new AppPerson
+            {
+                Pno = Pno,
+                Name = Name,
+                ImagePath = $"/Images/{fileName}" // Store file path instead of byte array
+            };
+
+            context.AppPeople.Add(person);
+            await context.SaveChangesAsync();
+
+            return RedirectToAction("GeoFencing");
+        }
+        catch (Exception ex)
+        {
+            ModelState.AddModelError("", "Error saving image: " + ex.Message);
+        }
+    }
+    else
+    {
+        ModelState.AddModelError("", "Missing required fields!");
+    }
+
+    return View();
+}
+
+
+
 this is my view 
 <form asp-action="UploadImage" method="post">
     <div class="form-group row">
