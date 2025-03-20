@@ -1,182 +1,61 @@
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("btnSearch").addEventListener("click", function () {
-        var hiddenField3 = document.getElementById('<%= HiddenField3.ClientID %>').value; // Use correct ASP.NET syntax
-        alert(hiddenField3);
+this is my view 
+<form asp-action="UploadImage" method="post">
+    <div class="form-group row">
+        <div class="col-sm-1">
+            <label>Pno</label>
+        </div>
+        <div class="col-sm-3">
+            <input id="Pno" name="Pno" class="form-control" type="number" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" maxlength="6" autocomplete="off" required />
+        </div>
+        <div class="col-sm-1">
+            <label>Name</label>
+        </div>
+        <div class="col-sm-3">
+            <input id="Name" name="Name" class="form-control" required />
+        </div>
+        <div class="col-sm-1">
+            <label>Capture Photo</label>
+        </div>
+        <div class="col-sm-3">
+            <video id="video" width="320" height="240" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
 
-        if (!hiddenField3) {
-            console.log("No Data");
-            return;
-        }
+          
+            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
 
-        var dataPoints;
-        try {
-            dataPoints = JSON.parse(hiddenField3); // Ensure JSON parsing
-        } catch (error) {
-            console.error("Invalid JSON Data:", error);
-            return;
-        }
+           
+            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
+            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
 
-        const labels = dataPoints.map(dp => `${dp.month}/${dp.year}`);
-        const l1Data = dataPoints.map(dp => dp.l1);
-        const l2Data = dataPoints.map(dp => dp.l2);
+           
+            <input type="hidden" id="photoData" name="photoData" />
+        </div>
+    </div>
 
-        const ctx = document.getElementById('DualLineChart').getContext('2d');
-        
-        Chart.register(ChartDataLabels); // Register the plugin
+    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
+</form>
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+{
+    if (!string.IsNullOrEmpty(photoData))
+    {
+       
+        byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
 
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'L1 Data',
-                        data: l1Data,
-                        borderColor: 'blue',
-                        backgroundColor: 'blue',
-                        fill: false,
-                        tension: 0.3
-                    },
-                    {
-                        label: 'L2 Data',
-                        data: l2Data,
-                        borderColor: 'green',
-                        backgroundColor: 'green',
-                        fill: false,
-                        tension: 0.3
-                    },
-                    {
-                        label: 'Average (3)',
-                        data: Array(labels.length).fill(3),
-                        borderColor: 'red',
-                        borderWidth: 1,
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    datalabels: {
-                        color: 'black',
-                        anchor: 'end',
-                        align: 'bottom',
-                        font: {
-                            weight: 'bold',
-                            size: 10
-                        },
-                        formatter: (value) => value,
-                        display: (context) => context.dataset.label !== 'Average (3)'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 }
-                    }
-                }
-            }
-        });
-    });
-});
-
- 
- 
- document.addEventListener("DOMContentLoaded", (event) =>
+        var person = new AppPerson
         {
-            document.getElementById("btnSearch").addEventListener("click", function ()
-            {
-            
-                var hiddenField3 = document.getElementById('<%= HiddenField3.ClientID %>').value;
-                alert(hiddenField3);
-                if (!hiddenField3) {
-                    console.log("No Data");
-                    return;
-                }
-                /* console.log("Parsed Data:", dataPoints);*/
-                var dataPoints = (hiddenField3);
+            Pno = Pno, 
+            Name = Name,
+            Image = imageBytes 
+        };
 
-                //for (var i = 0; i < chartData3.length; i++) {
-                //    if (chartData3[i] !== 0) {
-                //        filteredData.push(chartData3[i]);
-                //        filteredLabels.push(labels[i]);
-                //        filteredColors.push(colors[i]);
-                //    }
-                //}
+        context.AppPeople.Add(person);
+        await context.SaveChangesAsync();
+        return RedirectToAction("GeoFencing");
+    }
 
-                const labels = dataPoints.map(dp => `${dp.month}/${dp.year}`);
-                const l1Data = dataPoints.map(dp => dp.l1);
-                const l2Data = dataPoints.map(dp => dp.l2);
+    return View();
+}
 
-                const ctx = document.getElementById('DualLineChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                        {
-                            label: 'L1 Data',
-                            data: l1Data,
-                            borderColor: 'blue',
-                            backgroundColor: 'blue',
-                            fill: false,
-                            tension: 0.3
-                        },
-                        {
-                            label: 'L2 Data',
-                            data: l2Data,
-                            borderColor: 'green',
-                            backgroundColor: 'green',
-                            fill: false,
-                            tension: 0.3
-                        },
-                        {
-                            label: 'Average (3)',
-                            data: Array(labels.length).fill(3),
-                            borderColor: 'red',
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        }
-                    ]
-                },
-                options:
-                {
-                    responsive: true,
-
-                    plugins: {
-                        datalabels: {
-                            color: 'black',
-                            anchor: 'end',
-                            align: 'bottom',
-                            font: {
-                                weight: 'bold',
-                                size: 10
-                            },
-                            formatter: (value, context) => {
-                                return value; // Show data labels for L1 and L2 lines
-                            },
-                            display: (context) => {
-                                // Only show data labels for L1 and L2 datasets, not for the average line
-                                return context.dataset.label !== 'Average (3)';
-                            }
-                        }
-                    },
-                    scales:
-                    {
-                        y:
-                        {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1 }
-                        }
-                    }
-                   },
-                    plugins: [ChartDataLabels]
-            });
-                });
-
-
-        });
+store as a jpg image on wwwroot/Images and image name will be like this if the pno is 151514 and name is Irshad on textboxes then save as 151514-Irshad.Jpg
