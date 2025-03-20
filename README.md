@@ -1,3 +1,6 @@
+https://github.com/opencv/opencv/blob/master/data/haarcascades/haarcascade_frontalface_default.xml
+
+
 this is my method but when i debug on this line ,CascadeClassifier faceCascade = new CascadeClassifier(cascadePath); it shows the same error on catch 
 OpenCV: Input file is invalid. File path is exists but why it showing this?
  static bool CompareFaces(string storedImagePath, string capturedImagePath)
