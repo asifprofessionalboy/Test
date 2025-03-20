@@ -1,238 +1,151 @@
+
 [HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
 {
-    if (string.IsNullOrEmpty(model.ImageData))
+    if (!string.IsNullOrEmpty(photoData))
     {
-        return Json(new { success = false, message = "Image data is missing!" });
-    }
+       
+        byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
 
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        string Pno = UserId;
-
-        // Convert Base64 captured image to byte array
-        byte[] imageBytes = Convert.FromBase64String(model.ImageData.Split(',')[1]);
-
-        using (var ms = new MemoryStream(imageBytes))
+        var person = new AppPerson
         {
-            Bitmap capturedImage = new Bitmap(ms);
+            Pno = Pno, 
+            Name = Name,
+            Image = imageBytes 
+        };
 
-            // Fetch stored image from database (binary)
-            var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
-            if (user == null || user.Image == null)
-            {
-                return Json(new { success = false, message = "User Image Not Found!" });
-            }
-
-            // Convert binary image data to JPG format
-            string tempFilePath = Path.Combine(Path.GetTempPath(), "storedImage.jpg");
-            System.IO.File.WriteAllBytes(tempFilePath, user.Image);
-            Bitmap storedImage = new Bitmap(tempFilePath);
-
-            bool isPartialMatch;
-            bool isFaceMatched = VerifyFace(capturedImage, storedImage, out isPartialMatch);
-
-            if (isFaceMatched)
-            {
-                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                string currentTime = DateTime.Now.ToString("HH:mm");
-
-                if (model.Type == "Punch In")
-                {
-                    StoreData(currentDate, currentTime, null, Pno);
-                }
-                else
-                {
-                    StoreData(currentDate, null, currentTime, Pno);
-                }
-
-                return Json(new { success = true, message = "Attendance Marked Successfully!" });
-            }
-            else if (isPartialMatch)
-            {
-                return Json(new { success = false, message = "Face partially matched! Please try again." });
-            }
-            else
-            {
-                return Json(new { success = false, message = "Face does not match!" });
-            }
-        }
+        context.AppPeople.Add(person);
+        await context.SaveChangesAsync();
+        return RedirectToAction("GeoFencing");
     }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
+
+    return View();
 }
 
-// Face Verification Logic
-private bool VerifyFace(Bitmap captured, Bitmap stored, out bool isPartialMatch)
-{
-    isPartialMatch = false;
+    <div class="col-md-12">
+        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
+            <div class="row">
+                <form asp-action="UploadImage" method="post">
+                    <div class="form-group row">
+                        <div class="col-sm-1">
+                            <label>Pno</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Pno" name="Pno" class="form-control" type="number" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" maxlength="6" autocomplete="off" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Name</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Name" name="Name" class="form-control" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Capture Photo</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <video id="video" width="320" height="240" autoplay playsinline></video>
+                            <canvas id="canvas" style="display:none;"></canvas>
 
-    try
-    {
-        Mat matCaptured = BitmapToMat(captured);
-        Mat matStored = BitmapToMat(stored);
+                          
+                            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
 
-        // Convert images to grayscale
-        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                           
+                            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
+                            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
 
-        string cascadePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "D:/Irshad_Project/GFAS/GFAS/wwwroot/Cascades/haarcascade_frontalface_default.xml");
-        Console.WriteLine($"Cascade Path: {cascadePath}");
+                           
+                            <input type="hidden" id="photoData" name="photoData" />
+                        </div>
+                    </div>
 
-        if (!System.IO.File.Exists(cascadePath))
-        {
-            Console.WriteLine("Error: Haarcascade file not found!");
-            return false;
-        }
-        var faceCascade = new CascadeClassifier(cascadePath);
-
-        // Detect faces in images
-        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
-
-        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
-        {
-            Console.WriteLine("No face detected in one or both images.");
-            return false;
-        }
-
-        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-        Mat storedFace = new Mat(matStored, storedFaces[0]);
-
-        // Resize faces for better recognition
-        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
-        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
-
-        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
-        {
-            CvInvoke.EqualizeHist(capturedFace, capturedFace);
-            CvInvoke.EqualizeHist(storedFace, storedFace);
-
-            VectorOfMat trainingImages = new VectorOfMat();
-            trainingImages.Push(storedFace);
-            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
-
-            faceRecognizer.Train(trainingImages, labels);
-
-            var result = faceRecognizer.Predict(capturedFace);
-            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
-
-            // Strong Match (Exact Face Match)
-            if (result.Label == 1 && result.Distance < 50)
-            {
-                return true;
-            }
-            // Partial Match (50% Face Match)
-            else if (result.Label == 1 && result.Distance >= 50 && result.Distance <= 80)
-            {
-                isPartialMatch = true;
-                return false;
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error in face verification: " + ex.Message);
-    }
-
-    return false;
-}
-
-// Convert Bitmap to Mat for EmguCV
-private Mat BitmapToMat(Bitmap bitmap)
-{
-    Mat mat = new Mat();
-    using (MemoryStream ms = new MemoryStream())
-    {
-        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
-        byte[] byteArray = ms.ToArray();
-        mat = CvInvoke.Imdecode(byteArray, ImreadModes.Color);
-    }
-    return mat;
-}
+                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
+                </form>
+            </div>
+        </fieldset>
+    </div>
+</div>
 
 
 
+<script>
+   
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            let video = document.querySelector("video");
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
 
-yes it works after replacing Xml file now i have this method . i want the same logic 
- [HttpPost]
- public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+   
+
+
+    document.getElementById("captureBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
+        let canvas = document.getElementById("canvas");
+        let context = canvas.getContext("2d");
+
+       
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+       
+        let imageData = canvas.toDataURL("image/png");
+        document.getElementById("previewImage").src = imageData;
+        document.getElementById("previewImage").style.display = "block";
+        document.getElementById("photoData").value = imageData;
+
+        
+        video.style.display = "none";
+        document.getElementById("captureBtn").style.display = "none";
+        document.getElementById("retakeBtn").style.display = "inline-block";
+        document.getElementById("submitBtn").disabled = false; 
+    });
+
+
+based on this logic i want my above code that is storing image of user 
+ public IActionResult FaceRecognisation()
+ 
  {
-     if (string.IsNullOrEmpty(model.ImageData))
+      string storedImagePath = "wwwroot/Images/stored.jpg";
+     string capturedImagePath = "wwwroot/Images/Captured.jpg";
+
+     bool isFaceMatched = CompareFaces(storedImagePath, capturedImagePath);
+
+     if (isFaceMatched)
      {
-         return Json(new { success = false, message = "Image data is missing!" });
+         Console.WriteLine("Face Matched!");
+     }
+     else
+     {
+         Console.WriteLine("Face Does Not Match!");
      }
 
-     try
-     {
-         var UserId = HttpContext.Request.Cookies["Session"];
-         string Pno = UserId;
-
-         byte[] imageBytes = Convert.FromBase64String(model.ImageData.Split(',')[1]);
-
-         using (var ms = new MemoryStream(imageBytes))
-         {
-             Bitmap capturedImage = new Bitmap(ms);
-
-             var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
-             if (user == null || user.Image == null)
-             {
-                 return Json(new { success = false, message = "User Image Not Found!" });
-             }
-
-             using (var storedStream = new MemoryStream(user.Image))
-             {
-                 Bitmap storedImage = new Bitmap(storedStream);
-
-                 bool isPartialMatch;
-                 bool isFaceMatched = VerifyFace(capturedImage, storedImage, out isPartialMatch);
-
-                 if (isFaceMatched)
-                 {
-                     string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                     string currentTime = DateTime.Now.ToString("HH:mm");
-
-                     if (model.Type == "Punch In")
-                     {
-                         StoreData(currentDate, currentTime, null, Pno);
-                     }
-                     else
-                     {
-                         StoreData(currentDate, null, currentTime, Pno);
-                     }
-
-                     return Json(new { success = true, message = "Attendance Marked Successfully!" });
-                 }
-                 else if (isPartialMatch)
-                 {
-                     return Json(new { success = false, message = "Face partially matched! Please try again." });
-                 }
-                 else
-                 {
-                     return Json(new { success = false, message = "Face does not match!" });
-                 }
-             }
-         }
-     }
-     catch (Exception ex)
-     {
-         return Json(new { success = false, message = ex.Message });
-     }
+     return View(); 
  }
- private bool VerifyFace(Bitmap captured, Bitmap stored, out bool isPartialMatch)
- {
-     isPartialMatch = false;
 
+
+ static bool CompareFaces(string storedImagePath, string capturedImagePath)
+ {
      try
      {
-         Mat matCaptured = BitmapToMat(captured);
-         Mat matStored = BitmapToMat(stored);
+         Mat storedImage = CvInvoke.Imread(storedImagePath, ImreadModes.Grayscale);
+         Mat capturedImage = CvInvoke.Imread(capturedImagePath, ImreadModes.Grayscale);
 
-         CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-         CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+         if (storedImage.IsEmpty || capturedImage.IsEmpty)
+         {
+             Console.WriteLine("Error: One or both images are empty!");
+             return false;
+         }
 
          string cascadePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "D:/Irshad_Project/GFAS/GFAS/wwwroot/Cascades/haarcascade_frontalface_default.xml");
          Console.WriteLine($"Cascade Path: {cascadePath}");
@@ -242,57 +155,52 @@ yes it works after replacing Xml file now i have this method . i want the same l
              Console.WriteLine("Error: Haarcascade file not found!");
              return false;
          }
-         var faceCascade = new CascadeClassifier(cascadePath);
 
-         Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-         Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+         CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
 
-         if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+         Rectangle[] storedFaces = faceCascade.DetectMultiScale(storedImage, 1.1, 5);
+         Rectangle[] capturedFaces = faceCascade.DetectMultiScale(capturedImage, 1.1, 5);
+
+         if (storedFaces.Length == 0 || capturedFaces.Length == 0)
          {
              Console.WriteLine("No face detected in one or both images.");
              return false;
          }
 
-         Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-         Mat storedFace = new Mat(matStored, storedFaces[0]);
-         CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+         Mat storedFace = new Mat(storedImage, storedFaces[0]);
+         Mat capturedFace = new Mat(capturedImage, capturedFaces[0]);
+
          CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+         CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
 
-         using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
-         {
-             CvInvoke.EqualizeHist(capturedFace, capturedFace);
-             CvInvoke.EqualizeHist(storedFace, storedFace);
+         LBPHFaceRecognizer recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100);
+         VectorOfMat trainingImages = new VectorOfMat();
+         VectorOfInt labels = new VectorOfInt(new int[] { 1 });
 
-             VectorOfMat trainingImages = new VectorOfMat();
-             trainingImages.Push(storedFace);
-             VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+         trainingImages.Push(storedFace);
+         recognizer.Train(trainingImages, labels);
 
-             faceRecognizer.Train(trainingImages, labels);
+         var result = recognizer.Predict(capturedFace);
 
-             var result = faceRecognizer.Predict(capturedFace);
-             Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+         Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
 
-             // Strong Match (Exact Face Match)
-             if (result.Label == 1 && result.Distance < 50)
-             {
-                 return true;
-             }
-             // Partial Match (50% Face Match)
-             else if (result.Label == 1 && result.Distance >= 50 && result.Distance <= 80)
-             {
-                 isPartialMatch = true;
-                 return false;
-             }
-         }
+         return result.Label == 1 && result.Distance < 50; // Adjust threshold as needed
      }
      catch (Exception ex)
      {
-         Console.WriteLine("Error in face verification: " + ex.Message);
+         Console.WriteLine("Error in face comparison: " + ex.Message);
+         return false;
      }
-
-     return false;
  }
+    
+    document.getElementById("retakeBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
 
-
-
-in this image is coming from table and another one is captured but in binary,is it works for binary? previous i have compare with Jpg that is works. if image file i want jpg then please convert 
+        
+        video.style.display = "block";
+        document.getElementById("captureBtn").style.display = "inline-block";
+        document.getElementById("retakeBtn").style.display = "none";
+        document.getElementById("previewImage").style.display = "none";
+        document.getElementById("submitBtn").disabled = true; 
+    });
+</script>
