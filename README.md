@@ -1,3 +1,17 @@
+string cascadePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/cascades/haarcascade_frontalface_default.xml");
+Console.WriteLine($"Cascade Path: {cascadePath}");
+
+if (!File.Exists(cascadePath))
+{
+    Console.WriteLine("Error: Haarcascade file not found!");
+    return;
+}
+
+CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+
+
+
+
 using System;
 using System.Drawing;
 using Emgu.CV;
