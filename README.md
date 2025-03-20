@@ -1,3 +1,41 @@
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        // Hardcoded image paths for debugging
+        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/stored.jpg");
+        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/captured.jpg");
+
+        if (!System.IO.File.Exists(storedImagePath) || !System.IO.File.Exists(capturedImagePath))
+        {
+            return Json(new { success = false, message = "One or both hardcoded images not found!" });
+        }
+
+        // Load hardcoded images
+        Bitmap storedImage = new Bitmap(storedImagePath);
+        Bitmap capturedImage = new Bitmap(capturedImagePath);
+
+        bool isPartialMatch;
+        bool isFaceMatched = VerifyFace(capturedImage, storedImage, out isPartialMatch);
+
+        if (isFaceMatched)
+        {
+            return Json(new { success = true, message = "Face Matched! Debugging successful." });
+        }
+        else
+        {
+            return Json(new { success = false, message = "Face does not match in hardcoded test!" });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+
+
 i have this method in this 
 
  
