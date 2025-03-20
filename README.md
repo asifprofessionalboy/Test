@@ -1,4 +1,28 @@
+private Mat BitmapToMat(Bitmap bitmap)
+{
+    using (MemoryStream ms = new MemoryStream())
+    {
+        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+        byte[] imageData = ms.ToArray();
+
+        Mat mat = new Mat();
+        CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
+
+        if (mat.IsEmpty)
+        {
+            Console.WriteLine("Error: Image conversion failed!");
+        }
+
+        return mat;
+    }
+}
+
+
+
+
 [HttpPost]
+
+
 public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
     try
