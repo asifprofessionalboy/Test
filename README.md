@@ -1,3 +1,83 @@
+using System;
+using System.Drawing;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Face;
+using Emgu.CV.Structure;
+
+class Program
+{
+    static void Main()
+    {
+        string storedImagePath = "wwwroot/images/stored.jpg";
+        string capturedImagePath = "wwwroot/images/captured.jpg";
+
+        bool isFaceMatched = CompareFaces(storedImagePath, capturedImagePath);
+
+        if (isFaceMatched)
+        {
+            Console.WriteLine("Face Matched!");
+        }
+        else
+        {
+            Console.WriteLine("Face Does Not Match!");
+        }
+    }
+
+    static bool CompareFaces(string storedImagePath, string capturedImagePath)
+    {
+        try
+        {
+            Mat storedImage = CvInvoke.Imread(storedImagePath, ImreadModes.Grayscale);
+            Mat capturedImage = CvInvoke.Imread(capturedImagePath, ImreadModes.Grayscale);
+
+            if (storedImage.IsEmpty || capturedImage.IsEmpty)
+            {
+                Console.WriteLine("Error: One or both images are empty!");
+                return false;
+            }
+
+            CascadeClassifier faceCascade = new CascadeClassifier("wwwroot/Cascades/haarcascade_frontalface_default.xml");
+
+            Rectangle[] storedFaces = faceCascade.DetectMultiScale(storedImage, 1.1, 5);
+            Rectangle[] capturedFaces = faceCascade.DetectMultiScale(capturedImage, 1.1, 5);
+
+            if (storedFaces.Length == 0 || capturedFaces.Length == 0)
+            {
+                Console.WriteLine("No face detected in one or both images.");
+                return false;
+            }
+
+            Mat storedFace = new Mat(storedImage, storedFaces[0]);
+            Mat capturedFace = new Mat(capturedImage, capturedFaces[0]);
+
+            CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+            CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+
+            LBPHFaceRecognizer recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100);
+            VectorOfMat trainingImages = new VectorOfMat();
+            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+            trainingImages.Push(storedFace);
+            recognizer.Train(trainingImages, labels);
+
+            var result = recognizer.Predict(capturedFace);
+
+            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+            return result.Label == 1 && result.Distance < 50; // Adjust threshold as needed
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error in face comparison: " + ex.Message);
+            return false;
+        }
+    }
+}
+
+
+
+
 [HttpPost]
 public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
