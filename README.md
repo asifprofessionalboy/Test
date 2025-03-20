@@ -1,3 +1,102 @@
+using System;
+using System.Drawing;
+using System.IO;
+using Microsoft.AspNetCore.Mvc;
+using OpenCvSharp;
+using OpenCvSharp.Face;
+
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        if (string.IsNullOrEmpty(model.Pno) || string.IsNullOrEmpty(model.ImageData))
+        {
+            return Json(new { success = false, message = "Invalid data received!" });
+        }
+
+        string Pno = model.Pno;
+
+        // **Retrieve stored image based on Pno**
+        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images", $"{Pno}.jpg");
+        if (!System.IO.File.Exists(storedImagePath))
+        {
+            return Json(new { success = false, message = "No registered face found for this user!" });
+        }
+
+        // **Convert the received Base64 image to JPG**
+        byte[] imageBytes = Convert.FromBase64String(model.ImageData.Split(',')[1]);
+        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images", $"{Pno}-Captured.jpg");
+        System.IO.File.WriteAllBytes(capturedImagePath, imageBytes);
+
+        // **Load the images using OpenCV**
+        using (Mat storedImage = Cv2.ImRead(storedImagePath, ImreadModes.Grayscale))
+        using (Mat capturedImage = Cv2.ImRead(capturedImagePath, ImreadModes.Grayscale))
+        {
+            // **Compare faces**
+            bool isFaceMatched = VerifyFace(storedImage, capturedImage);
+
+            if (isFaceMatched)
+            {
+                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                string currentTime = DateTime.Now.ToString("HH:mm");
+
+                if (model.Type == "Punch In")
+                {
+                    StoreData(currentDate, currentTime, null, Pno);
+                }
+                else
+                {
+                    StoreData(currentDate, null, currentTime, Pno);
+                }
+
+                return Json(new { success = true, message = "Face matched. Data saved successfully!" });
+            }
+            else
+            {
+                return Json(new { success = false, message = "Face does not match!" });
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+
+private bool VerifyFace(Mat capturedImage, Mat storedImage)
+{
+    try
+    {
+        // Convert images to grayscale
+        Cv2.CvtColor(capturedImage, capturedImage, ColorConversionCodes.BGR2GRAY);
+        Cv2.CvtColor(storedImage, storedImage, ColorConversionCodes.BGR2GRAY);
+
+        // Resize images to the same size (e.g., 200x200)
+        Cv2.Resize(capturedImage, capturedImage, new Size(200, 200));
+        Cv2.Resize(storedImage, storedImage, new Size(200, 200));
+
+        // Initialize LBPH face recognizer
+        var faceRecognizer = LBPHFaceRecognizer.Create();
+        faceRecognizer.Train(new Mat[] { storedImage }, new int[] { 1 });
+
+        // Predict the face
+        int label;
+        double confidence;
+        faceRecognizer.Predict(capturedImage, out label, out confidence);
+
+        // If confidence is low, it means the face matches
+        return confidence < 50; // Lower confidence = better match
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+
+
 now i have this model in this Image is stored as .jpg 
 public partial class AppPerson
 {
