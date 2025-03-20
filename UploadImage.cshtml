@@ -1,0 +1,129 @@
+﻿@model GFAS.Models.AppPerson
+
+@{
+    ViewData["Title"] = "UploadImage";
+}
+<style>
+    /* #video{
+            overflow: hidden;
+            box-sizing: border-box;
+            height: 150px;
+            width: 150px;
+            border: 1px solid black;
+            border-radius: 50%;
+     } */
+
+    video {
+        transform: scaleX(-1);
+        -webkit-transform: scaleX(-1); /* For Safari */
+        -moz-transform: scaleX(-1); /* For Firefox */
+    }
+
+</style>
+<div class="card rounded-9">
+    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
+        Capture Photo
+    </div>
+    <div class="col-md-12">
+        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
+            <div class="row">
+                <form asp-action="UploadImage" method="post">
+                    <div class="form-group row">
+                        <div class="col-sm-1">
+                            <label>Pno</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Pno" name="Pno" class="form-control" type="number" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" maxlength="6" autocomplete="off" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Name</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Name" name="Name" class="form-control" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Capture Photo</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <video id="video" width="320" height="240" autoplay playsinline></video>
+                            <canvas id="canvas" style="display:none;"></canvas>
+
+                          
+                            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
+
+                           
+                            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
+                            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
+
+                           
+                            <input type="hidden" id="photoData" name="photoData" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
+                </form>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+
+
+<script>
+   
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            let video = document.querySelector("video");
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
+
+   
+
+
+    document.getElementById("captureBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
+        let canvas = document.getElementById("canvas");
+        let context = canvas.getContext("2d");
+
+       
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+       
+        let imageData = canvas.toDataURL("image/png");
+        document.getElementById("previewImage").src = imageData;
+        document.getElementById("previewImage").style.display = "block";
+        document.getElementById("photoData").value = imageData;
+
+        
+        video.style.display = "none";
+        document.getElementById("captureBtn").style.display = "none";
+        document.getElementById("retakeBtn").style.display = "inline-block";
+        document.getElementById("submitBtn").disabled = false; 
+    });
+
+    
+    document.getElementById("retakeBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
+
+        
+        video.style.display = "block";
+        document.getElementById("captureBtn").style.display = "inline-block";
+        document.getElementById("retakeBtn").style.display = "none";
+        document.getElementById("previewImage").style.display = "none";
+        document.getElementById("submitBtn").disabled = true; 
+    });
+</script>
+
+
+
