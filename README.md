@@ -1,301 +1,59 @@
-using System;
-using System.Drawing;
-using System.IO;
-using Emgu.CV;
-using Emgu.CV.Face;
-using Emgu.CV.Structure;
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
+this is my two rows . if yes selected it shows CustomerId f no selected it shows Pan, Aadhar and Attachment . logic is working but design is not. i want if yes seleted then customerid is on same row with radio buttons if no selected then pan, aadhar and attachment shows on new row means another row not on radio button 
+<div class="row col-md-12 mt-2">
 
-public class GeoController : Controller
-{
-    [HttpPost]
-    public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-    {
-        try
-        {
-            // Get User ID from Session Cookie
-            var UserId = HttpContext.Request.Cookies["Session"];
-            if (string.IsNullOrEmpty(UserId))
-                return Json(new { success = false, message = "User session not found!" });
+                                           <div class="col-md-1">
+                                                  <label for="lblAction" class="m-0 mr-1 p-0 col-form-label-sm  font-weight-bold fs-6">HDFC Bank A/c holder <span class="text-danger">*</span></label>
+                                           </div>
+                                            <div class="col-md-3 ml-2">
+                                               <asp:RadioButtonList ID="HDFC_Bank_Ac_holder" runat="server" CssClass="form-check-input col-lg-8 font-weight-bold fs-6 radio"
+                                             RepeatColumns="2"  RepeatDirection="Horizontal" OnClick="HDFC_Bank_Ac_holder_Validate();" >
+                                             <asp:ListItem Value="YES">&nbsp YES</asp:ListItem>
+                                             <asp:ListItem Value="NO"> &nbsp NO</asp:ListItem>
 
-            string Pno = UserId;
+                                         </asp:RadioButtonList>      
+                                                 </div>
+                                               <div class="row">
+                                            <div id= "Customer_ID_div" class="col-lg-4 mb-1 form-row" style="display:none;">
+                                          <div class="col-md-4">
+                                             
+                                               <label class="m-0 mr-2 p-0 col-form-label-sm  font-weight-bold fs-6"  >Customer ID :<span class="text-danger">*</span></label>
+                                             </div>
+                                         <div class="col-md-4">
+                                                <asp:TextBox  ID="Customer_ID" runat="server"  CssClass="form-control form-control-sm"  ></asp:TextBox>
+                                              </div>
+                                               </div>
 
-            // Fetch Stored Image Path dynamically
-            string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}.jpg");
-            if (!System.IO.File.Exists(storedImagePath))
-            {
-                return Json(new { success = false, message = "Stored image not found!" });
-            }
+                                               </div>
 
-            // Convert Base64 ImageData to .jpg and Save
-            string capturedImagePath = SaveBase64Image(model.ImageData, Pno);
-            if (string.IsNullOrEmpty(capturedImagePath))
-            {
-                return Json(new { success = false, message = "Failed to save captured image!" });
-            }
 
-            // Perform Face Verification
-            using (Bitmap storedImage = new Bitmap(storedImagePath))
-            using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-            {
-                bool isFaceMatched = VerifyFace(capturedImage, storedImage);
-                if (isFaceMatched)
-                {
-                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                    string currentTime = DateTime.Now.ToString("HH:mm");
 
-                    if (model.Type == "Punch In")
-                    {
-                        StoreData(currentDate, currentTime, null, Pno);
-                    }
-                    else
-                    {
-                        StoreData(currentDate, null, currentTime, Pno);
-                    }
+<div class="row col-md-12 mt-2">
 
-                    return Json(new { success = true, message = "Attendance recorded successfully." });
-                }
-                else
-                {
-                    return Json(new { success = false, message = "Face does not match!" });
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            return Json(new { success = false, message = ex.Message });
-        }
-    }
 
-    private string SaveBase64Image(string base64String, string Pno)
-    {
-        try
-        {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}_captured.jpg");
-            byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-            System.IO.File.WriteAllBytes(filePath, imageBytes);
-            return filePath;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error saving image: " + ex.Message);
-            return null;
-        }
-    }
+                                        <div id="Attachments_div" class="row mt-2" style="display:none;">
 
-    private bool VerifyFace(Bitmap captured, Bitmap stored)
-    {
-        try
-        {
-            Mat matCaptured = BitmapToMat(captured);
-            Mat matStored = BitmapToMat(stored);
+                                               <div class="col-md-1">
+                                                <label class="m-0 mr-2 p-0 col-form-label-sm  font-weight-bold fs-6"  >PAN No. :<span class="text-danger">*</span></label>
+                                                   </div>
 
-            // Convert to Grayscale
-            CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-            CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                                              <div class="col-md-3">
+                                              <asp:TextBox ID="PAN"  CssClass="form-control form-control-sm"   runat="server"   ></asp:TextBox>
 
-            // Load Haarcascade for face detection
-            string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
-            if (!System.IO.File.Exists(cascadePath))
-            {
-                Console.WriteLine("Error: Haarcascade file not found!");
-                return false;
-            }
+                                                </div>
 
-            CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
-            Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-            Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
 
-            if (capturedFaces.Length == 0 || storedFaces.Length == 0)
-            {
-                Console.WriteLine("No face detected in one or both images.");
-                return false;
-            }
+                                              <div class="col-md-1">
+                                                <label class="m-0 mr-2 p-0 col-form-label-sm  font-weight-bold fs-6"  >Aadhaar No :<span class="text-danger">*</span></label>
 
-            // Crop faces
-            Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-            Mat storedFace = new Mat(matStored, storedFaces[0]);
+                                                   </div>
+                                              <div class="col-md-3">
+                                                  <asp:TextBox ID="Aadhaar"  CssClass="form-control form-control-sm"   runat="server"   ></asp:TextBox>
 
-            // Resize faces
-            CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
-            CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
-
-            // Initialize Face Recognizer
-            using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
-            {
-                CvInvoke.EqualizeHist(capturedFace, capturedFace);
-                CvInvoke.EqualizeHist(storedFace, storedFace);
-
-                VectorOfMat trainingImages = new VectorOfMat();
-                trainingImages.Push(storedFace);
-                VectorOfInt labels = new VectorOfInt(new int[] { 1 });
-
-                faceRecognizer.Train(trainingImages, labels);
-                var result = faceRecognizer.Predict(capturedFace);
-
-                Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
-
-                return result.Label == 1 && result.Distance < 50;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error in face verification: " + ex.Message);
-            return false;
-        }
-    }
-
-    private Mat BitmapToMat(Bitmap bitmap)
-    {
-        using (MemoryStream ms = new MemoryStream())
-        {
-            bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
-            byte[] imageData = ms.ToArray();
-
-            Mat mat =
+                                                </div>
 
 
 
 
-make full changes on this code 
-
-[HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        string Pno = UserId;
-
-
-        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/StoredFace.jpg");
-        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/Captured.jpg");
-
-        if (!System.IO.File.Exists(storedImagePath) || !System.IO.File.Exists(capturedImagePath))
-        {
-            return Json(new { success = false, message = "One or both hardcoded images not found!" });
-        }
-
-       
-        using (Bitmap storedImage = new Bitmap(storedImagePath))
-        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-        {
-            bool isFaceMatched = VerifyFace(capturedImage, storedImage);
-
-            if (isFaceMatched)
-            {
-                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                string currentTime = DateTime.Now.ToString("HH:mm");
-
-                if (model.Type == "Punch In")
-                {
-                    StoreData(currentDate, currentTime, null, Pno);
-                }
-                else
-                {
-                    StoreData(currentDate, null, currentTime, Pno);
-                }
-
-                return Json(new { success = true, message = "Data Saved Successfully" });
-            }
-            else
-            {
-                return Json(new { success = false, message = "Face does not match!" });
-            }
-    }
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-
-public class AttendanceRequest
-{
-    public string Type { get; set; }
-    public string ImageData { get; set; }
-}
-
-       
-private bool VerifyFace(Bitmap captured, Bitmap stored)
-{
-    try
-    {
-        Mat matCaptured = BitmapToMat(captured);
-        Mat matStored = BitmapToMat(stored);
-
-        
-        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-
-        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
-        if (!System.IO.File.Exists(cascadePath))
-        {
-            Console.WriteLine("Error: Haarcascade file not found!");
-            return false;
-        }
-
-        CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
-
-        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
-
-        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
-        {
-            Console.WriteLine("No face detected in one or both images.");
-            return false;
-        }
-
-        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-        Mat storedFace = new Mat(matStored, storedFaces[0]);
-
-       
-        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
-        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
-
-        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
-        {
-            CvInvoke.EqualizeHist(capturedFace, capturedFace);
-            CvInvoke.EqualizeHist(storedFace, storedFace);
-
-            VectorOfMat trainingImages = new VectorOfMat();
-            trainingImages.Push(storedFace);
-            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
-
-            faceRecognizer.Train(trainingImages, labels);
-            var result = faceRecognizer.Predict(capturedFace);
-
-            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
-
-           
-            return result.Label == 1 && result.Distance < 50;
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error in face verification: " + ex.Message);
-    }
-
-    return false;
-}
-
-       
-private Mat BitmapToMat(Bitmap bitmap)
-{
-    using (MemoryStream ms = new MemoryStream())
-    {
-        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
-        byte[] imageData = ms.ToArray();
-
-        Mat mat = new Mat();
-        CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
-
-        if (mat.IsEmpty)
-        {
-            Console.WriteLine("Error: Image conversion failed!");
-        }
-
-        return mat;
-    }
-}
+                                               
+                                          
+                                              </div>
