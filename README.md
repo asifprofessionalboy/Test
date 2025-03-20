@@ -1,116 +1,133 @@
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+now i have this model in this Image is stored as .jpg 
+public partial class AppPerson
 {
-    if (!string.IsNullOrEmpty(photoData) && !string.IsNullOrEmpty(Pno) && !string.IsNullOrEmpty(Name))
-    {
-        try
-        {
-            // Convert Base64 string to byte array
-            byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
-
-            // Define the image file path
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images");
-
-            // Ensure directory exists
-            if (!Directory.Exists(folderPath))
-            {
-                Directory.CreateDirectory(folderPath);
-            }
-
-            // Set the file name as "Pno-Name.jpg"
-            string fileName = $"{Pno}-{Name}.jpg";
-            string filePath = Path.Combine(folderPath, fileName);
-
-            // Save the image to wwwroot/Images as a JPG file
-            System.IO.File.WriteAllBytes(filePath, imageBytes);
-
-            // Store the image as a JPG file in the database (file path)
-            var person = new AppPerson
-            {
-                Pno = Pno,
-                Name = Name,
-                ImagePath = $"/Images/{fileName}" // Store file path instead of byte array
-            };
-
-            context.AppPeople.Add(person);
-            await context.SaveChangesAsync();
-
-            return RedirectToAction("GeoFencing");
-        }
-        catch (Exception ex)
-        {
-            ModelState.AddModelError("", "Error saving image: " + ex.Message);
-        }
-    }
-    else
-    {
-        ModelState.AddModelError("", "Missing required fields!");
-    }
-
-    return View();
+    public Guid Id { get; set; }
+    public string? Pno { get; set; }
+    public string? Name { get; set; }
+    public string? Image { get; set; }
 }
 
+and this is my two buttons 
 
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+    <input type="hidden" name="Type" id="EntryType" />
 
-this is my view 
-<form asp-action="UploadImage" method="post">
-    <div class="form-group row">
-        <div class="col-sm-1">
-            <label>Pno</label>
+    <div class="row mt-5 form-group">
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                Punch In
+            </button>
         </div>
-        <div class="col-sm-3">
-            <input id="Pno" name="Pno" class="form-control" type="number" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" maxlength="6" autocomplete="off" required />
-        </div>
-        <div class="col-sm-1">
-            <label>Name</label>
-        </div>
-        <div class="col-sm-3">
-            <input id="Name" name="Name" class="form-control" required />
-        </div>
-        <div class="col-sm-1">
-            <label>Capture Photo</label>
-        </div>
-        <div class="col-sm-3">
-            <video id="video" width="320" height="240" autoplay playsinline></video>
-            <canvas id="canvas" style="display:none;"></canvas>
 
-          
-            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
-
-           
-            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
-            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
-
-           
-            <input type="hidden" id="photoData" name="photoData" />
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                Punch Out
+            </button>
         </div>
     </div>
-
-    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
 </form>
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
-{
-    if (!string.IsNullOrEmpty(photoData))
-    {
-       
-        byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+and this is my js to compare with stored image 
+now i want that when it capture image it sends to controller and matches 
+   <script>
+       const video = document.getElementById("video");
+       const canvas = document.getElementById("canvas");
+       const EntryTypeInput = document.getElementById("EntryType");
 
-        var person = new AppPerson
-        {
-            Pno = Pno, 
-            Name = Name,
-            Image = imageBytes 
-        };
+       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+           .then(function (stream) {
+               video.srcObject = stream;
+               video.play();
+           })
+           .catch(function (error) {
+               console.error("Error accessing camera: ", error);
+           });
 
-        context.AppPeople.Add(person);
-        await context.SaveChangesAsync();
-        return RedirectToAction("GeoFencing");
-    }
+   function captureImageAndSubmit(entryType) {
+       EntryTypeInput.value = entryType;
 
-    return View();
-}
+       const context = canvas.getContext("2d");
+       canvas.width = video.videoWidth;
+       canvas.height = video.videoHeight;
+       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-store as a jpg image on wwwroot/Images and image name will be like this if the pno is 151514 and name is Irshad on textboxes then save as 151514-Irshad.Jpg
+       const imageData = canvas.toDataURL("image/png");
+
+       fetch("/Geo/AttendanceData", {
+           method: "POST",
+           headers: {
+               "Content-Type": "application/json"
+           },
+           body: JSON.stringify({
+               Type: entryType,
+               ImageData: imageData
+           })
+       })
+           .then(response => response.json())
+           .then(data => {
+               alert(data.message);
+           })
+           .catch(error => {
+               console.error("Error:", error);
+               alert("An error occurred while submitting the image.");
+           });
+   }
+
+   </script>
+
+this is my controller 
+ [HttpPost]
+ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+ {
+     try
+     {
+         var UserId = HttpContext.Request.Cookies["Session"];
+         string Pno = UserId;
+
+
+         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/StoredFace.jpg");
+         string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/Captured.jpg");
+
+         if (!System.IO.File.Exists(storedImagePath) || !System.IO.File.Exists(capturedImagePath))
+         {
+             return Json(new { success = false, message = "One or both hardcoded images not found!" });
+         }
+
+        
+         using (Bitmap storedImage = new Bitmap(storedImagePath))
+         using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+         {
+             bool isFaceMatched = VerifyFace(capturedImage, storedImage);
+
+             if (isFaceMatched)
+             {
+                 string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                 string currentTime = DateTime.Now.ToString("HH:mm");
+
+                 if (model.Type == "Punch In")
+                 {
+                     StoreData(currentDate, currentTime, null, Pno);
+                 }
+                 else
+                 {
+                     StoreData(currentDate, null, currentTime, Pno);
+                 }
+
+                 return Json(new { success = true, message = "Data Saved Successfully" });
+             }
+             else
+             {
+                 return Json(new { success = false, message = "Face does not match!" });
+             }
+     }
+     }
+     catch (Exception ex)
+     {
+         return Json(new { success = false, message = ex.Message });
+     }
+ }
+
+captured image and stored image matches with Pno and then verify face
