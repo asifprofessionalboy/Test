@@ -1,20 +1,79 @@
-https://github.com/opencv/opencv/blob/master/data/haarcascades/haarcascade_frontalface_default.xml
-
-
-this is my method but when i debug on this line ,CascadeClassifier faceCascade = new CascadeClassifier(cascadePath); it shows the same error on catch 
-OpenCV: Input file is invalid. File path is exists but why it showing this?
- static bool CompareFaces(string storedImagePath, string capturedImagePath)
+yes it works after replacing Xml file now i have this method . i want the same logic 
+ [HttpPost]
+ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
  {
+     if (string.IsNullOrEmpty(model.ImageData))
+     {
+         return Json(new { success = false, message = "Image data is missing!" });
+     }
+
      try
      {
-         Mat storedImage = CvInvoke.Imread(storedImagePath, ImreadModes.Grayscale);
-         Mat capturedImage = CvInvoke.Imread(capturedImagePath, ImreadModes.Grayscale);
+         var UserId = HttpContext.Request.Cookies["Session"];
+         string Pno = UserId;
 
-         if (storedImage.IsEmpty || capturedImage.IsEmpty)
+         byte[] imageBytes = Convert.FromBase64String(model.ImageData.Split(',')[1]);
+
+         using (var ms = new MemoryStream(imageBytes))
          {
-             Console.WriteLine("Error: One or both images are empty!");
-             return false;
+             Bitmap capturedImage = new Bitmap(ms);
+
+             var user = context.AppPeople.FirstOrDefault(x => x.Pno == Pno);
+             if (user == null || user.Image == null)
+             {
+                 return Json(new { success = false, message = "User Image Not Found!" });
+             }
+
+             using (var storedStream = new MemoryStream(user.Image))
+             {
+                 Bitmap storedImage = new Bitmap(storedStream);
+
+                 bool isPartialMatch;
+                 bool isFaceMatched = VerifyFace(capturedImage, storedImage, out isPartialMatch);
+
+                 if (isFaceMatched)
+                 {
+                     string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                     string currentTime = DateTime.Now.ToString("HH:mm");
+
+                     if (model.Type == "Punch In")
+                     {
+                         StoreData(currentDate, currentTime, null, Pno);
+                     }
+                     else
+                     {
+                         StoreData(currentDate, null, currentTime, Pno);
+                     }
+
+                     return Json(new { success = true, message = "Attendance Marked Successfully!" });
+                 }
+                 else if (isPartialMatch)
+                 {
+                     return Json(new { success = false, message = "Face partially matched! Please try again." });
+                 }
+                 else
+                 {
+                     return Json(new { success = false, message = "Face does not match!" });
+                 }
+             }
          }
+     }
+     catch (Exception ex)
+     {
+         return Json(new { success = false, message = ex.Message });
+     }
+ }
+ private bool VerifyFace(Bitmap captured, Bitmap stored, out bool isPartialMatch)
+ {
+     isPartialMatch = false;
+
+     try
+     {
+         Mat matCaptured = BitmapToMat(captured);
+         Mat matStored = BitmapToMat(stored);
+
+         CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+         CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
 
          string cascadePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "D:/Irshad_Project/GFAS/GFAS/wwwroot/Cascades/haarcascade_frontalface_default.xml");
          Console.WriteLine($"Cascade Path: {cascadePath}");
@@ -24,40 +83,57 @@ OpenCV: Input file is invalid. File path is exists but why it showing this?
              Console.WriteLine("Error: Haarcascade file not found!");
              return false;
          }
+         var faceCascade = new CascadeClassifier(cascadePath);
 
-         CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+         Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+         Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
 
-         Rectangle[] storedFaces = faceCascade.DetectMultiScale(storedImage, 1.1, 5);
-         Rectangle[] capturedFaces = faceCascade.DetectMultiScale(capturedImage, 1.1, 5);
-
-         if (storedFaces.Length == 0 || capturedFaces.Length == 0)
+         if (capturedFaces.Length == 0 || storedFaces.Length == 0)
          {
              Console.WriteLine("No face detected in one or both images.");
              return false;
          }
 
-         Mat storedFace = new Mat(storedImage, storedFaces[0]);
-         Mat capturedFace = new Mat(capturedImage, capturedFaces[0]);
-
-         CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+         Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+         Mat storedFace = new Mat(matStored, storedFaces[0]);
          CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+         CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
 
-         LBPHFaceRecognizer recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100);
-         VectorOfMat trainingImages = new VectorOfMat();
-         VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+         using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
+         {
+             CvInvoke.EqualizeHist(capturedFace, capturedFace);
+             CvInvoke.EqualizeHist(storedFace, storedFace);
 
-         trainingImages.Push(storedFace);
-         recognizer.Train(trainingImages, labels);
+             VectorOfMat trainingImages = new VectorOfMat();
+             trainingImages.Push(storedFace);
+             VectorOfInt labels = new VectorOfInt(new int[] { 1 });
 
-         var result = recognizer.Predict(capturedFace);
+             faceRecognizer.Train(trainingImages, labels);
 
-         Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+             var result = faceRecognizer.Predict(capturedFace);
+             Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
 
-         return result.Label == 1 && result.Distance < 50; // Adjust threshold as needed
+             // Strong Match (Exact Face Match)
+             if (result.Label == 1 && result.Distance < 50)
+             {
+                 return true;
+             }
+             // Partial Match (50% Face Match)
+             else if (result.Label == 1 && result.Distance >= 50 && result.Distance <= 80)
+             {
+                 isPartialMatch = true;
+                 return false;
+             }
+         }
      }
      catch (Exception ex)
      {
-         Console.WriteLine("Error in face comparison: " + ex.Message);
-         return false;
+         Console.WriteLine("Error in face verification: " + ex.Message);
      }
+
+     return false;
  }
+
+
+
+in this image is coming from table and another one is captured but in binary,is it works for binary? previous i have compare with Jpg that is works. if image file i want jpg then please convert 
