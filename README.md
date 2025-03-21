@@ -1,3 +1,38 @@
+if (capturedFaces.Length == 0)
+{
+    return false;  // Alert: "No face detected in captured image"
+}
+
+if (storedFaces.Length == 0)
+{
+    return false;  // Alert: "No face detected in stored image"
+}
+
+Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 3, Size.Empty, new Size(30, 30));
+Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 3, Size.Empty, new Size(30, 30));
+
+return result.Label == 1 && result.Distance < 120;  // Increase threshold
+catch (Exception ex)
+{
+    return Json(new { success = false, message = "Error in face verification: " + ex.Message });
+}
+fetch("/GFAS/Geo/AttendanceData", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ Type: entryType, ImageData: imageData })
+})
+.then(response => response.json())
+.then(data => {
+    alert(data.message);  // Show error messages on the phone
+})
+.catch(error => {
+    alert("An error occurred: " + error.message);
+});
+VectorOfMat trainingImages = new VectorOfMat();
+trainingImages.Push(storedFace);  // Add more images here
+VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+
 please review my code 
 [HttpPost]
 public IActionResult AttendanceData([FromBody] AttendanceRequest model)
