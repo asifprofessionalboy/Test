@@ -1,149 +1,124 @@
-var modalId = '<%= myModal.ClientID %>';
-$('#' + modalId).modal('show');
+this is my Action. in this i dont want to save CapturedImage in Image folder. capture image only compares with Stored Image that is in wwwroot/Images that it.
+ [HttpPost]
+ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+ {
+     try
+     {
+         
+         var UserId = HttpContext.Request.Cookies["Session"];
+         var UserName = HttpContext.Request.Cookies["UserName"];
+         if (string.IsNullOrEmpty(UserId))
+             return Json(new { success = false, message = "User session not found!" });
 
+         string Pno = UserId;
+         string Name = UserName;
 
+         
+         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+         if (!System.IO.File.Exists(storedImagePath))
+         {
+             return Json(new { success = false, message = "Stored image not found!" });
+         }
 
-<!-- Add these before closing </head> or at the end of <body> -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-console.log(typeof $); // Should print "function" if jQuery is loaded
-console.log($('#myModal')); // Should not be empty
-#myModal {
-    display: block !important;
-    opacity: 1 !important;
+         
+         string capturedImagePath = SaveBase64Image(model.ImageData, Pno,Name);
+         if (string.IsNullOrEmpty(capturedImagePath))
+         {
+             return Json(new { success = false, message = "Failed to save captured image!" });
+         }
+
+        
+         using (Bitmap storedImage = new Bitmap(storedImagePath))
+         using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+         {
+             bool isFaceMatched = VerifyFace(capturedImage, storedImage);
+             if (isFaceMatched)
+             {
+                 string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                 string currentTime = DateTime.Now.ToString("HH:mm");
+
+                 if (model.Type == "Punch In")
+                 {
+                     StoreData(currentDate, currentTime, null, Pno);
+                 }
+                 else
+                 {
+                     StoreData(currentDate, null, currentTime, Pno);
+                 }
+
+                 return Json(new { success = true, message = "Attendance recorded successfully." });
+             }
+             else
+             {
+                 return Json(new { success = false, message = "Face does not match!" });
+             }
+         }
+     }
+     catch (Exception ex)
+     {
+         return Json(new { success = false, message = ex.Message });
+     }
+ }
+
+private string SaveBase64Image(string base64String, string Pno,string Name)
+{
+    try
+    {
+        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+        byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+        System.IO.File.WriteAllBytes(filePath, imageBytes);
+        return filePath;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error saving image: " + ex.Message);
+        return null;
+    }
 }
+this is my js 
+ <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
 
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
 
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
 
-this is my js functions     
-<script language="Javascript" type="text/javascript"> 
-      
-        function showModal()
-        {
-            alert("123");
-            $('#myModal').modal('show'); // Use Bootstrap modal
-           
-        }
-   
-   
-        function HDFC_Bank_Ac_holder_Validate()
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        {
-            var CustomerID = document.getElementById("MainContent_ImprestCard_Record_Customer_ID_0");
-            var PAN = document.getElementById("MainContent_ImprestCard_Record_PAN_0");
-            var Aadhaar = document.getElementById("MainContent_ImprestCard_Record_Aadhaar_0");
-            var Adhar_Attach = document.getElementById("MainContent_ImprestCard_Record_Adhar_Attach_0");
-            var PAN_Attach = document.getElementById("MainContent_ImprestCard_Record_PAN_Attach_0");
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
 
-            var HDFC_Ac_Holder = document.querySelector('input[name*="HDFC_Bank_Ac_holder"]:checked').value;
-            
-            var CustomerId = document.getElementById("Customer_ID_div");
-           
-            var Attachmentsdiv = document.getElementById("Attachments_div");
-            
-            if (HDFC_Ac_Holder == "YES")
+       
 
-            {
-               
-
-                PAN.value = "";
-                Aadhaar.value = "";
-                PAN_Attach.value = "";
-                Adhar_Attach.value = "";
-                CustomerId.style.display = "block"; // show
-                
-                Attachmentsdiv.style.display = "none"; //hide
-               
-               
-
-                return true;
-            }
-
-            else
-            {
-                CustomerID.value = "";
-                CustomerId.style.display = "none";
-               
-                Attachmentsdiv.style.display = "block";
-
-                return true
-            }
-
-        }
-           
-
-    </script> 
-
-
-this is my modal 
-
-    <div id="myModal" class="modal fade" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" runat="server" >
-    <div class="modal-dialog w-100" role="document">
-        <div class="modal-content">
-            <div class="modal-header" style="background-color: #548ac580;">
-                <h5 class="modal-title">Declaration for Taking Imprest Card</h5>
-               <%-- <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>--%>
-            </div>
-            <div class="modal-body">
-                <p>Responsibilities of the card holder:</p>
-         <div class="content">
-              </div>
-
-            </div>
-            <div class="modal-footer">
-              <asp:Button ID="button_Save" class="btn btn-secondary" runat="server" Text="Agree"  OnClick="button_Save_Click"/>
-              <asp:Button ID="button_Cancel" class="btn btn-primary" runat="server" Text="Not Agree"  OnClick="button_Cancel_Click"/>
-
-
-            </div>
-        </div>
-    </div>
-</div>
-
-
-protected void Page_Load(object sender, EventArgs e)
-        {
-            ImprestCard_Record.DataSource = PageRecordDataSet;
-
-            
-            if (!IsPostBack)
-            {
-
-                ImprestCard_Record.Visible = false;
-                Buttons_div.Visible = true;
-
-
-                NewCard_Div.Visible = false;
-                string Pno = Session["UserName"].ToString();
-
-                BL_ImprestCard_Request blobj = new BL_ImprestCard_Request();
-                DataSet ds2 = blobj.Chk_Pno(Pno);
-
-               
-                
-                if (ds2.Tables[0].Rows.Count > 0)
-                {
-                    
-                    //Response.Redirect("~/Default.aspx");
-                    //Response.Redirect("~/App/Input/Imprest_Card_Request.aspx");
-                }
-                else
-                {
-                    // Set a hidden field value or a JavaScript variable
-                    ScriptManager.RegisterStartupScript(this, this.GetType(), "OpenModal", "showModal();", true);
-
-                    BL_ImprestCard_Request blobj1 = new BL_ImprestCard_Request();
-                    DataSet ds3 = blobj1.Pno_name(Pno);
-                    if (ds3.Tables[0].Rows.Count > 0)
-                    {
-                        Pno_Name.Text = ds3.Tables[0].Rows[0]["Ename"].ToString();
-
-                    }
-                }
-            }
-        }
-
-
-why modal is not open, it executes the function ShowModal but Modal is not Opening
+        fetch("/GFAS/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("An error occurred while submitting the image.");
+        });
+    }
+</script>
