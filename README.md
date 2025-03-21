@@ -11,6 +11,86 @@ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
         string Pno = UserId;
         string Name = UserName;
 
+        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+        if (!System.IO.File.Exists(storedImagePath))
+        {
+            return Json(new { success = false, message = "Stored image not found!" });
+        }
+
+        // Generate a unique file name for the captured image
+        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+        // Save the base64 image to a file
+        SaveBase64ImageToFile(model.ImageData, capturedImagePath);
+
+        // Compare both images
+        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+        using (Bitmap storedImage = new Bitmap(storedImagePath))
+        {
+            bool isFaceMatched = VerifyFace(capturedImage, storedImage);
+            if (isFaceMatched)
+            {
+                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                string currentTime = DateTime.Now.ToString("HH:mm");
+
+                if (model.Type == "Punch In")
+                {
+                    StoreData(currentDate, currentTime, null, Pno);
+                }
+                else
+                {
+                    StoreData(currentDate, null, currentTime, Pno);
+                }
+
+                // Delete the captured image after comparison (optional)
+                System.IO.File.Delete(capturedImagePath);
+
+                return Json(new { success = true, message = "Attendance recorded successfully." });
+            }
+            else
+            {
+                // Delete the captured image after comparison (optional)
+                System.IO.File.Delete(capturedImagePath);
+
+                return Json(new { success = false, message = "Face does not match!" });
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+private void SaveBase64ImageToFile(string base64String, string filePath)
+{
+    try
+    {
+        byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+        System.IO.File.WriteAllBytes(filePath, imageBytes);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
+    }
+}
+
+
+
+
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
+
+        string Pno = UserId;
+        string Name = UserName;
+
 
         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
         if (!System.IO.File.Exists(storedImagePath))
