@@ -1,3 +1,4 @@
+please review my code 
 [HttpPost]
 public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
@@ -11,14 +12,14 @@ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
         string Pno = UserId;
         string Name = UserName;
 
-        // Load stored image from the directory
+        
         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
         if (!System.IO.File.Exists(storedImagePath))
         {
             return Json(new { success = false, message = "Stored image not found!" });
         }
 
-        // Convert Base64 ImageData to Bitmap
+       
         Bitmap capturedImage = ConvertBase64ToBitmap(model.ImageData);
         if (capturedImage == null)
         {
@@ -56,7 +57,7 @@ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
     }
 }
 
-// Convert Base64 image string to Bitmap
+
 private Bitmap ConvertBase64ToBitmap(string base64String)
 {
     try
@@ -76,127 +77,89 @@ private Bitmap ConvertBase64ToBitmap(string base64String)
 
 
 
-this is my Action. in this i dont want to save CapturedImage in Image folder. capture image only compares with Stored Image that is in wwwroot/Images that it.
- [HttpPost]
- public IActionResult AttendanceData([FromBody] AttendanceRequest model)
- {
-     try
-     {
-         
-         var UserId = HttpContext.Request.Cookies["Session"];
-         var UserName = HttpContext.Request.Cookies["UserName"];
-         if (string.IsNullOrEmpty(UserId))
-             return Json(new { success = false, message = "User session not found!" });
 
-         string Pno = UserId;
-         string Name = UserName;
-
-         
-         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-         if (!System.IO.File.Exists(storedImagePath))
-         {
-             return Json(new { success = false, message = "Stored image not found!" });
-         }
-
-         
-         string capturedImagePath = SaveBase64Image(model.ImageData, Pno,Name);
-         if (string.IsNullOrEmpty(capturedImagePath))
-         {
-             return Json(new { success = false, message = "Failed to save captured image!" });
-         }
-
-        
-         using (Bitmap storedImage = new Bitmap(storedImagePath))
-         using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-         {
-             bool isFaceMatched = VerifyFace(capturedImage, storedImage);
-             if (isFaceMatched)
-             {
-                 string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                 string currentTime = DateTime.Now.ToString("HH:mm");
-
-                 if (model.Type == "Punch In")
-                 {
-                     StoreData(currentDate, currentTime, null, Pno);
-                 }
-                 else
-                 {
-                     StoreData(currentDate, null, currentTime, Pno);
-                 }
-
-                 return Json(new { success = true, message = "Attendance recorded successfully." });
-             }
-             else
-             {
-                 return Json(new { success = false, message = "Face does not match!" });
-             }
-         }
-     }
-     catch (Exception ex)
-     {
-         return Json(new { success = false, message = ex.Message });
-     }
- }
-
-private string SaveBase64Image(string base64String, string Pno,string Name)
+private bool VerifyFace(Bitmap captured, Bitmap stored)
 {
     try
     {
-        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-        System.IO.File.WriteAllBytes(filePath, imageBytes);
-        return filePath;
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+       
+        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+       
+        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+        if (!System.IO.File.Exists(cascadePath))
+        {
+            Console.WriteLine("Error: Haarcascade file not found!");
+            return false;
+        }
+
+        CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false;
+        }
+
+        
+        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+        Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+       
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+        
+        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
+        {
+            CvInvoke.EqualizeHist(capturedFace, capturedFace);
+            CvInvoke.EqualizeHist(storedFace, storedFace);
+
+            VectorOfMat trainingImages = new VectorOfMat();
+            trainingImages.Push(storedFace);
+            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+            faceRecognizer.Train(trainingImages, labels);
+            var result = faceRecognizer.Predict(capturedFace);
+
+            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+            return result.Label == 1 && result.Distance < 80;
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine("Error saving image: " + ex.Message);
-        return null;
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
     }
 }
-this is my js 
- <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const EntryTypeInput = document.getElementById("EntryType");
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then(function (stream) {
-            video.srcObject = stream;
-            video.play();
-        })
-        .catch(function (error) {
-            console.error("Error accessing camera: ", error);
-        });
 
-    function captureImageAndSubmit(entryType) {
-        EntryTypeInput.value = entryType;
 
-        const context = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+private Mat BitmapToMat(Bitmap bitmap)
+{
+    using (MemoryStream ms = new MemoryStream())
+    {
+        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+        byte[] imageData = ms.ToArray();
 
-        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
+        Mat mat = new Mat();
+        CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
 
-       
+        if (mat.IsEmpty)
+        {
+            Console.WriteLine("Error: Image conversion failed!");
+        }
 
-        fetch("/GFAS/Geo/AttendanceData", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                Type: entryType,
-                ImageData: imageData
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            alert("An error occurred while submitting the image.");
-        });
+        return mat;
     }
-</script>
+}
+
+
+why captured image is not matching with Stored Image. I want in this to match face with stored. if 50% face is also matching then it works. everytime it shows face doesnot match. and please provide is there any other issue in this 
