@@ -1,3 +1,58 @@
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
+
+        string Pno = UserId;
+        string Name = UserName;
+
+        // **Hardcoded Image Path**
+        string imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", "151514-Shashi Kumar.jpg");
+        if (!System.IO.File.Exists(imagePath))
+        {
+            return Json(new { success = false, message = "Stored image not found!" });
+        }
+
+        // **Use the same image for both captured and stored**
+        using (Bitmap capturedImage = new Bitmap(imagePath))
+        using (Bitmap storedImage = new Bitmap(imagePath))
+        {
+            bool isFaceMatched = VerifyFace(capturedImage, storedImage);
+            if (isFaceMatched)
+            {
+                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                string currentTime = DateTime.Now.ToString("HH:mm");
+
+                if (model.Type == "Punch In")
+                {
+                    StoreData(currentDate, currentTime, null, Pno);
+                }
+                else
+                {
+                    StoreData(currentDate, null, currentTime, Pno);
+                }
+
+                return Json(new { success = true, message = "Attendance recorded successfully." });
+            }
+            else
+            {
+                return Json(new { success = false, message = "Face does not match!" });
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+
+
 i have this image
 
 151514-Shashi Kumar.jpg 
