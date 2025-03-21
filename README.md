@@ -1,200 +1,196 @@
-if (capturedFaces.Length == 0)
-{
-    return false;  // Alert: "No face detected in captured image"
-}
+i have this image
 
-if (storedFaces.Length == 0)
-{
-    return false;  // Alert: "No face detected in stored image"
-}
+151514-Shashi Kumar.jpg 
+i want same image hardcoded for captured and stored 
 
-Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 3, Size.Empty, new Size(30, 30));
-Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 3, Size.Empty, new Size(30, 30));
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+        {
+            try
+            {
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
 
-return result.Label == 1 && result.Distance < 120;  // Increase threshold
-catch (Exception ex)
-{
-    return Json(new { success = false, message = "Error in face verification: " + ex.Message });
-}
-fetch("/GFAS/Geo/AttendanceData", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ Type: entryType, ImageData: imageData })
-})
-.then(response => response.json())
-.then(data => {
-    alert(data.message);  // Show error messages on the phone
-})
-.catch(error => {
-    alert("An error occurred: " + error.message);
-});
-VectorOfMat trainingImages = new VectorOfMat();
+                string Pno = UserId;
+                string Name = UserName;
+
+                
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                if (!System.IO.File.Exists(storedImagePath))
+                {
+                    return Json(new { success = false, message = "Stored image not found!" });
+                }
+
+               
+                Bitmap capturedImage = ConvertBase64ToBitmap(model.ImageData);
+                if (capturedImage == null)
+                {
+                    return Json(new { success = false, message = "Invalid image format!" });
+                }
+
+                using (Bitmap storedImage = new Bitmap(storedImagePath))
+                {
+                    bool isFaceMatched = VerifyFace(capturedImage, storedImage);
+                    if (isFaceMatched)
+                    {
+                        string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                        string currentTime = DateTime.Now.ToString("HH:mm");
+
+                        if (model.Type == "Punch In")
+                        {
+                            StoreData(currentDate, currentTime, null, Pno);
+                        }
+                        else
+                        {
+                            StoreData(currentDate, null, currentTime, Pno);
+                        }
+
+                        return Json(new { success = true, message = "Attendance recorded successfully." });
+                    }
+                    else
+                    {
+                        return Json(new { success = false, message = "Face does not match!" });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        
+        private Bitmap ConvertBase64ToBitmap(string base64String)
+        {
+            try
+            {
+                byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+                using (MemoryStream ms = new MemoryStream(imageBytes))
+                {
+                    return new Bitmap(ms);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error converting Base64 to Bitmap: " + ex.Message);
+                return null;
+            }
+        }
+
+
+
+
+        private bool VerifyFace(Bitmap captured, Bitmap stored)
+        {
+            try
+            {
+                Mat matCaptured = BitmapToMat(captured);
+                Mat matStored = BitmapToMat(stored);
+
+               
+                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+               
+                string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+                if (!System.IO.File.Exists(cascadePath))
+                {
+                    Console.WriteLine("Error: Haarcascade file not found!");
+                    return false;
+                }
+
+                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 3, Size.Empty, new Size(30, 30));
+                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 3, Size.Empty, new Size(30, 30));
+
+                if (capturedFaces.Length == 0)
+                {
+                    return false;  // Alert: "No face detected in captured image"
+                }
+
+                if (storedFaces.Length == 0)
+                {
+                    return false;  // Alert: "No face detected in stored image"
+                }
+
+
+
+                Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+                Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+               
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+                CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+                
+                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
+                {
+                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
+                    CvInvoke.EqualizeHist(storedFace, storedFace);
+
+                    VectorOfMat trainingImages = new VectorOfMat();
 trainingImages.Push(storedFace);  // Add more images here
 VectorOfInt labels = new VectorOfInt(new int[] { 1 });
 
+                    faceRecognizer.Train(trainingImages, labels);
+                    var result = faceRecognizer.Predict(capturedFace);
 
-please review my code 
-[HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        var UserName = HttpContext.Request.Cookies["UserName"];
-        if (string.IsNullOrEmpty(UserId))
-            return Json(new { success = false, message = "User session not found!" });
+                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
 
-        string Pno = UserId;
-        string Name = UserName;
-
-        
-        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        if (!System.IO.File.Exists(storedImagePath))
-        {
-            return Json(new { success = false, message = "Stored image not found!" });
-        }
-
-       
-        Bitmap capturedImage = ConvertBase64ToBitmap(model.ImageData);
-        if (capturedImage == null)
-        {
-            return Json(new { success = false, message = "Invalid image format!" });
-        }
-
-        using (Bitmap storedImage = new Bitmap(storedImagePath))
-        {
-            bool isFaceMatched = VerifyFace(capturedImage, storedImage);
-            if (isFaceMatched)
-            {
-                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                string currentTime = DateTime.Now.ToString("HH:mm");
-
-                if (model.Type == "Punch In")
-                {
-                    StoreData(currentDate, currentTime, null, Pno);
+                    return result.Label == 1 && result.Distance < 120;
                 }
-                else
-                {
-                    StoreData(currentDate, null, currentTime, Pno);
-                }
-
-                return Json(new { success = true, message = "Attendance recorded successfully." });
             }
-            else
+            catch (Exception ex)
             {
-                return Json(new { success = false, message = "Face does not match!" });
+                Console.WriteLine("Error in face verification: " + ex.Message);
+                return false;
             }
         }
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
 
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
 
-private Bitmap ConvertBase64ToBitmap(string base64String)
-{
-    try
-    {
-        byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-        using (MemoryStream ms = new MemoryStream(imageBytes))
-        {
-            return new Bitmap(ms);
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error converting Base64 to Bitmap: " + ex.Message);
-        return null;
-    }
-}
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
 
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-
-
-private bool VerifyFace(Bitmap captured, Bitmap stored)
-{
-    try
-    {
-        Mat matCaptured = BitmapToMat(captured);
-        Mat matStored = BitmapToMat(stored);
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
 
        
-        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
 
-       
-        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
-        if (!System.IO.File.Exists(cascadePath))
-        {
-            Console.WriteLine("Error: Haarcascade file not found!");
-            return false;
-        }
-
-        CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
-        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
-
-        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
-        {
-            Console.WriteLine("No face detected in one or both images.");
-            return false;
-        }
-
-        
-        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-        Mat storedFace = new Mat(matStored, storedFaces[0]);
-
-       
-        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
-        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
-
-        
-        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
-        {
-            CvInvoke.EqualizeHist(capturedFace, capturedFace);
-            CvInvoke.EqualizeHist(storedFace, storedFace);
-
-            VectorOfMat trainingImages = new VectorOfMat();
-            trainingImages.Push(storedFace);
-            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
-
-            faceRecognizer.Train(trainingImages, labels);
-            var result = faceRecognizer.Predict(capturedFace);
-
-            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
-
-            return result.Label == 1 && result.Distance < 80;
-        }
+        fetch("/GFAS/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("An error occurred while submitting the image.");
+        });
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error in face verification: " + ex.Message);
-        return false;
-    }
-}
-
-
-
-private Mat BitmapToMat(Bitmap bitmap)
-{
-    using (MemoryStream ms = new MemoryStream())
-    {
-        bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
-        byte[] imageData = ms.ToArray();
-
-        Mat mat = new Mat();
-        CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
-
-        if (mat.IsEmpty)
-        {
-            Console.WriteLine("Error: Image conversion failed!");
-        }
-
-        return mat;
-    }
-}
-
-
-why captured image is not matching with Stored Image. I want in this to match face with stored. if 50% face is also matching then it works. everytime it shows face doesnot match. and please provide is there any other issue in this 
+</script>
