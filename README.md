@@ -1,3 +1,15 @@
+<!-- Add these before closing </head> or at the end of <body> -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+console.log(typeof $); // Should print "function" if jQuery is loaded
+console.log($('#myModal')); // Should not be empty
+#myModal {
+    display: block !important;
+    opacity: 1 !important;
+}
+
+
+
 this is my js functions     
 <script language="Javascript" type="text/javascript"> 
       
