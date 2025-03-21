@@ -1,3 +1,8 @@
+var modalId = '<%= myModal.ClientID %>';
+$('#' + modalId).modal('show');
+
+
+
 <!-- Add these before closing </head> or at the end of <body> -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
