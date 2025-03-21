@@ -1,113 +1,132 @@
-<div class="row col-md-12 mt-2">
-    <!-- HDFC Bank A/c holder Label -->
-    <div class="col-md-2">
-        <label for="lblAction" class="m-0 mr-1 p-0 col-form-label-sm font-weight-bold fs-6">
-            HDFC Bank A/c holder <span class="text-danger">*</span>
-        </label>
-    </div>
+this is my js functions     
+<script language="Javascript" type="text/javascript"> 
+      
+        function showModal()
+        {
+            alert("123");
+            $('#myModal').modal('show'); // Use Bootstrap modal
+           
+        }
+   
+   
+        function HDFC_Bank_Ac_holder_Validate()
 
-    <!-- Radio Buttons -->
-    <div class="col-md-3">
-        <asp:RadioButtonList ID="HDFC_Bank_Ac_holder" runat="server" CssClass="form-check-input font-weight-bold fs-6 radio"
-            RepeatColumns="2" RepeatDirection="Horizontal" OnClick="HDFC_Bank_Ac_holder_Validate();">
-            <asp:ListItem Value="YES">&nbsp;YES</asp:ListItem>
-            <asp:ListItem Value="NO">&nbsp;NO</asp:ListItem>
-        </asp:RadioButtonList>
-    </div>
+        {
+            var CustomerID = document.getElementById("MainContent_ImprestCard_Record_Customer_ID_0");
+            var PAN = document.getElementById("MainContent_ImprestCard_Record_PAN_0");
+            var Aadhaar = document.getElementById("MainContent_ImprestCard_Record_Aadhaar_0");
+            var Adhar_Attach = document.getElementById("MainContent_ImprestCard_Record_Adhar_Attach_0");
+            var PAN_Attach = document.getElementById("MainContent_ImprestCard_Record_PAN_Attach_0");
 
-    <!-- Customer ID (Appears in the same row when YES is selected) -->
-    <div id="Customer_ID_div" class="col-md-4" style="display:none;">
-        <div class="row">
-            <div class="col-md-5">
-                <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Customer ID :<span class="text-danger">*</span></label>
+            var HDFC_Ac_Holder = document.querySelector('input[name*="HDFC_Bank_Ac_holder"]:checked').value;
+            
+            var CustomerId = document.getElementById("Customer_ID_div");
+           
+            var Attachmentsdiv = document.getElementById("Attachments_div");
+            
+            if (HDFC_Ac_Holder == "YES")
+
+            {
+               
+
+                PAN.value = "";
+                Aadhaar.value = "";
+                PAN_Attach.value = "";
+                Adhar_Attach.value = "";
+                CustomerId.style.display = "block"; // show
+                
+                Attachmentsdiv.style.display = "none"; //hide
+               
+               
+
+                return true;
+            }
+
+            else
+            {
+                CustomerID.value = "";
+                CustomerId.style.display = "none";
+               
+                Attachmentsdiv.style.display = "block";
+
+                return true
+            }
+
+        }
+           
+
+    </script> 
+
+
+this is my modal 
+
+    <div id="myModal" class="modal fade" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" runat="server" >
+    <div class="modal-dialog w-100" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #548ac580;">
+                <h5 class="modal-title">Declaration for Taking Imprest Card</h5>
+               <%-- <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>--%>
             </div>
-            <div class="col-md-7">
-                <asp:TextBox ID="Customer_ID" runat="server" CssClass="form-control form-control-sm"></asp:TextBox>
+            <div class="modal-body">
+                <p>Responsibilities of the card holder:</p>
+         <div class="content">
+              </div>
+
+            </div>
+            <div class="modal-footer">
+              <asp:Button ID="button_Save" class="btn btn-secondary" runat="server" Text="Agree"  OnClick="button_Save_Click"/>
+              <asp:Button ID="button_Cancel" class="btn btn-primary" runat="server" Text="Not Agree"  OnClick="button_Cancel_Click"/>
+
+
             </div>
         </div>
     </div>
 </div>
 
-<!-- New row for PAN, Aadhaar, and Attachments (Appears when NO is selected) -->
-<div class="row col-md-12 mt-2" id="Attachments_div" style="display:none;">
-    <!-- PAN -->
-    <div class="col-md-2">
-        <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">PAN No. :<span class="text-danger">*</span></label>
-    </div>
-    <div class="col-md-3">
-        <asp:TextBox ID="PAN" CssClass="form-control form-control-sm" runat="server"></asp:TextBox>
-    </div>
 
-    <!-- Aadhaar -->
-    <div class="col-md-2">
-        <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Aadhaar No :<span class="text-danger">*</span></label>
-    </div>
-    <div class="col-md-3">
-        <asp:TextBox ID="Aadhaar" CssClass="form-control form-control-sm" runat="server"></asp:TextBox>
-    </div>
-</div>
+protected void Page_Load(object sender, EventArgs e)
+        {
+            ImprestCard_Record.DataSource = PageRecordDataSet;
+
+            
+            if (!IsPostBack)
+            {
+
+                ImprestCard_Record.Visible = false;
+                Buttons_div.Visible = true;
 
 
+                NewCard_Div.Visible = false;
+                string Pno = Session["UserName"].ToString();
+
+                BL_ImprestCard_Request blobj = new BL_ImprestCard_Request();
+                DataSet ds2 = blobj.Chk_Pno(Pno);
+
+               
+                
+                if (ds2.Tables[0].Rows.Count > 0)
+                {
+                    
+                    //Response.Redirect("~/Default.aspx");
+                    //Response.Redirect("~/App/Input/Imprest_Card_Request.aspx");
+                }
+                else
+                {
+                    // Set a hidden field value or a JavaScript variable
+                    ScriptManager.RegisterStartupScript(this, this.GetType(), "OpenModal", "showModal();", true);
+
+                    BL_ImprestCard_Request blobj1 = new BL_ImprestCard_Request();
+                    DataSet ds3 = blobj1.Pno_name(Pno);
+                    if (ds3.Tables[0].Rows.Count > 0)
+                    {
+                        Pno_Name.Text = ds3.Tables[0].Rows[0]["Ename"].ToString();
+
+                    }
+                }
+            }
+        }
 
 
-
-
-this is my two rows . if yes selected it shows CustomerId f no selected it shows Pan, Aadhar and Attachment . logic is working but design is not. i want if yes seleted then customerid is on same row with radio buttons if no selected then pan, aadhar and attachment shows on new row means another row not on radio button 
-<div class="row col-md-12 mt-2">
-
-                                           <div class="col-md-1">
-                                                  <label for="lblAction" class="m-0 mr-1 p-0 col-form-label-sm  font-weight-bold fs-6">HDFC Bank A/c holder <span class="text-danger">*</span></label>
-                                           </div>
-                                            <div class="col-md-3 ml-2">
-                                               <asp:RadioButtonList ID="HDFC_Bank_Ac_holder" runat="server" CssClass="form-check-input col-lg-8 font-weight-bold fs-6 radio"
-                                             RepeatColumns="2"  RepeatDirection="Horizontal" OnClick="HDFC_Bank_Ac_holder_Validate();" >
-                                             <asp:ListItem Value="YES">&nbsp YES</asp:ListItem>
-                                             <asp:ListItem Value="NO"> &nbsp NO</asp:ListItem>
-
-                                         </asp:RadioButtonList>      
-                                                 </div>
-                                               <div class="row">
-                                            <div id= "Customer_ID_div" class="col-lg-4 mb-1 form-row" style="display:none;">
-                                          <div class="col-md-4">
-                                             
-                                               <label class="m-0 mr-2 p-0 col-form-label-sm  font-weight-bold fs-6"  >Customer ID :<span class="text-danger">*</span></label>
-                                             </div>
-                                         <div class="col-md-4">
-                                                <asp:TextBox  ID="Customer_ID" runat="server"  CssClass="form-control form-control-sm"  ></asp:TextBox>
-                                              </div>
-                                               </div>
-
-                                               </div>
-
-
-
-<div class="row col-md-12 mt-2">
-
-
-                                        <div id="Attachments_div" class="row mt-2" style="display:none;">
-
-                                               <div class="col-md-1">
-                                                <label class="m-0 mr-2 p-0 col-form-label-sm  font-weight-bold fs-6"  >PAN No. :<span class="text-danger">*</span></label>
-                                                   </div>
-
-                                              <div class="col-md-3">
-                                              <asp:TextBox ID="PAN"  CssClass="form-control form-control-sm"   runat="server"   ></asp:TextBox>
-
-                                                </div>
-
-
-                                              <div class="col-md-1">
-                                                <label class="m-0 mr-2 p-0 col-form-label-sm  font-weight-bold fs-6"  >Aadhaar No :<span class="text-danger">*</span></label>
-
-                                                   </div>
-                                              <div class="col-md-3">
-                                                  <asp:TextBox ID="Aadhaar"  CssClass="form-control form-control-sm"   runat="server"   ></asp:TextBox>
-
-                                                </div>
-
-
-
-
-                                               
-                                          
-                                              </div>
+why modal is not open, it executes the function ShowModal but Modal is not Opening
