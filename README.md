@@ -1,3 +1,102 @@
+public void StoreData(string ddMMyy, string tm, string Pno, string capturedImage)
+{
+    using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
+    {
+        connection.Open();
+
+        if (!string.IsNullOrEmpty(tm))
+        {
+            // Attendance logic if needed
+        }
+
+        if (!string.IsNullOrEmpty(capturedImage))
+        {
+            Guid ID = Guid.NewGuid(); // Unique ID for the record
+
+            // Convert base64 to binary and save it as a .txt file
+            byte[] imageBytes = Convert.FromBase64String(capturedImage.Split(',')[1]);
+            string fileName = $"{ID}_{Pno}.txt";
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage");
+            string filePath = Path.Combine(folderPath, fileName);
+
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            System.IO.File.WriteAllBytes(filePath, imageBytes); // Save binary data
+
+            // Insert record into the database
+            var query = @"
+            INSERT INTO App_ImageDetail(ID, Pno, FileName) 
+            VALUES (@ID, @Pno, @FileName)";
+
+            var parameters = new
+            {
+                ID = ID,
+                Pno = Pno,
+                FileName = fileName
+            };
+
+            connection.Execute(query, parameters);
+        }
+    }
+}
+
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
+
+        string Pno = UserId;
+        string Name = UserName;
+
+        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+        if (!System.IO.File.Exists(storedImagePath))
+        {
+            return Json(new { success = false, message = "Stored image not found!" });
+        }
+
+        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+        // Save captured image
+        SaveBase64ImageToFile(model.ImageData, capturedImagePath);
+
+        bool isFaceMatched = false;
+
+        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+        using (Bitmap storedImage = new Bitmap(storedImagePath))
+        {
+            isFaceMatched = VerifyFace(capturedImage, storedImage);
+        }
+
+        if (isFaceMatched)
+        {
+            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+            string currentTime = DateTime.Now.ToString("HH:mm");
+
+            // Store Data in Database & Save Captured Image as a Binary File
+            StoreData(currentDate, currentTime, Pno, model.ImageData);
+
+            return Json(new { success = true, message = "Attendance recorded successfully." });
+        }
+        else
+        {
+            return Json(new { success = false, message = "Face does not match!" });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+
 this is my methods  
 [HttpPost]
  public IActionResult AttendanceData([FromBody] AttendanceRequest model)
