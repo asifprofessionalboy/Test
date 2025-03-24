@@ -1,3 +1,143 @@
+<!-- Include SweetAlert Library -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <input type="hidden" name="Type" id="EntryType" />
+
+    <div class="row mt-5 form-group">
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                Punch In
+            </button>
+        </div>
+
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                Punch Out
+            </button>
+        </div>
+    </div>
+</form>
+
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
+
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
+
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
+
+        // Show SweetAlert with loading animation
+        Swal.fire({
+            title: "Verifying Face...",
+            html: `<div class="loading-spinner"></div>`,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Disable buttons
+        document.getElementById("PunchIn").disabled = true;
+        document.getElementById("PunchOut").disabled = true;
+
+        fetch("/GFAS/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Face Matched - Show Success
+                Swal.fire({
+                    title: "Face Matched!",
+                    text: "Your attendance has been recorded.",
+                    icon: "success",
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+            } else {
+                // Face Not Recognized - Show Retry Button
+                Swal.fire({
+                    title: "Face Not Recognized!",
+                    text: "Please try again or contact support.",
+                    icon: "error",
+                    showCancelButton: true,
+                    confirmButtonText: "Retry",
+                    cancelButtonText: "Cancel"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Retry - Recapture Image
+                        captureImageAndSubmit(entryType);
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            Swal.fire({
+                title: "Error!",
+                text: "An error occurred while processing your request.",
+                icon: "error"
+            });
+        })
+        .finally(() => {
+            // Re-enable buttons
+            document.getElementById("PunchIn").disabled = false;
+            document.getElementById("PunchOut").disabled = false;
+        });
+    }
+</script>
+
+<style>
+    /* Custom CSS for loading spinner */
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(0, 0, 0, 0.1);
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+
+
+
 <form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
     <div class="form-group text-center">
         <video id="video" width="320" height="240" autoplay playsinline></video>
