@@ -1,6 +1,161 @@
 <!-- Include SweetAlert Library -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+<!-- Success & Error Sounds -->
+<audio id="successSound" src="https://www.myinstants.com/media/sounds/tiny-button-push.mp3"></audio>
+<audio id="errorSound" src="https://www.myinstants.com/media/sounds/error.mp3"></audio>
+
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <input type="hidden" name="Type" id="EntryType" />
+
+    <div class="row mt-5 form-group">
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                Punch In
+            </button>
+        </div>
+
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                Punch Out
+            </button>
+        </div>
+    </div>
+</form>
+
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
+    const successSound = document.getElementById("successSound");
+    const errorSound = document.getElementById("errorSound");
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
+
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
+
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
+
+        // Show SweetAlert with loading animation
+        Swal.fire({
+            title: "Verifying Face...",
+            html: `<div class="loading-spinner"></div>`,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Disable buttons while verifying
+        document.getElementById("PunchIn").disabled = true;
+        document.getElementById("PunchOut").disabled = true;
+
+        fetch("/GFAS/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                successSound.play();
+                triggerHapticFeedback("success"); // ✅ Haptic vibration for success
+
+                Swal.fire({
+                    title: "Face Matched!",
+                    text: "Your attendance has been recorded.",
+                    icon: "success",
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+            } else {
+                errorSound.play();
+                triggerHapticFeedback("error"); // ❌ Haptic vibration for failure
+
+                Swal.fire({
+                    title: "Face Not Recognized!",
+                    text: "Click the button again to retry.",
+                    icon: "error",
+                    confirmButtonText: "OK"
+                });
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            triggerHapticFeedback("error"); // ⚠️ Haptic vibration for error
+
+            Swal.fire({
+                title: "Error!",
+                text: "An error occurred while processing your request.",
+                icon: "error"
+            });
+        })
+        .finally(() => {
+            // Re-enable buttons after verification completes
+            document.getElementById("PunchIn").disabled = false;
+            document.getElementById("PunchOut").disabled = false;
+        });
+    }
+
+    function triggerHapticFeedback(type) {
+        if ("vibrate" in navigator) {
+            if (type === "success") {
+                navigator.vibrate(100); // Light tap for success ✅
+            } else if (type === "error") {
+                navigator.vibrate([200, 100, 200]); // Stronger effect for error ❌
+            }
+        }
+    }
+</script>
+
+<style>
+    /* Custom CSS for loading spinner */
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(0, 0, 0, 0.1);
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+
+
+
+<!-- Include SweetAlert Library -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
     <div class="form-group text-center">
         <video id="video" width="320" height="240" autoplay playsinline></video>
