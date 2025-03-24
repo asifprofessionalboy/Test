@@ -1,244 +1,71 @@
-[HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        var UserName = HttpContext.Request.Cookies["UserName"];
-        if (string.IsNullOrEmpty(UserId))
-            return Json(new { success = false, message = "User session not found!" });
+i have this viewside, in this i want a good animation to show. if verify face is happening then show user that verifying face after face match it shows success accondingly for a face recognition system, i want some good UI 
 
-        string Pno = UserId;
-        string Name = UserName;
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+    <input type="hidden" name="Type" id="EntryType" />
 
-        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        if (!System.IO.File.Exists(storedImagePath))
-        {
-            return Json(new { success = false, message = "Stored image not found!" });
-        }
+    <div class="row mt-5 form-group">
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                Punch In
+            </button>
+        </div>
 
-        // Generate a unique file name for the captured image
-        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                Punch Out
+            </button>
+        </div>
+    </div>
+</form>
 
-        // Save the base64 image to a file
-        SaveBase64ImageToFile(model.ImageData, capturedImagePath);
 
-        bool isFaceMatched = false;
+ <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
 
-        // Load images inside a using block to ensure proper disposal
-        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-        using (Bitmap storedImage = new Bitmap(storedImagePath))
-        {
-            isFaceMatched = VerifyFace(capturedImage, storedImage);
-        }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
 
-        // Now the files are released, so we can safely delete the captured image
-        System.IO.File.Delete(capturedImagePath);
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
 
-        if (isFaceMatched)
-        {
-            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-            string currentTime = DateTime.Now.ToString("HH:mm");
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            if (model.Type == "Punch In")
-            {
-                StoreData(currentDate, currentTime, null, Pno);
-            }
-            else
-            {
-                StoreData(currentDate, null, currentTime, Pno);
-            }
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
 
-            return Json(new { success = true, message = "Attendance recorded successfully." });
-        }
-        else
-        {
-            return Json(new { success = false, message = "Face does not match!" });
-        }
+       
+
+        fetch("/GFAS/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("An error occurred while submitting the image.");
+        });
     }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-
-private void SaveBase64ImageToFile(string base64String, string filePath)
-{
-    try
-    {
-        byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-        using (MemoryStream ms = new MemoryStream(imageBytes))
-        {
-            using (Bitmap bmp = new Bitmap(ms))
-            {
-                bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
-    }
-}
-
-
-
-
-[HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        var UserName = HttpContext.Request.Cookies["UserName"];
-        if (string.IsNullOrEmpty(UserId))
-            return Json(new { success = false, message = "User session not found!" });
-
-        string Pno = UserId;
-        string Name = UserName;
-
-        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        if (!System.IO.File.Exists(storedImagePath))
-        {
-            return Json(new { success = false, message = "Stored image not found!" });
-        }
-
-        // Generate a unique file name for the captured image
-        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
-
-        // Save the base64 image to a file
-        SaveBase64ImageToFile(model.ImageData, capturedImagePath);
-
-        // Compare both images
-        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-        using (Bitmap storedImage = new Bitmap(storedImagePath))
-        {
-            bool isFaceMatched = VerifyFace(capturedImage, storedImage);
-            if (isFaceMatched)
-            {
-                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                string currentTime = DateTime.Now.ToString("HH:mm");
-
-                if (model.Type == "Punch In")
-                {
-                    StoreData(currentDate, currentTime, null, Pno);
-                }
-                else
-                {
-                    StoreData(currentDate, null, currentTime, Pno);
-                }
-
-                // Delete the captured image after comparison (optional)
-                System.IO.File.Delete(capturedImagePath);
-
-                return Json(new { success = true, message = "Attendance recorded successfully." });
-            }
-            else
-            {
-                // Delete the captured image after comparison (optional)
-                System.IO.File.Delete(capturedImagePath);
-
-                return Json(new { success = false, message = "Face does not match!" });
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-
-private void SaveBase64ImageToFile(string base64String, string filePath)
-{
-    try
-    {
-        byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-        System.IO.File.WriteAllBytes(filePath, imageBytes);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
-    }
-}
-
-
-
-
-[HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        var UserName = HttpContext.Request.Cookies["UserName"];
-        if (string.IsNullOrEmpty(UserId))
-            return Json(new { success = false, message = "User session not found!" });
-
-        string Pno = UserId;
-        string Name = UserName;
-
-
-        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        if (!System.IO.File.Exists(storedImagePath))
-        {
-            return Json(new { success = false, message = "Stored image not found!" });
-        }
-        Bitmap capturedImage = ConvertBase64ToBitmap(model.ImageData);
-        if (capturedImage == null)
-        {
-            return Json(new { success = false, message = "Invalid image format!" });
-        }
-
-
-        //using (Bitmap capturedImage = new Bitmap(imagePath2))
-        using (Bitmap storedImage = new Bitmap(storedImagePath))
-        {
-            bool isFaceMatched = VerifyFace(capturedImage, storedImage);
-            if (isFaceMatched)
-            {
-                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                string currentTime = DateTime.Now.ToString("HH:mm");
-
-                if (model.Type == "Punch In")
-                {
-                    StoreData(currentDate, currentTime, null, Pno);
-                }
-                else
-                {
-                    StoreData(currentDate, null, currentTime, Pno);
-                }
-
-                return Json(new { success = true, message = "Attendance recorded successfully." });
-            }
-            else
-            {
-                return Json(new { success = false, message = "Face does not match!" });
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-
-
-private Bitmap ConvertBase64ToBitmap(string base64String)
-{
-    try
-    {
-        byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-        using (MemoryStream ms = new MemoryStream(imageBytes))
-        {
-            return new Bitmap(ms);
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error converting Base64 to Bitmap: " + ex.Message);
-        return null;
-    }
-}
-
-
-in this method i dont want ConvertBase64ToBitmap i want same like this //using (Bitmap capturedImage = new Bitmap(imagePath2)) for model.ImageData . just like hardcoded i have two jpg image that is matching. in this i want same capture image is also jpg and stored image then compare 
+</script>
