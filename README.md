@@ -1,253 +1,174 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Responsive Stylish Camera</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+        {
+            try
+            {
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
 
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: url('https://source.unsplash.com/random/1920x1080?nature') no-repeat center center/cover;
-        }
+                string Pno = UserId;
+                string Name = UserName;
 
-        .camera-container {
-            position: relative;
-            width: 90vw;  /* 90% of viewport width */
-            max-width: 400px; /* Max width for larger screens */
-            aspect-ratio: 4 / 3; /* Maintain aspect ratio */
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                if (!System.IO.File.Exists(storedImagePath))
+                {
+                    return Json(new { success = false, message = "Stored image not found!" });
+                }
 
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 15px;
-        }
 
-        .overlay-text {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #fff;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 10px;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            letter-spacing: 1px;
-            animation: fadeIn 1s ease-in-out;
-        }
+                string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
+
+                SaveBase64ImageToFile(model.ImageData, capturedImagePath);
+
+                bool isFaceMatched = false;
+
+
+                using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+                using (Bitmap storedImage = new Bitmap(storedImagePath))
+                {
+                    isFaceMatched = VerifyFace(capturedImage, storedImage);
+                }
+
+
+                System.IO.File.Delete(capturedImagePath);
+
+                if (isFaceMatched)
+                {
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+                    }
+
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
             }
         }
 
-        .animated-border {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 15px;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-            animation: glow 1.5s infinite alternate;
-        }
-
-        @keyframes glow {
-            from {
-                box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        private void SaveBase64ImageToFile(string base64String, string filePath)
+        {
+            try
+            {
+                byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+                using (MemoryStream ms = new MemoryStream(imageBytes))
+                {
+                    using (Bitmap bmp = new Bitmap(ms))
+                    {
+                        bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    }
+                }
             }
-            to {
-                box-shadow: 0 0 20px rgba(0, 255, 255, 1);
-            }
-        }
-
-        /* Responsive Adjustments */
-        @media screen and (max-width: 768px) {
-            body {
-                height: 100vh;
-                background: #000; /* Dark background for mobile */
-            }
-
-            .camera-container {
-                width: 95vw; /* Take almost full width */
-                max-width: 360px;
-                aspect-ratio: 4 / 3;
-            }
-
-            .overlay-text {
-                font-size: 12px;
-                padding: 3px 8px;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="camera-container">
-        <video id="video" autoplay playsinline></video>
-        <div class="overlay-text">📷 Live Camera</div>
-        <div class="animated-border"></div>
-    </div>
-
-    <canvas id="canvas" style="display: none;"></canvas>
-
-    <script>
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-            .then(function (stream) {
-                let video = document.getElementById("video");
-                video.srcObject = stream;
-                video.play();
-            })
-            .catch(function (error) {
-                console.error("Error accessing camera: ", error);
-            });
-    </script>
-
-</body>
-</html>
-
-
-
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stylish Camera</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: url('https://source.unsplash.com/random/1920x1080?nature') no-repeat center center/cover;
-        }
-
-        .camera-container {
-            position: relative;
-            width: 340px;
-            height: 260px;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            border-radius: 15px;
-            object-fit: cover;
-        }
-
-        .overlay-text {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #fff;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 10px;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            letter-spacing: 1px;
-            animation: fadeIn 1s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
             }
         }
 
-        .animated-border {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 15px;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-            animation: glow 1.5s infinite alternate;
+
+
+
+        private bool VerifyFace(Bitmap captured, Bitmap stored)
+        {
+            try
+            {
+                Mat matCaptured = BitmapToMat(captured);
+                Mat matStored = BitmapToMat(stored);
+
+
+                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+
+                string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+                if (!System.IO.File.Exists(cascadePath))
+                {
+                    Console.WriteLine("Error: Haarcascade file not found!");
+                    return false;
+                }
+
+                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+
+                if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+                {
+                    Console.WriteLine("No face detected in one or both images.");
+                    return false;
+                }
+
+
+
+
+                Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+                Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+                CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+
+                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
+                {
+                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
+                    CvInvoke.EqualizeHist(storedFace, storedFace);
+
+                    VectorOfMat trainingImages = new VectorOfMat();
+                    trainingImages.Push(storedFace);
+                    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+                    faceRecognizer.Train(trainingImages, labels);
+                    var result = faceRecognizer.Predict(capturedFace);
+
+                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+                    return result.Label == 1 && result.Distance < 100;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in face verification: " + ex.Message);
+                return false;
+            }
         }
 
-        @keyframes glow {
-            from {
-                box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-            }
-            to {
-                box-shadow: 0 0 20px rgba(0, 255, 255, 1);
+
+
+        private Mat BitmapToMat(Bitmap bitmap)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+                byte[] imageData = ms.ToArray();
+
+                Mat mat = new Mat();
+                CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
+
+                if (mat.IsEmpty)
+                {
+                    Console.WriteLine("Error: Image conversion failed!");
+                }
+
+                return mat;
             }
         }
-    </style>
-</head>
-<body>
-
-    <div class="camera-container">
-        <video id="video" autoplay playsinline></video>
-        <div class="overlay-text">📷 Live Camera</div>
-        <div class="animated-border"></div>
-    </div>
-
-    <canvas id="canvas" style="display: none;"></canvas>
-
-    <script>
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-            .then(function (stream) {
-                let video = document.getElementById("video");
-                video.srcObject = stream;
-                video.play();
-            })
-            .catch(function (error) {
-                console.error("Error accessing camera: ", error);
-            });
-    </script>
-
-</body>
-</html>
 
 
-
-please make my camera look some stylish when user is access the camera    
-<div class="form-group text-center">
-        <video id="video" width="320" height="240" autoplay playsinline></video>
-        <canvas id="canvas" style="display: none;"></canvas>
-    </div>
-
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-    .then(function (stream) {
-        video.srcObject = stream;
-        video.play();
-    })
-    .catch(function (error) {
-        console.error("Error accessing camera: ", error);
-    });
+make this more good for based on lighting or other things. sometimes it matched sometimes not . if i go to brighter light then matched but sometimes not 
