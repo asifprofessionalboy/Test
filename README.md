@@ -1,33 +1,3 @@
-WITH MonthDates AS (
-    -- Generate a list of all dates for October 2024
-    SELECT DATEADD(DAY, n, '2024-10-01') AS FullDate
-    FROM (SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n 
-          FROM master.dbo.spt_values) AS Numbers
-    WHERE n < DAY(EOMONTH('2024-10-01'))
-)
-SELECT md.FullDate 
-FROM MonthDates md
-LEFT JOIN (
-    SELECT DISTINCT DATEADD(DAY, DATEPART(DAY, a.Dates) - 1, '2024-10-01') AS ExistingDate
-    FROM App_WagesDetailsJharkhand w
-    INNER JOIN App_AttendanceDetails a 
-        ON a.AadharNo = w.AadharNo 
-        AND MONTH(a.Dates) = 10 
-        AND YEAR(a.Dates) = 2024
-        AND a.WorkOrderNo = '4700021069'
-    WHERE w.MonthWage = '10' 
-        AND w.YearWage = '2024' 
-        AND w.VendorCode = '15261' 
-        AND w.LocationCode = 'L_45' 
-        AND w.WorkOrderNo = '4700021069'
-        AND w.WorkManName = 'LALIT KUMAR JHA'
-) AttendedDates 
-ON md.FullDate = AttendedDates.ExistingDate
-WHERE AttendedDates.ExistingDate IS NULL;
-
- 
- 
- 
  select distinct w.AadharNo, w.WorkOrderNo as WorkOrderNo,w.WorkManSl as WorkManSl,w.WorkManName 
  as WorkManName,w.holiday as holiday , (select top 1 Sex from App_EmployeeMaster where Name = w.WorkManName and VendorCode = w.VendorCode) sex,
  (select top 1 Father_Name from App_EmployeeMaster where Name = w.WorkManName and VendorCode = w.VendorCode) Father_Name,
@@ -37,4 +7,12 @@ WHERE AttendedDates.ExistingDate IS NULL;
  and w.WorkOrderNo='4700021069' and w.WorkManName='LALIT KUMAR JHA'
  order by  w.AadharNo,datepart(d, a.Dates) 
 
-i want to get missing  months dates of the month which provided in where clause.
+
+
+AadharNo	WorkOrderNo	WorkManSl	WorkManName	holiday	sex	Father_Name	Dates	Present	DayDef
+205635127363	4700021069	492		LALIT KUMAR JHA	0	M	BAID NATH JHA	2	0	OD
+205635127363	4700021069	492		LALIT KUMAR JHA	0	M	BAID NATH JHA	3	0	WD
+
+
+this is output i want to get dates according to month here month 10 choosen than i want to list all ocober months dates 1 to 30 in 
+the row  with all data if data is not prsent than put null there 
