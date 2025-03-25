@@ -1,104 +1,5 @@
-public void StoreData(string ddMMyy, string tm, string Pno, string capturedImage)
-{
-    using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
-    {
-        connection.Open();
-
-        if (!string.IsNullOrEmpty(tm))
-        {
-            // Attendance logic if needed
-        }
-
-        if (!string.IsNullOrEmpty(capturedImage))
-        {
-            Guid ID = Guid.NewGuid(); // Unique ID for the record
-
-            // Convert base64 to binary and save it as a .txt file
-            byte[] imageBytes = Convert.FromBase64String(capturedImage.Split(',')[1]);
-            string fileName = $"{ID}_{Pno}.txt";
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage");
-            string filePath = Path.Combine(folderPath, fileName);
-
-            if (!Directory.Exists(folderPath))
-            {
-                Directory.CreateDirectory(folderPath);
-            }
-
-            System.IO.File.WriteAllBytes(filePath, imageBytes); // Save binary data
-
-            // Insert record into the database
-            var query = @"
-            INSERT INTO App_ImageDetail(ID, Pno, FileName) 
-            VALUES (@ID, @Pno, @FileName)";
-
-            var parameters = new
-            {
-                ID = ID,
-                Pno = Pno,
-                FileName = fileName
-            };
-
-            connection.Execute(query, parameters);
-        }
-    }
-}
-
-[HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        var UserName = HttpContext.Request.Cookies["UserName"];
-        if (string.IsNullOrEmpty(UserId))
-            return Json(new { success = false, message = "User session not found!" });
-
-        string Pno = UserId;
-        string Name = UserName;
-
-        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        if (!System.IO.File.Exists(storedImagePath))
-        {
-            return Json(new { success = false, message = "Stored image not found!" });
-        }
-
-        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
-
-        // Save captured image
-        SaveBase64ImageToFile(model.ImageData, capturedImagePath);
-
-        bool isFaceMatched = false;
-
-        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-        using (Bitmap storedImage = new Bitmap(storedImagePath))
-        {
-            isFaceMatched = VerifyFace(capturedImage, storedImage);
-        }
-
-        if (isFaceMatched)
-        {
-            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-            string currentTime = DateTime.Now.ToString("HH:mm");
-
-            // Store Data in Database & Save Captured Image as a Binary File
-            StoreData(currentDate, currentTime, Pno, model.ImageData);
-
-            return Json(new { success = true, message = "Attendance recorded successfully." });
-        }
-        else
-        {
-            return Json(new { success = false, message = "Face does not match!" });
-        }
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-
-
-this is my methods  
-[HttpPost]
+this is working fine but sometimes it matches the face and sometimes it it not in this i want more accuracy and more good things to create a best face recognition and user friendly   
+ [HttpPost]
  public IActionResult AttendanceData([FromBody] AttendanceRequest model)
  {
      try
@@ -142,11 +43,11 @@ this is my methods
 
              if (model.Type == "Punch In")
              {
-                 StoreData(currentDate, currentTime, null, Pno);
+                 StoreData(currentDate, currentTime, null, Pno, model.ImageData);
              }
              else
              {
-                 StoreData(currentDate, null, currentTime, Pno);
+                 StoreData(currentDate, null, currentTime, Pno, model.ImageData);
              }
 
              return Json(new { success = true, message = "Attendance recorded successfully." });
@@ -161,59 +62,90 @@ this is my methods
          return Json(new { success = false, message = ex.Message });
      }
  }
-this is for StoreData when face is matched , now i want that if face matched then the Capture Image is store as a txt file in path in binary format and store info in Table also. Txt file name as ID_Pno.txt
 
- public void StoreData(string ddMMyy, string tmIn, string tmOut, string Pno)
+ private void SaveBase64ImageToFile(string base64String, string filePath)
  {
-     using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
+     try
      {
-         connection.Open();
-
-         if (!string.IsNullOrEmpty(tmIn))
+         byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+         using (MemoryStream ms = new MemoryStream(imageBytes))
          {
-           
+             using (Bitmap bmp = new Bitmap(ms))
+             {
+                 bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+             }
          }
-
-         if (!string.IsNullOrEmpty(tmOut))
-         {
-
-         }
-
-if (!string.IsNullOrEmpty(capturedImage))
-{
-
-    Guid ID = new Guid();
-
-    byte[] imageBytes = Convert.FromBase64String(capturedImage.Split(',')[1]);
-    var FileName = $"{ID}_{Pno}.txt";
-
-    string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage");
-
-    string filePath = Path.Combine(folderPath, FileName);
-
-    if (!Directory.Exists(folderPath))
-    {
-        Directory.CreateDirectory(folderPath);
-    }
-
-    System.IO.File.WriteAllBytes(filePath, imageBytes);
-
-    var query = @"
-INSERT INTO App_ImageDetail(ID,Pno,FileName) 
-VALUES 
-(@ID,
-@Pno,  
-@FileName)";
-
-    var parameters = new
-    {
-        ID = ID,
-        Pno = Pno,
-        FileName = FileName,
-    };
-
-    connection.Execute(query, parameters);
-
-}
+     }
+     catch (Exception ex)
+     {
+         Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
+     }
  }
 
+
+
+
+ private bool VerifyFace(Bitmap captured, Bitmap stored)
+ {
+     try
+     {
+         Mat matCaptured = BitmapToMat(captured);
+         Mat matStored = BitmapToMat(stored);
+
+
+         CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+         CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+
+         string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+         if (!System.IO.File.Exists(cascadePath))
+         {
+             Console.WriteLine("Error: Haarcascade file not found!");
+             return false;
+         }
+
+         CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+         Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+         Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+
+         if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+         {
+             Console.WriteLine("No face detected in one or both images.");
+             return false;
+         }
+
+
+
+
+         Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+         Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+
+         CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+         CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+
+         using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
+         {
+             CvInvoke.EqualizeHist(capturedFace, capturedFace);
+             CvInvoke.EqualizeHist(storedFace, storedFace);
+
+             VectorOfMat trainingImages = new VectorOfMat();
+             trainingImages.Push(storedFace);
+             VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+             faceRecognizer.Train(trainingImages, labels);
+             var result = faceRecognizer.Predict(capturedFace);
+
+             Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+             return result.Label == 1 && result.Distance < 105;
+         }
+     }
+     catch (Exception ex)
+     {
+         Console.WriteLine("Error in face verification: " + ex.Message);
+         return false;
+     }
+ }
