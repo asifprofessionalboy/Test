@@ -1,151 +1,103 @@
-this is working fine but sometimes it matches the face and sometimes it it not in this i want more accuracy and more good things to create a best face recognition and user friendly   
- [HttpPost]
- public IActionResult AttendanceData([FromBody] AttendanceRequest model)
- {
-     try
-     {
-         var UserId = HttpContext.Request.Cookies["Session"];
-         var UserName = HttpContext.Request.Cookies["UserName"];
-         if (string.IsNullOrEmpty(UserId))
-             return Json(new { success = false, message = "User session not found!" });
+ document.addEventListener("DOMContentLoaded", function () {
 
-         string Pno = UserId;
-         string Name = UserName;
+            var chartval = document.getElementById("MainContent_ESI_Radialchartdata").value;
 
-         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-         if (!System.IO.File.Exists(storedImagePath))
-         {
-             return Json(new { success = false, message = "Stored image not found!" });
-         }
-
-
-         string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
-
-
-         SaveBase64ImageToFile(model.ImageData, capturedImagePath);
-
-         bool isFaceMatched = false;
-
-
-         using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-         using (Bitmap storedImage = new Bitmap(storedImagePath))
-         {
-             isFaceMatched = VerifyFace(capturedImage, storedImage);
-         }
-
-
-         System.IO.File.Delete(capturedImagePath);
-
-         if (isFaceMatched)
-         {
-             string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-             string currentTime = DateTime.Now.ToString("HH:mm");
-
-             if (model.Type == "Punch In")
-             {
-                 StoreData(currentDate, currentTime, null, Pno, model.ImageData);
-             }
-             else
-             {
-                 StoreData(currentDate, null, currentTime, Pno, model.ImageData);
-             }
-
-             return Json(new { success = true, message = "Attendance recorded successfully." });
-         }
-         else
-         {
-             return Json(new { success = false, message = "Face does not match!" });
-         }
-     }
-     catch (Exception ex)
-     {
-         return Json(new { success = false, message = ex.Message });
-     }
- }
-
- private void SaveBase64ImageToFile(string base64String, string filePath)
- {
-     try
-     {
-         byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-         using (MemoryStream ms = new MemoryStream(imageBytes))
-         {
-             using (Bitmap bmp = new Bitmap(ms))
-             {
-                 bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
-             }
-         }
-     }
-     catch (Exception ex)
-     {
-         Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
-     }
- }
+            var originalValues = chartval.split(',').map(Number);
+            //var originalValues = str.split(',').map(Number);
 
 
 
+            //var originalValues = [876, 553, 44, 1122];
+            var total = originalValues.reduce((acc, val) => acc + val, 0);
+            var seriesPercentages = originalValues.map(val => (val / total) * 100);
+            var formatNumber = function (num) {
+                return new Intl.NumberFormat('en-US').format(num);
+            };
+            var chartColors = ['#1E90FF', '#FF7F50', '#8A2BE2'];
+            var options = {
+                series: seriesPercentages,
+                chart: {
+                    height: 350,
+                    type: 'radialBar',
+                },
+                plotOptions: {
+                    radialBar: {
+                        dataLabels: {
+                            name: {
+                                fontSize: '16px',
+                            },
+                            value: {
+                                fontSize: '14px',
+                                formatter: function (val, opts) {
+                                    var index = opts.seriesIndex;
+                                    var value = originalValues[index];
+                                    var percent = seriesPercentages[index].toFixed(2);
+                                    return formatNumber(value) + ' (' + percent + '%)';
+                                }
+                            },
+                            total: {
+                                show: true,
+                                label: 'Total',
+                                formatter: function () {
+                                    return formatNumber(total);
+                                }
+                            }
+                        }
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    custom: function ({ seriesIndex, w }) {
+                        var label = w.globals.labels[seriesIndex];
+                        var value = originalValues[seriesIndex];
+                        var percent = seriesPercentages[seriesIndex].toFixed(2);
+                        var color = chartColors[seriesIndex];
 
- private bool VerifyFace(Bitmap captured, Bitmap stored)
- {
-     try
-     {
-         Mat matCaptured = BitmapToMat(captured);
-         Mat matStored = BitmapToMat(stored);
+                        return `
+                          <div class="apex-tooltip-custom">
+                              <div class="label">
+                                  <span class="dot" style="background:${color}"></span>${label}
+                              </div>
+                              <div class="value">Value: ${formatNumber(value)}</div>
+                              <div class="value">Percent: ${percent}%</div>
+                          </div>
+                        `;
+                    }
+                },
+                labels: ['Between 1-15', 'Between 15-25', 'After 25'],
+                colors: chartColors,
 
 
-         CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-         CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+            };
+            var chart = new ApexCharts(document.querySelector("#ESIchart"), options);
+            chart.render();
+        });
 
 
-         string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
-         if (!System.IO.File.Exists(cascadePath))
-         {
-             Console.WriteLine("Error: Haarcascade file not found!");
-             return false;
-         }
 
-         CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
-         Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-         Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
-
-
-         if (capturedFaces.Length == 0 || storedFaces.Length == 0)
-         {
-             Console.WriteLine("No face detected in one or both images.");
-             return false;
-         }
+              <div id="ESIchart_Div" runat="server"  class="col-sm-3">
+                  <h6 class="overview-heading">ESI Radial Chart </h6>
+                <table>
+        <tr>
+            <td>
+                <div id="ESIchart" style="width:200px; height:120px;"></div>
+            </td>
+            <td>
+                <ul>
+                    
+                    <li style="list-style-type:none;"><div style="display:inline-block;width:12px;height:12px;background:#1E90FF;"></div>between 1-15 </li>
+                     <li style="list-style-type:none;"><div style="display:inline-block;width:12px;height:12px;background:#FF7F50;"></div>between 15-25 </li>
+                     <li  style="list-style-type:none;"> <div style="display:inline-block;width:12px;height:12px;background:#8A2BE2; "></div>After 25</li>
+                </ul>
+            
+            </td>
+            
+        </tr>
+    </table>
+    <asp:HiddenField ID="ESI_Radialchartdata" runat="server" />
+            </div>
 
 
 
 
-         Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-         Mat storedFace = new Mat(matStored, storedFaces[0]);
-
-
-         CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
-         CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
-
-
-         using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
-         {
-             CvInvoke.EqualizeHist(capturedFace, capturedFace);
-             CvInvoke.EqualizeHist(storedFace, storedFace);
-
-             VectorOfMat trainingImages = new VectorOfMat();
-             trainingImages.Push(storedFace);
-             VectorOfInt labels = new VectorOfInt(new int[] { 1 });
-
-             faceRecognizer.Train(trainingImages, labels);
-             var result = faceRecognizer.Predict(capturedFace);
-
-             Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
-
-             return result.Label == 1 && result.Distance < 105;
-         }
-     }
-     catch (Exception ex)
-     {
-         Console.WriteLine("Error in face verification: " + ex.Message);
-         return false;
-     }
- }
+i want to set font size of label 10px
