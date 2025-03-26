@@ -1,186 +1,65 @@
-<div class="form-group d-flex justify-content-center">
-    <div class="camera-container">
-        <video id="video" autoplay playsinline></video>
-        
-        <!-- Red blinking light -->
-        <div class="recording-light"></div>
-        
-        <!-- Animated overlay -->
-        <div class="overlay-text">LIVE</div>
-        
-        <!-- Futuristic border animation -->
-        <div class="animated-border"></div>
-    </div>
-</div>
+this is my button i want for report please provide report icon for this  
+<button class="button">
+     <svg class="svgIcon" viewBox="0 0 384 512">
+         <path d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"></path>
+     </svg>
+ </button>
 
-.camera-container {
-    position: relative;
-    width: 350px;
-    height: 270px;
-    border-radius: 20px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.3);
-}
+this is my css
 
-video {
-    width: 100%;
-    height: 100%;
-    border-radius: 20px;
-    object-fit: cover;
-    transform: scaleX(-1);
-}
+ .button {
+     width: 50px;
+     height: 50px;
+     border-radius: 50%;
+     background-color: rgb(20, 20, 20);
+     border: none;
+     font-weight: 600;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     box-shadow: 0px 0px 0px 4px rgba(180, 160, 255, 0.253);
+     cursor: pointer;
+     transition-duration: 0.3s;
+     overflow: hidden;
+     position: relative;
+ }
 
-/* Red Blinking Light */
-.recording-light {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 12px;
-    height: 12px;
-    background-color: red;
-    border-radius: 50%;
-    box-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
-    animation: blink 1s infinite alternate;
-}
+ .svgIcon {
+     width: 12px;
+     transition-duration: 0.3s;
+ }
 
-@keyframes blink {
-    from {
-        opacity: 1;
-        box-shadow: 0 0 10px rgba(255, 0, 0, 1);
-    }
-    to {
-        opacity: 0.3;
-        box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
-    }
-}
+     .svgIcon path {
+         fill: white;
+     }
 
-/* Overlay Text (Live) */
-.overlay-text {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: white;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 5px 12px;
-    border-radius: 10px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    animation: fadeIn 1s ease-in-out;
-}
+ .button:hover {
+     width: 140px;
+     border-radius: 50px;
+     transition-duration: 0.3s;
+     background-color: rgb(181, 160, 255);
+     align-items: center;
+ }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
+     .button:hover .svgIcon {
+         /* width: 20px; */
+         transition-duration: 0.3s;
+         transform: translateY(-200%);
+     }
 
-/* Glowing Border Effect */
-.animated-border {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 20px;
-    box-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
-    animation: glow 1.5s infinite alternate;
-}
+ .button::before {
+     position: absolute;
+     bottom: -20px;
+     content: "Back to Top";
+     color: white;
+     /* transition-duration: .3s; */
+     font-size: 0px;
+ }
 
-@keyframes glow {
-    from {
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-    }
-    to {
-        box-shadow: 0 0 25px rgba(0, 255, 255, 1);
-    }
-}
-
-
-
-
-please change shape of camera and any other design to look more attractive and good 
-<div class="form-group d-flex justify-content-center">
- <div class="camera-container">
-     <video id="video" autoplay playsinline></video>
-     <div class="overlay-text">📷 Live Camera</div>
-     <div class="animated-border"></div>
- </div>
- </div>
-
-.camera-container {
-    position: relative;
-    width: 340px;
-    height: 260px;
-    border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-}
-
-video {
-    width: 100%;
-    height: 100%;
-    border-radius: 15px;
-    object-fit: cover;
-    transform: scaleX(-1);
-    -webkit-transform: scaleX(-1);
-    -moz-transform: scaleX(-1);
-}
-
-.overlay-text {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: #fff;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 5px 10px;
-    border-radius: 10px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    letter-spacing: 1px;
-    animation: fadeIn 1s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animated-border {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 15px;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-    animation: glow 1.5s infinite alternate;
-}
-
-@keyframes glow {
-    from {
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
-    }
-
-    to {
-        box-shadow: 0 0 20px rgba(0, 255, 255, 1);
-    }
-}
+ .button:hover::before {
+     font-size: 13px;
+     opacity: 1;
+     bottom: unset;
+     /* transform: translateY(-30px); */
+     transition-duration: 0.3s;
+ }
