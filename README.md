@@ -1,77 +1,111 @@
-WITH Dateseries AS (
-    SELECT CAST('2024-10-01' AS DATE) AS Dates
-    UNION ALL
-    SELECT DATEADD(DAY, 1, Dates)
-    FROM Dateseries
-    WHERE DATEADD(DAY, 1, Dates) <= EOMONTH('2024-10-01')
-),
-WorkmanData AS (
-    -- Ensure we get all workmen even if no attendance is present
-    SELECT DISTINCT 
-        w.AadharNo, 
-        w.WorkOrderNo, 
-        w.WorkManSl, 
-        w.WorkManName, 
-        w.holiday, 
-        (SELECT TOP 1 Sex FROM App_EmployeeMaster WHERE Name = w.WorkManName AND VendorCode = w.VendorCode) AS sex,
-        (SELECT TOP 1 Father_Name FROM App_EmployeeMaster WHERE Name = w.WorkManName AND VendorCode = w.VendorCode) AS Father_Name
-    FROM App_WagesDetailsJharkhand w
-    WHERE w.MonthWage = '10' 
-      AND w.YearWage = '2024' 
-      AND w.VendorCode = '15261' 
-      AND w.LocationCode = 'L_45' 
-      AND w.WorkOrderNo = '4700025985'
-      AND w.AadharNo = '903394859497'
-),
-AttendanceData AS (
-    -- Attendance data separately to allow proper join
-    SELECT 
-        a.AadharNo,
-        CONVERT(DATE, a.Dates) AS Dates, 
-        a.Present, 
-        a.DayDef
-    FROM App_AttendanceDetails a
-    WHERE MONTH(a.Dates) = 10 
-      AND YEAR(a.Dates) = 2024 
-      AND a.WorkOrderNo = '4700025985'
-)
-SELECT 
-    DATEPART(DAY, d.Dates) AS Dates,
-    w.WorkOrderNo,
-    w.WorkOrderNo,  -- This looks like a duplicate column, consider removing if unintended
-    w.WorkManSl,
-    w.WorkManName,
-    w.holiday,
-    w.sex,
-    w.Father_Name,
-    a.Present,
-    a.DayDef
-FROM WorkmanData w
-CROSS JOIN Dateseries d  -- Ensures all dates exist for each worker
-LEFT JOIN AttendanceData a ON w.AadharNo = a.AadharNo AND d.Dates = a.Dates
-ORDER BY d.Dates;
+this is my style for video
+<style>
+    video {
+        transform: scaleX(-1);
+        -webkit-transform: scaleX(-1); 
+        -moz-transform: scaleX(-1);
+    }
 
- 
- 
- 
- With  Dateseries As ( Select CAST('2024-10-01' as DATE) as Dates
-union all
-select DATEADD (DAY, 1,Dates)
-from Dateseries
-where dateadd(DAY, 1,Dates) <= EOMONTH('2024-10-01')
-),
-workmandata as(
- select distinct w.AadharNo, w.WorkOrderNo as WorkOrderNo,w.WorkManSl as WorkManSl,w.WorkManName as WorkManName,w.holiday as holiday , 
- (select top 1 Sex from App_EmployeeMaster where Name = w.WorkManName and VendorCode = w.VendorCode) sex,
- (select top 1 Father_Name from App_EmployeeMaster where Name = w.WorkManName and VendorCode = w.VendorCode) Father_Name,
-CONVERT(date, a.Dates) as Dates,a.Present,a.DayDef  from App_WagesDetailsJharkhand w inner join App_AttendanceDetails a 
- on a.AadharNo = w.AadharNo and month(a.dates)='10' and year(a.dates)= '2024' and a.WorkOrderNo='4700025985'
- where w.MonthWage = '10' and w.YearWage =  '2024' and w.VendorCode = '15261' and w.LocationCode = 'L_45' 
- and w.WorkOrderNo='4700025985' and w.AadharNo='903394859497' )
-select 
- datepart(d, d.Dates) as Dates,w.WorkOrderNo,w.WorkOrderNo,w.WorkManSl,w.WorkManName,w.holiday,w.sex,w.Father_Name, w.Present,
- w.DayDef  from Dateseries d left join  workmandata  w on d.Dates = w.Dates 
- order by d.Dates
+</style>
+
+this is my form where Video camera and two buttons are 
+
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <input type="hidden" name="Type" id="EntryType" />
+
+    <div class="row mt-5 form-group">
+        <div class="col d-flex justify-content-center mb-4">
+            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                Punch In
+            </button>
+        </div>
+
+        <div class="col d-flex justify-content-center">
+            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                Punch Out
+            </button>
+        </div>
+    </div>
+</form>
+
+and this is my script
+
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
+    const successSound = document.getElementById("successSound");
+    const errorSound = document.getElementById("errorSound");
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
+
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
+
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
+
+        document.getElementById("PunchIn").disabled = true;
+        document.getElementById("PunchOut").disabled = true;
+
+        fetch("/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+               
+                    var now = new Date();
+                    var formattedDateTime = now.toLocaleString();
+                   
+                    Swal.fire({
+                        title: "Attendance Recorded.",
+                        text: "\nDate & Time: " + formattedDateTime,
+                        icon: "success",
+                        timer: 5000,
+                        showConfirmButton: false
+                    });
+                
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                triggerHapticFeedback("error"); 
+
+                Swal.fire({
+                    title: "Error!",
+                    text: "An error occurred while processing your request.",
+                    icon: "error"
+                });
+            })
+            .finally(() => {
+              
+                document.getElementById("PunchIn").disabled = false;
+                document.getElementById("PunchOut").disabled = false;
+            });
+    }
+</script>
 
 
-i want w.WorkOrderNo,w.WorkOrderNo,w.WorkManSl,w.WorkManName,w.sex,w.Father_Name in my result output beacuse it came from App_WagesDetailsJharkhand and rest data can be null if not present
+i want my camera to look cool and good for user . add animation and other think to look good of camera 
