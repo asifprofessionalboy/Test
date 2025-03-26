@@ -1,3 +1,94 @@
+public async Task<IActionResult> PositionMaster(Guid? id, AppPositionWorksite appPosition, int page = 1, string searchValue = "", string searchType = "")
+{
+    var UserId = HttpContext.Request.Cookies["Session"];
+
+    if (!string.IsNullOrEmpty(UserId))
+    {
+        if (UserId != "842015" && UserId != "151514")
+        {
+            return RedirectToAction("Login", "User");
+        }
+
+        int pageSize = 5;
+        var query = context.AppPositionWorksites.AsQueryable();
+
+        if (!string.IsNullOrEmpty(searchValue))
+        {
+            if (searchType == "Pno")
+            {
+                // Get the position associated with the given Pno
+                var position = context.AppEmpPositions
+                    .Where(e => e.Pno == searchValue)
+                    .Select(e => e.Position)
+                    .FirstOrDefault();
+
+                if (!string.IsNullOrEmpty(position))
+                {
+                    query = query.Where(p => p.Position == position);
+                }
+            }
+            else if (searchType == "Position")
+            {
+                query = query.Where(p => p.Position == searchValue);
+            }
+        }
+
+        var pagedData = query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var totalCount = query.Count();
+
+        ViewBag.pList = pagedData;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        ViewBag.SearchValue = searchValue;
+        ViewBag.SearchType = searchType;
+
+        var WorksiteList = context.AppLocationMasters
+            .Select(x => new SelectListItem
+            {
+                Value = x.WorkSite,
+                Text = x.WorkSite
+            }).Distinct().ToList();
+
+        ViewBag.WorksiteDDList = WorksiteList;
+
+        var WorksiteList2 = context.AppEmpPositions
+            .Select(x => new SelectListItem
+            {
+                Value = x.Position.ToString(),
+                Text = x.Position.ToString()
+            }).ToList();
+
+        ViewBag.PositionDDList = WorksiteList2;
+
+        if (id.HasValue)
+        {
+            var model = await context.AppPositionWorksites.FindAsync(id.Value);
+            if (model == null)
+            {
+                return NotFound();
+            }
+
+            return Json(new
+            {
+                id = model.Id,
+                position = model.Position,
+                worksite = model.Worksite,
+                createdby = UserId,
+                createdon = model.CreatedOn,
+            });
+        }
+
+        return View(new AppPositionWorksite());
+    }
+    else
+    {
+        return RedirectToAction("Login", "User");
+    }
+}
+
+
+
+
 i have this form to get filter
  <form method="get" action="@Url.Action("PositionMaster")" style="display:flex;">
      <div class="form-group row">
