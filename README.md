@@ -1,3 +1,77 @@
+[HttpPost]
+public IActionResult GetImagesByPno([FromForm] string Pno)
+{
+    try
+    {
+        using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
+        {
+            connection.Open();
+            var query = "SELECT FileName FROM App_ImageDetail WHERE Pno = @Pno";
+            var fileNames = connection.Query<string>(query, new { Pno }).ToList();
+
+            var images = new List<object>();
+
+            foreach (var fileName in fileNames)
+            {
+                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage", fileName);
+
+                if (System.IO.File.Exists(filePath))
+                {
+                    byte[] imageBytes = System.IO.File.ReadAllBytes(filePath);
+                    string base64String = "data:image/png;base64," + Convert.ToBase64String(imageBytes);
+                    
+                    images.Add(new { FileName = fileName, Base64Image = base64String });
+                }
+            }
+
+            return Json(new { success = true, images });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+<form id="fetchImagesForm">
+    <label>Enter Pno:</label>
+    <input type="text" id="Pno" name="Pno" required>
+    <button type="submit">Fetch Images</button>
+</form>
+
+<div id="imageContainer"></div>
+$(document).ready(function () {
+    $("#fetchImagesForm").submit(function (event) {
+        event.preventDefault(); // Prevent default form submission
+
+        let formData = new FormData(this); // Get form data
+
+        $.ajax({
+            url: "/YourController/GetImagesByPno", // Replace 'YourController' with your actual controller name
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                if (response.success) {
+                    let imageContainer = $("#imageContainer");
+                    imageContainer.empty(); // Clear previous images
+                    
+                    response.images.forEach(image => {
+                        let imgElement = `<img src="${image.Base64Image}" alt="Captured Image" style="width:100px;height:100px;margin:5px;">`;
+                        imageContainer.append(imgElement);
+                    });
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function () {
+                alert("Error fetching images.");
+            }
+        });
+    });
+});
+
 
 this is my controller method PunchIn or PunchOut , this store person Image in table as well as in wwwroot folder as binary 
 
