@@ -6,6 +6,41 @@ success: function (response) {
         imageContainer.empty(); // Clear previous images
 
         response.images.forEach(image => {
+            console.log("Image URL:", image.ImageUrl); // Debugging log
+
+            let imgElement = `<img src="${image.ImageUrl}" 
+                alt="Captured Image" 
+                style="width:150px;height:150px;margin:5px;border:1px solid red;">`;
+                
+            imageContainer.append(imgElement);
+        });
+    } else {
+        alert(response.message);
+    }
+}
+
+let imgElement = `<img src="${image.ImageUrl}?t=${new Date().getTime()}" 
+    alt="Captured Image" 
+    style="width:150px;height:150px;margin:5px;border:1px solid red;">`;
+
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=3600");
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*"); // Allow all origins
+    }
+});
+
+success: function (response) {
+    console.log("AJAX Response:", response); // Debugging log
+
+    if (response.success) {
+        let imageContainer = $("#imageContainer");
+        imageContainer.empty(); // Clear previous images
+
+        response.images.forEach(image => {
             console.log("Image Object:", image); // Debugging log
             let imgElement = `<img src="${image.ImageUrl}" alt="Captured Image" style="width:150px;height:150px;margin:5px;">`;
             imageContainer.append(imgElement);
