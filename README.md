@@ -1,147 +1,96 @@
-function fetchImage() {
-    let pno = document.getElementById("pnoInput").value.trim();
 
-    if (pno === "") {
-        alert("Please enter a valid Pno.");
-        return;
+this is my controller method PunchIn or PunchOut , this store person Image in table as well as in wwwroot folder as binary 
+
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
+
+        string Pno = UserId;
+        string Name = UserName;
+
+       
+            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+            string currentTime = DateTime.Now.ToString("HH:mm");
+
+            if (model.Type == "Punch In")
+            {
+                StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+            }
+            else
+            {
+                StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+            }
+
+            return Json(new { success = true, message = "Attendance recorded successfully." });
+        
+       
     }
-
-    fetch("/Geo/ConvertBinaryToImage", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ pno: pno }) // Send Pno as JSON data
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error("Image not found.");
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.imagePath) {
-            document.getElementById("capturedImage").src = data.imagePath;
-            document.getElementById("capturedImage").style.display = "block";
-        } else {
-            alert("Image not found.");
-            document.getElementById("capturedImage").style.display = "none";
-        }
-    })
-    .catch(error => {
-        console.error("Error fetching image:", error);
-        alert(error.message);
-    });
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
 }
 
  
- [HttpPost]
-public IActionResult ConvertBinaryToImage([FromBody] dynamic request)
+public void StoreData(string ddMMyy, string tmIn, string tmOut, string Pno,string capturedImage)
 {
-    string pno = request.pno;
-    string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage");
-
-    using (var connection = new SqlConnection(configuration.GetConnectionString("GEOFENCEDB")))
+    using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
     {
         connection.Open();
-        
-        // Fetch FileName from the database
-        var query = "SELECT FileName FROM App_ImageDetail WHERE Pno = @Pno";
-        string fileName = connection.QueryFirstOrDefault<string>(query, new { Pno = pno });
 
-        if (string.IsNullOrEmpty(fileName))
+                
+
+        if (!string.IsNullOrEmpty(capturedImage))
         {
-            return NotFound(new { message = "No image found for this Pno." });
+            Guid ID = Guid.NewGuid(); 
+
+            
+            byte[] imageBytes = Convert.FromBase64String(capturedImage.Split(',')[1]);
+
+            string fileName = $"{ID}_{Pno}.txt";
+
+            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage");
+
+            string filePath = Path.Combine(folderPath, fileName);
+
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            System.IO.File.WriteAllBytes(filePath, imageBytes); 
+
+           
+            var query = @"
+    INSERT INTO App_ImageDetail(ID, Pno, FileName) 
+    VALUES (@ID, @Pno, @FileName)";
+
+            var parameters = new
+            {
+                ID = ID,
+                Pno = Pno,
+                FileName = fileName
+            };
+
+            connection.Execute(query, parameters);
         }
 
-        string txtFilePath = Path.Combine(folderPath, fileName);
-        string imageFilePath = Path.Combine(folderPath, Path.GetFileNameWithoutExtension(fileName) + ".jpg");
-
-        if (System.IO.File.Exists(txtFilePath))
-        {
-            byte[] imageBytes = System.IO.File.ReadAllBytes(txtFilePath);
-            System.IO.File.WriteAllBytes(imageFilePath, imageBytes); // Convert and save as JPG
-
-            return Json(new { imagePath = $"/CapturedImage/{Path.GetFileName(imageFilePath)}" });
-        }
-
-        return NotFound(new { message = "Binary file not found." });
     }
 }
 
- 
- public IActionResult FetchImage()
- {
-     return View();
- }
- [HttpPost]
- public IActionResult ConvertBinaryToImage(string pno)
- {
-     string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage");
-     using (var connection = new SqlConnection(configuration.GetConnectionString("GEOFENCEDB")))
-     {
-         connection.Open();
-         // Fetch FileName from the database based on Pno
-         var query = "SELECT FileName FROM App_ImageDetail WHERE Pno = @Pno";
-         string fileName = connection.QueryFirstOrDefault<string>(query, new { Pno = pno });
+this is my table data which stores user info of Image 
 
-         if (string.IsNullOrEmpty(fileName))
-         {
-             return NotFound("No image found for this Pno.");
-         }
+ID					Pno	DateTime			FileName
+E133D669-9CE4-4BBE-BEA0-456A3EA0444F	159445	2025-03-27 13:40:00.300	 e133d669-9ce4-4bbe-bea0-456a3ea0444f_159445.txt
+and this is my txt file which store image in binary 
 
-         string txtFilePath = Path.Combine(folderPath, fileName);
-         string imageFilePath = Path.Combine(folderPath, Path.GetFileNameWithoutExtension(fileName) + ".jpg");
+e133d669-9ce4-4bbe-bea0-456a3ea0444f_159445.txt
 
-         if (System.IO.File.Exists(txtFilePath))
-         {
-             byte[] imageBytes = System.IO.File.ReadAllBytes(txtFilePath);
-             System.IO.File.WriteAllBytes(imageFilePath, imageBytes); // Save as JPG
 
-             return Json(new { imagePath = $"/CapturedImage/{Path.GetFileName(imageFilePath)}" });
-         }
-
-         return NotFound("Binary file not found.");
-     }
- }
-
-<h2>Enter Pno to Fetch Image</h2>
-
-<input type="text" id="pnoInput" placeholder="Enter Pno">
-<button onclick="fetchImage()">Fetch Image</button>
-
-<br>
-<br>
-
-<img id="capturedImage" src="" alt="Captured Image" style="width: 200px; height: 200px; display: none; border: 1px solid black;">
-
-<script>
-    function fetchImage() {
-        let pno = document.getElementById("pnoInput").value.trim();
-
-        if (pno === "") {
-            alert("Please enter a valid Pno.");
-            return;
-        }
-
-        fetch(`/Geo/ConvertBinaryToImage`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.imagePath) {
-                    document.getElementById("capturedImage").src = data.imagePath;
-                    document.getElementById("capturedImage").style.display = "block";
-                } else {
-                    alert("Image not found.");
-                    document.getElementById("capturedImage").style.display = "none";
-                }
-            })
-            .catch(error => console.error("Error fetching image:", error));
-    }
-</script>
-
-getting this error 
-FetchImage:94 
- GET https://localhost:7153/Geo/ConvertBinaryToImage 405 (Method Not Allowed)
-
-FetchImage:105 Error fetching image: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
-    at FetchImage:95:40
+i want to fetch image for every different Pno . each day has multiple image and txt file . i want to show all
