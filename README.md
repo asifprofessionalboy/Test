@@ -1,4 +1,74 @@
- public IActionResult GetImages()
+success: function (response) {
+    console.log("AJAX Response:", response); // Debugging log
+
+    if (response.success) {
+        let imageContainer = $("#imageContainer");
+        imageContainer.empty(); // Clear previous images
+
+        response.images.forEach(image => {
+            console.log("Image Object:", image); // Debugging log
+            let imgElement = `<img src="${image.ImageUrl}" alt="Captured Image" style="width:150px;height:150px;margin:5px;">`;
+            imageContainer.append(imgElement);
+        });
+    } else {
+        alert(response.message);
+    }
+}
+
+ 
+ [HttpPost]
+public IActionResult GetImagesByPno([FromForm] string Pno)
+{
+    try
+    {
+        Console.WriteLine("Received Pno: " + Pno); // Debug log
+
+        using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
+        {
+            connection.Open();
+            var query = "SELECT FileName FROM App_ImageDetail WHERE Pno = @Pno";
+            var fileNames = connection.Query<string>(query, new { Pno }).ToList();
+
+            var images = new List<object>();
+
+            foreach (var fileName in fileNames)
+            {
+                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage", fileName);
+
+                if (System.IO.File.Exists(filePath))
+                {
+                    byte[] imageBytes = System.IO.File.ReadAllBytes(filePath);
+                    string base64String = Convert.ToBase64String(imageBytes);
+                    string imageUrl = $"data:image/jpeg;base64,{base64String}";
+
+                    Console.WriteLine("Generated Image URL: " + imageUrl); // Debug log
+
+                    images.Add(new { FileName = fileName, ImageUrl = imageUrl });
+                }
+                else
+                {
+                    Console.WriteLine("File not found: " + filePath); // Debug log
+                }
+            }
+
+            if (images.Count == 0)
+            {
+                return Json(new { success = false, message = "No images found for this Pno" });
+            }
+
+            return Json(new { success = true, images });
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error: " + ex.Message); // Debug log
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+ 
+ 
+public IActionResult GetImages()
  {
      return View();
  }
