@@ -1,3 +1,86 @@
+[HttpPost]
+public IActionResult GetImagesByPno([FromForm] string Pno)
+{
+    try
+    {
+        using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
+        {
+            connection.Open();
+            var query = "SELECT FileName FROM App_ImageDetail WHERE Pno = @Pno";
+            var fileNames = connection.Query<string>(query, new { Pno }).ToList();
+
+            var images = new List<object>();
+
+            foreach (var fileName in fileNames)
+            {
+                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/CapturedImage", fileName);
+
+                if (System.IO.File.Exists(filePath))
+                {
+                    byte[] imageBytes = System.IO.File.ReadAllBytes(filePath);
+                    string base64String = Convert.ToBase64String(imageBytes);
+
+                    // Determine file extension
+                    string extension = Path.GetExtension(filePath).ToLower();
+                    string mimeType = extension switch
+                    {
+                        ".jpg" or ".jpeg" => "image/jpeg",
+                        ".png" => "image/png",
+                        ".gif" => "image/gif",
+                        _ => "application/octet-stream"
+                    };
+
+                    string imageUrl = $"data:{mimeType};base64,{base64String}";
+
+                    images.Add(new { FileName = fileName, ImageUrl = imageUrl });
+                }
+            }
+
+            return Json(new { success = true, images });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+$(document).ready(function () {
+    $("#fetchImagesForm").submit(function (event) {
+        event.preventDefault(); // Stop default form submission
+
+        let formData = new FormData(this);
+
+        $.ajax({
+            url: "/Geo/GetImagesByPno", // Make sure this matches your controller route
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                if (response.success) {
+                    let imageContainer = $("#imageContainer");
+                    imageContainer.empty(); // Clear previous images
+
+                    response.images.forEach(image => {
+                        console.log("Image URL:", image.ImageUrl); // Debugging log
+                        let imgElement = `<img src="${image.ImageUrl}" alt="Captured Image" style="width:150px;height:150px;margin:5px;">`;
+                        imageContainer.append(imgElement);
+                    });
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function () {
+                alert("Error fetching images.");
+            }
+        });
+    });
+});
+
+
+
+
+
 $(document).ready(function () {
     $("#fetchImagesForm").submit(function (event) {
         event.preventDefault(); // Stop default form submission
