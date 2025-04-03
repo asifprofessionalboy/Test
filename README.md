@@ -1,3 +1,93 @@
+function OnOff() {
+    setTimeout(() => {
+        var punchIn = document.getElementById('PunchIn');
+        var punchOut = document.getElementById('PunchOut');
+
+        // Check if elements exist before modifying them
+        if (punchIn) {
+            punchIn.disabled = true;
+            punchIn.classList.add("disabled");
+        }
+        if (punchOut) {
+            punchOut.disabled = true;
+            punchOut.classList.add("disabled");
+        }
+
+        Swal.fire({
+            title: 'Please wait...',
+            text: 'Fetching your current location.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    Swal.close();
+
+                    const lat = roundTo(position.coords.latitude, 6);
+                    const lon = roundTo(position.coords.longitude, 6);
+
+                    const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
+                    console.log(locations);
+
+                    let isInsideRadius = false;
+                    let minDistance = Number.MAX_VALUE;
+
+                    locations.forEach((location) => {
+                        const allowedRange = parseFloat(location.range || location.Range);
+                        const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
+                        console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
+
+                        if (distance <= allowedRange) {
+                            isInsideRadius = true;
+                        } else {
+                            minDistance = Math.min(minDistance, distance);
+                        }
+                    });
+
+                    if (isInsideRadius) {
+                        if (punchIn) {
+                            punchIn.disabled = false;
+                            punchIn.classList.remove("disabled");
+                        }
+                        if (punchOut) {
+                            punchOut.disabled = false;
+                            punchOut.classList.remove("disabled");
+                        }
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Out of Range",
+                            text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
+                        });
+                    }
+                },
+                function (error) {
+                    Swal.close();
+                    alert('Error fetching location: ' + error.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            Swal.close();
+            alert("Geolocation is not supported by this browser");
+        }
+    }, 500); // Delay execution to ensure buttons are rendered
+}
+
+// Run the function when the page loads
+window.onload = OnOff;
+
+
+
+
 when applying this condition for buttons , function OnOff() is not working properly. any other process to do this, i want after function onoff then this logic happens
  [Authorize]
  public IActionResult GeoFencing()
