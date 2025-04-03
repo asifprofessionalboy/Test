@@ -1,179 +1,101 @@
-function captureImageAndSubmit(entryType) {
-    EntryTypeInput.value = entryType;
-
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-
-    if (!video || !canvas) {
-        Swal.fire({
-            title: "Error!",
-            text: "Camera not available. Please check your device.",
-            icon: "error"
-        });
-        return;
-    }
-
-    const context = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const imageData = canvas.toDataURL("image/jpeg");
-
-    Swal.fire({
-        title: "Verifying Face...",
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-
-    const punchIn = document.getElementById("PunchIn");
-    const punchOut = document.getElementById("PunchOut");
-
-    if (punchIn) punchIn.disabled = true;
-    if (punchOut) punchOut.disabled = true;
-
-    fetch("/GFAS/Geo/AttendanceData", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            Type: entryType,
-            ImageData: imageData
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        Swal.close();
-
-        if (data.success) {
-            var now = new Date();
-            var formattedDateTime = now.toLocaleString();
-            successSound.play();
-            triggerHapticFeedback("success");
-
-            Swal.fire({
-                title: "Face Matched!",
-                text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
-                icon: "success",
-                timer: 5000,
-                showConfirmButton: false
-            }).then(() => {
-                location.reload();  // Refresh the page after success
-            });
-        } else {
-            errorSound.play();
-            triggerHapticFeedback("error");
-
-            Swal.fire({
-                title: "Face Not Recognized!",
-                text: "Click the button again to retry.",
-                icon: "error",
-                confirmButtonText: "Retry"
-            }).then(() => {
-                location.reload();  // Refresh the page after failure
-            });
-        }
-    })
-    .catch(error => {
-        Swal.close();
-        console.error("Error:", error);
-        triggerHapticFeedback("error");
-
-        Swal.fire({
-            title: "Error!",
-            text: "An error occurred while processing your request.",
-            icon: "error"
-        }).then(() => {
-            location.reload();  // Refresh the page in case of an error
-        });
-    })
-    .finally(() => {
-        if (punchIn) punchIn.disabled = false;
-        if (punchOut) punchOut.disabled = false;
-    });
-}
-
-  
-  
-  
-  function captureImageAndSubmit(entryType) {
-      EntryTypeInput.value = entryType;
-
-      const context = canvas.getContext("2d");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
-
-      
-      Swal.fire({
-          title: "Verifying Face...",
-          allowOutsideClick: false,
-          showConfirmButton: false,
-          didOpen: () => {
-              Swal.showLoading();
-          }
-      });
-
-     
-      document.getElementById("PunchIn").disabled = true;
-      document.getElementById("PunchOut").disabled = true;
-
-      fetch("/GFAS/Geo/AttendanceData", {
-          method: "POST",
-          headers: {
-              "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-              Type: entryType,
-              ImageData: imageData
-          })
-      })
-          .then(response => response.json())
-          .then(data => {
-              if (data.success) {
-                  var now = new Date();
-                  var formattedDateTime = now.toLocaleString();
-                  successSound.play();
-                  triggerHapticFeedback("success"); 
-
-                  Swal.fire({
-                      title: "Face Matched!",
-                      text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
-                      icon: "success",
-                      timer: 5000,
-                      showConfirmButton: false
-                  });
-              } else {
-                  errorSound.play();
-                  triggerHapticFeedback("error"); 
-
-                  Swal.fire({
-                      title: "Face Not Recognized!",
-                      text: "Click the button again to retry.",
-                      icon: "error",
-                      confirmButtonText: "retry"
-                  });
-              }
-          })
-          .catch(error => {
-              console.error("Error:", error);
-              triggerHapticFeedback("error"); 
-
-              Swal.fire({
-                  title: "Error!",
-                  text: "An error occurred while processing your request.",
-                  icon: "error"
-              });
-          })
-          .finally(() => {
+ [HttpPost]
+ [ValidateAntiForgeryToken]
+ public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+ {
+     if (!string.IsNullOrEmpty(photoData) && !string.IsNullOrEmpty(Pno) && !string.IsNullOrEmpty(Name))
+     {
+         try
+         {
             
-              document.getElementById("PunchIn").disabled = false;
-              document.getElementById("PunchOut").disabled = false;
-          });
-  }
+             byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+
+            
+             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images");
+
+          
+             if (!Directory.Exists(folderPath))
+             {
+                 Directory.CreateDirectory(folderPath);
+             }
+
+           
+             string fileName = $"{Pno}-{Name}.jpg";
+             string filePath = Path.Combine(folderPath, fileName);
+
+            
+             System.IO.File.WriteAllBytes(filePath, imageBytes);
+
+            
+             var person = new AppPerson
+             {
+                 Pno = Pno,
+                 Name = Name,
+                 Image = $"{fileName}" 
+             };
+
+             context.AppPeople.Add(person);
+             await context.SaveChangesAsync();
+
+             return RedirectToAction("UploadImage");
+         }
+         catch (Exception ex)
+         {
+             ModelState.AddModelError("", "Error saving image: " + ex.Message);
+         }
+     }
+     else
+     {
+         ModelState.AddModelError("", "Missing required fields!");
+     }
+
+     return View();
+ }
+
+<div class="card rounded-9">
+    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
+        Capture Photo
+    </div>
+    <div class="col-md-12">
+        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
+            <div class="row">
+                <form asp-action="UploadImage" method="post">
+                    <div class="form-group row">
+                        <div class="col-sm-1">
+                            <label>Pno</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Pno" name="Pno" class="form-control" type="number" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" maxlength="6" autocomplete="off" required />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Name</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Name" name="Name" class="form-control" required readonly/>
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Capture Photo</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <video id="video" width="320" height="240" autoplay playsinline></video>
+                            <canvas id="canvas" style="display:none;"></canvas>
+
+                          
+                            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
+
+                           
+                            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
+                            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
+
+                           
+                            <input type="hidden" id="photoData" name="photoData" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
+                </form>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+i want js validation for required fields and after success i want a sweetalert alert after success
