@@ -1,3 +1,94 @@
+document.addEventListener("DOMContentLoaded", function () {
+    const pnoInput = document.getElementById("Pno");
+    const nameInput = document.getElementById("Name");
+    const photoDataInput = document.getElementById("photoData");
+    const captureBtn = document.getElementById("captureBtn");
+    const retakeBtn = document.getElementById("retakeBtn");
+    const submitBtn = document.getElementById("submitBtn");
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const previewImage = document.getElementById("previewImage");
+
+    // Disable submit button initially
+    submitBtn.disabled = true;
+
+    // **🔹 Validate form fields**
+    function validateForm() {
+        if (pnoInput.value.trim() !== "" && nameInput.value.trim() !== "" && photoDataInput.value.trim() !== "") {
+            submitBtn.disabled = false;  // Enable the submit button
+        } else {
+            submitBtn.disabled = true;   // Keep it disabled if any field is empty
+        }
+    }
+
+    // **🔹 Capture Image Logic**
+    captureBtn.addEventListener("click", function () {
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Convert image to Base64
+        const imageData = canvas.toDataURL("image/jpeg");
+
+        // Show preview image
+        previewImage.src = imageData;
+        previewImage.style.display = "block";
+
+        // Store the image data
+        photoDataInput.value = imageData;
+
+        // Hide capture button, show retake button
+        captureBtn.style.display = "none";
+        retakeBtn.style.display = "inline-block";
+
+        // Validate form after capturing
+        validateForm();
+    });
+
+    // **🔹 Retake Photo Logic**
+    retakeBtn.addEventListener("click", function () {
+        previewImage.style.display = "none";  // Hide preview image
+        photoDataInput.value = "";            // Clear hidden input
+        captureBtn.style.display = "inline-block"; // Show capture button
+        retakeBtn.style.display = "none";     // Hide retake button
+        validateForm();
+    });
+
+    // **🔹 Validate on input change**
+    pnoInput.addEventListener("input", validateForm);
+    nameInput.addEventListener("input", validateForm);
+
+    // **🔹 SweetAlert on successful submission**
+    document.querySelector("form").addEventListener("submit", function (event) {
+        event.preventDefault(); // Prevent default form submission
+
+        Swal.fire({
+            title: "Saving Details...",
+            text: "Please wait...",
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Simulate form submission delay
+        setTimeout(() => {
+            Swal.fire({
+                title: "Success!",
+                text: "Details saved successfully.",
+                icon: "success",
+                timer: 3000,
+                showConfirmButton: false
+            }).then(() => {
+                this.submit(); // Submit the form after SweetAlert
+            });
+        }, 2000);
+    });
+});
+
+ 
+ 
  [HttpPost]
  [ValidateAntiForgeryToken]
  public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
