@@ -1,4 +1,21 @@
- <form asp-action="UploadImage" method="post" id="form2">
+if (isValid) {
+    Swal.fire({
+        title: "Success!",
+        text: "Data Saved Successfully",
+        icon: "success",
+        confirmButtonText: "OK"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('form2').submit();
+        }
+    });
+}
+
+ 
+ 
+ 
+ 
+<form asp-action="UploadImage" method="post" id="form2">
      <div class="form-group row">
          <div class="col-sm-1">
              <label>Pno</label>
