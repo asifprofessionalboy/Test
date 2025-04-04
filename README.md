@@ -1,3 +1,121 @@
+using Emgu.CV;
+using Emgu.CV.Dnn;
+using Emgu.CV.Structure;
+using Emgu.CV.Util;
+using System;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+
+public class FaceRecognition
+{
+    private readonly string modelPath;
+    private readonly string protoPath;
+    private readonly string cascadePath;
+
+    public FaceRecognition()
+    {
+        string basePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades");
+        modelPath = Path.Combine(basePath, "res10_300x300_ssd_iter_140000_fp16.caffemodel");
+        protoPath = Path.Combine(basePath, "deploy.prototxt");
+        cascadePath = Path.Combine(basePath, "haarcascade_frontalface_default.xml");
+
+        if (!File.Exists(modelPath) || !File.Exists(protoPath) || !File.Exists(cascadePath))
+        {
+            throw new FileNotFoundException("One or more model files not found.");
+        }
+    }
+
+    public bool VerifyFace(Bitmap captured, Bitmap stored)
+    {
+        try
+        {
+            Mat matCaptured = BitmapToMat(captured);
+            Mat matStored = BitmapToMat(stored);
+
+            // Convert to grayscale
+            CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+            CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+            // Apply Face Detection using DNN Model
+            Mat capturedFace = DetectFace(matCaptured);
+            Mat storedFace = DetectFace(matStored);
+
+            if (capturedFace == null || storedFace == null)
+            {
+                Console.WriteLine("No face detected in one or both images.");
+                return false;
+            }
+
+            // Extract Face Features (128-D Vectors)
+            float[] capturedEmbedding = GetFaceEmbedding(capturedFace);
+            float[] storedEmbedding = GetFaceEmbedding(storedFace);
+
+            // Compute Euclidean Distance
+            double distance = CalculateEuclideanDistance(capturedEmbedding, storedEmbedding);
+            Console.WriteLine($"Euclidean Distance: {distance}");
+
+            // If distance is less than 0.6, consider it a match
+            return distance < 0.6;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error in face verification: " + ex.Message);
+            return false;
+        }
+    }
+
+    private Mat DetectFace(Mat image)
+    {
+        using (CascadeClassifier faceCascade = new CascadeClassifier(cascadePath))
+        {
+            Rectangle[] faces = faceCascade.DetectMultiScale(image, 1.1, 5);
+
+            if (faces.Length == 0)
+                return null;
+
+            return new Mat(image, faces[0]); // Crop the detected face
+        }
+    }
+
+    private float[] GetFaceEmbedding(Mat face)
+    {
+        Net faceNet = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+        Mat blob = DnnInvoke.BlobFromImage(face, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
+
+        faceNet.SetInput(blob);
+        Mat output = faceNet.Forward();
+
+        return output.GetData().Cast<float>().ToArray();
+    }
+
+    private double CalculateEuclideanDistance(float[] vec1, float[] vec2)
+    {
+        if (vec1.Length != vec2.Length) return double.MaxValue;
+
+        double sum = 0;
+        for (int i = 0; i < vec1.Length; i++)
+        {
+            sum += Math.Pow(vec1[i] - vec2[i], 2);
+        }
+
+        return Math.Sqrt(sum);
+    }
+
+    private Mat BitmapToMat(Bitmap bitmap)
+    {
+        Mat mat = new Mat();
+        using (Image<Bgr, byte> image = bitmap.ToImage<Bgr, byte>())
+        {
+            mat = image.Mat;
+        }
+        return mat;
+    }
+}
+
+
+
+
 private bool VerifyFace(Bitmap captured, Bitmap stored)
 {
     try
