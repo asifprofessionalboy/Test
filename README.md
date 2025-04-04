@@ -1,3 +1,46 @@
+private Mat DetectFace(Mat image)
+{
+    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+    string protoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/deploy.prototxt");
+
+    if (!System.IO.File.Exists(modelPath) || !System.IO.File.Exists(protoPath))
+    {
+        Console.WriteLine("Error: Face detection model files not found!");
+        return null;
+    }
+
+    Net faceNet = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+    Mat blob = DnnInvoke.BlobFromImage(image, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
+
+    faceNet.SetInput(blob);
+    Mat detections = faceNet.Forward();
+
+    float[] detectionData = (float[])detections.GetData(); // Retrieve all detection data
+
+    int numDetections = detections.SizeOfDimension[2];
+
+    for (int i = 0; i < numDetections; i++)
+    {
+        float confidence = detectionData[i * 7 + 2]; // Confidence score
+
+        if (confidence > 0.5) // If confidence > 50%
+        {
+            int x1 = (int)(detectionData[i * 7 + 3] * image.Width);
+            int y1 = (int)(detectionData[i * 7 + 4] * image.Height);
+            int x2 = (int)(detectionData[i * 7 + 5] * image.Width);
+            int y2 = (int)(detectionData[i * 7 + 6] * image.Height);
+
+            Rectangle faceRect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+            return new Mat(image, faceRect);
+        }
+    }
+
+    return null;
+}
+
+
+
+
 [HttpPost]
 public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
