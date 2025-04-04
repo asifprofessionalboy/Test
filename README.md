@@ -9,6 +9,73 @@ private bool VerifyFace(Bitmap captured, Bitmap stored)
         CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
         CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
 
+        // Apply Bilateral Filter (preserves edges)
+        CvInvoke.BilateralFilter(matCaptured, matCaptured, 5, 75, 75);
+        CvInvoke.BilateralFilter(matStored, matStored, 5, 75, 75);
+
+        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+        if (!System.IO.File.Exists(cascadePath))
+        {
+            Console.WriteLine("Error: Haarcascade file not found!");
+            return false;
+        }
+
+        CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 4); // Keeping minNeighbors at 4
+        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 4);
+
+        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false;
+        }
+
+        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+        Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+        // Resize slightly larger for better detection
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(110, 110));
+        CvInvoke.Resize(storedFace, storedFace, new Size(110, 110));
+
+        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100)) // Keep threshold at 100
+        {
+            CvInvoke.EqualizeHist(capturedFace, capturedFace);
+            CvInvoke.EqualizeHist(storedFace, storedFace);
+
+            VectorOfMat trainingImages = new VectorOfMat();
+            trainingImages.Push(storedFace);
+            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+            faceRecognizer.Train(trainingImages, labels);
+            var result = faceRecognizer.Predict(capturedFace);
+
+            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+            // Set an optimal distance threshold (95-105)
+            return result.Label == 1 && result.Distance <= 100;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
+    }
+}
+
+
+
+
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        // Convert to grayscale
+        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
         // Apply Gaussian Blur to reduce noise
         CvInvoke.GaussianBlur(matCaptured, matCaptured, new Size(3, 3), 0);
         CvInvoke.GaussianBlur(matStored, matStored, new Size(3, 3), 0);
