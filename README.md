@@ -1,3 +1,45 @@
+[HttpGet] // Change to GET for testing
+public IActionResult TestFaceVerification()
+{
+    try
+    {
+        // Paths to two stored images for testing
+        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/stored.jpg");
+        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/captured.jpg");
+
+        // Check if both images exist
+        if (!System.IO.File.Exists(storedImagePath) || !System.IO.File.Exists(capturedImagePath))
+        {
+            return Json(new { success = false, message = "One or both test images not found!" });
+        }
+
+        bool isFaceMatched;
+
+        // Load both images for comparison
+        using (Bitmap storedImage = new Bitmap(storedImagePath))
+        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+        {
+            isFaceMatched = VerifyFace(capturedImage, storedImage);
+        }
+
+        if (isFaceMatched)
+        {
+            return Json(new { success = true, message = "Faces match successfully!" });
+        }
+        else
+        {
+            return Json(new { success = false, message = "Face does not match!" });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+
+
+
 private Mat DetectFace(Mat image)
 {
     string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/res10_300x300_ssd_iter_140000_fp16.caffemodel");
