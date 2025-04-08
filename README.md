@@ -1,3 +1,12 @@
+using (CLAHE clahe = XPhotoInvoke.CreateCLAHE(2.0, new Size(8, 8)))
+{
+    clahe.Apply(capturedFace, capturedFace);
+    clahe.Apply(storedFace, storedFace);
+}
+
+
+
+
 private bool VerifyFace(Bitmap captured, Bitmap stored)
 {
     try
