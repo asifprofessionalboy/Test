@@ -1,3 +1,19 @@
+private static DlibDotNet.Matrix<DlibDotNet.RgbPixel> BitmapToDlibImage(Bitmap bmp)
+{
+    var mat = new DlibDotNet.Matrix<DlibDotNet.RgbPixel>((uint)bmp.Height, (uint)bmp.Width);
+    for (int y = 0; y < bmp.Height; y++)
+    {
+        for (int x = 0; x < bmp.Width; x++)
+        {
+            var color = bmp.GetPixel(x, y);
+            mat[y, x] = new DlibDotNet.RgbPixel { Blue = color.B, Green = color.G, Red = color.R };
+        }
+    }
+    return mat;
+}
+
+
+
 this is my full code 
      [HttpPost]
      public IActionResult AttendanceData([FromBody] AttendanceRequest model)
