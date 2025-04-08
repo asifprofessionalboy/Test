@@ -1,3 +1,7 @@
+Severity	Code	Description	Project	File	Line	Suppression State
+Error (active)	CS0104	'Matrix<>' is an ambiguous reference between 'Emgu.CV.Matrix<TDepth>' and 'DlibDotNet.Matrix<TElement>'	GFAS	D:\AllProject(Irshad)\GFAS\GFAS\Controllers\GeoController.cs	252	
+
+
 private bool VerifyFace(Bitmap capturedBitmap, Bitmap storedBitmap)
 {
     try
