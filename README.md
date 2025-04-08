@@ -1,3 +1,5 @@
+Argument 1: cannot convert from 'uint' to 'DlibDotNet.MatrixTemplateSizeParameter'
+
 private static DlibDotNet.Matrix<DlibDotNet.RgbPixel> BitmapToDlibImage(Bitmap bmp)
 {
     var mat = new DlibDotNet.Matrix<DlibDotNet.RgbPixel>((uint)bmp.Height, (uint)bmp.Width);
