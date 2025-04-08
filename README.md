@@ -1,3 +1,24 @@
+private static DlibDotNet.Array2D<DlibDotNet.RgbPixel> BitmapToDlibImage(Bitmap bmp)
+{
+    var array = new DlibDotNet.Array2D<DlibDotNet.RgbPixel>(bmp.Height, bmp.Width);
+    for (int y = 0; y < bmp.Height; y++)
+    {
+        for (int x = 0; x < bmp.Width; x++)
+        {
+            var color = bmp.GetPixel(x, y);
+            array[y, x] = new DlibDotNet.RgbPixel
+            {
+                Red = color.R,
+                Green = color.G,
+                Blue = color.B
+            };
+        }
+    }
+    return array;
+}
+
+
+
 Argument 1: cannot convert from 'uint' to 'DlibDotNet.MatrixTemplateSizeParameter'
 
 private static DlibDotNet.Matrix<DlibDotNet.RgbPixel> BitmapToDlibImage(Bitmap bmp)
