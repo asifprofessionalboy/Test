@@ -1,3 +1,135 @@
+private Mat DetectFace(Mat image)
+{
+    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+    string protoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/deploy.prototxt");
+
+    if (!System.IO.File.Exists(modelPath) || !System.IO.File.Exists(protoPath))
+    {
+        Console.WriteLine("Error: Face detection model files not found!");
+        return null;
+    }
+
+    Net faceNet = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+    Mat blob = DnnInvoke.BlobFromImage(image, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
+    faceNet.SetInput(blob);
+    Mat detections = faceNet.Forward();
+
+    Array detectionArray = detections.GetData();
+    float[] detectionData = detectionArray.Cast<float>().ToArray();
+    int numDetections = detections.SizeOfDimension[2];
+
+    for (int i = 0; i < numDetections; i++)
+    {
+        float confidence = detectionData[i * 7 + 2];
+
+        if (confidence > 0.85) // More strict confidence level
+        {
+            int x1 = (int)(detectionData[i * 7 + 3] * image.Width);
+            int y1 = (int)(detectionData[i * 7 + 4] * image.Height);
+            int x2 = (int)(detectionData[i * 7 + 5] * image.Width);
+            int y2 = (int)(detectionData[i * 7 + 6] * image.Height);
+
+            Rectangle faceRect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+            return new Mat(image, faceRect);
+        }
+    }
+
+    return null;
+}
+
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        Mat capturedFace = DetectFace(matCaptured);
+        Mat storedFace = DetectFace(matStored);
+
+        if (capturedFace == null || storedFace == null)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false;
+        }
+
+        // Resize both face regions to 96x96
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(96, 96));
+        CvInvoke.Resize(storedFace, storedFace, new Size(96, 96));
+
+        float[] capturedEmbedding = GetFaceEmbedding(capturedFace);
+        float[] storedEmbedding = GetFaceEmbedding(storedFace);
+
+        double distance = CalculateEuclideanDistance(capturedEmbedding, storedEmbedding);
+        Console.WriteLine($"[FaceMatch] Euclidean Distance: {distance}");
+
+        return distance < 0.45; // Stricter threshold to avoid false matches
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
+    }
+}
+
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
+
+        string Pno = UserId;
+        string Name = UserName;
+
+        string rootImageDir = Path.Combine(Directory.GetCurrentDirectory(), "GFAS", "wwwroot", "Images");
+        string storedImagePath = Path.Combine(rootImageDir, $"{Pno}-{Name}.jpg");
+
+        if (!System.IO.File.Exists(storedImagePath))
+        {
+            return Json(new { success = false, message = "Stored image not found!" });
+        }
+
+        string capturedImagePath = Path.Combine(rootImageDir, $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+        SaveBase64ImageToFile(model.ImageData, capturedImagePath);
+
+        bool isFaceMatched;
+
+        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+        using (Bitmap storedImage = new Bitmap(storedImagePath))
+        {
+            isFaceMatched = VerifyFace(capturedImage, storedImage);
+        }
+
+        System.IO.File.Delete(capturedImagePath);
+
+        if (isFaceMatched)
+        {
+            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+            string currentTime = DateTime.Now.ToString("HH:mm");
+
+            if (model.Type == "Punch In")
+                StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+            else
+                StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+
+            return Json(new { success = true, message = "Attendance recorded successfully." });
+        }
+        else
+        {
+            return Json(new { success = false, message = "Face does not match!" });
+        }
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
 please look at this , sometimes it gave false cases , user matches with Everyone and also in this i want to change the directory of Images folder  , i have sub folder name GFAS/wwwroot/Images i want this. please provide me some good code that it matches with same person only and not give false cases 
 
  [HttpPost]
