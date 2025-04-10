@@ -1,137 +1,176 @@
-[HttpPost]
-public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-{
-    try
-    {
-        var UserId = HttpContext.Request.Cookies["Session"];
-        var UserName = HttpContext.Request.Cookies["UserName"];
-        if (string.IsNullOrEmpty(UserId))
-            return Json(new { success = false, message = "User session not found!" });
-
-        string Pno = UserId;
-        string Name = UserName;
-
-        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        if (!System.IO.File.Exists(storedImagePath))
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
         {
-            return Json(new { success = false, message = "Stored image not found!" });
-        }
-
-        // This is the captured image that will be used for comparison — KEEP THIS
-        string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
-
-        // Save captured image for comparison (this stays and is reused/updated)
-        SaveBase64ImageToFile(model.ImageData, capturedImagePath);
-
-        bool isFaceMatched = false;
-
-        using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-        using (Bitmap storedImage = new Bitmap(storedImagePath))
-        {
-            isFaceMatched = VerifyFace(capturedImage, storedImage);
-        }
-
-        if (isFaceMatched)
-        {
-            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-            string currentTime = DateTime.Now.ToString("HH:mm");
-
-            // On Punch In, also save/update the captured image to a permanent file
-            if (model.Type == "Punch In")
+            try
             {
-                // Save/update the permanent PunchIn image
-                string punchInImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-PunchIn.jpg");
-                System.IO.File.Copy(capturedImagePath, punchInImagePath, true);
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
 
-                StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+                string Pno = UserId;
+                string Name = UserName;
+
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                if (!System.IO.File.Exists(storedImagePath))
+                {
+                    return Json(new { success = false, message = "Stored image not found!" });
+                }
+
+
+                string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+
+                SaveBase64ImageToFile(model.ImageData, capturedImagePath);
+
+                bool isFaceMatched = false;
+
+
+                using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+                using (Bitmap storedImage = new Bitmap(storedImagePath))
+                {
+                    isFaceMatched = VerifyFace(capturedImage, storedImage);
+                }
+
+
+                System.IO.File.Delete(capturedImagePath);
+
+                if (isFaceMatched)
+                {
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        string capturedImage = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+
+
+                        SaveBase64ImageToFile(model.ImageData, capturedImage);
+
+                        StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+                    }
+
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
             }
-            else
+            catch (Exception ex)
             {
-                StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+                return Json(new { success = false, message = ex.Message });
             }
-
-            return Json(new { success = true, message = "Attendance recorded successfully." });
         }
-        else
+
+
+        private bool VerifyFace(Bitmap captured, Bitmap stored)
         {
-            return Json(new { success = false, message = "Face does not match!" });
+            try
+            {
+                Mat matCaptured = BitmapToMat(captured);
+                Mat matStored = BitmapToMat(stored);
+
+
+                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+
+                string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+                if (!System.IO.File.Exists(cascadePath))
+                {
+                    Console.WriteLine("Error: Haarcascade file not found!");
+                    return false;
+                }
+
+                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+
+                if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+                {
+                    Console.WriteLine("No face detected in one or both images.");
+                    return false;
+                }
+
+
+
+
+                Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+                Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+                CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+
+                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 99))
+                {
+                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
+                    CvInvoke.EqualizeHist(storedFace, storedFace);
+
+                    VectorOfMat trainingImages = new VectorOfMat();
+                    trainingImages.Push(storedFace);
+                    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+                    faceRecognizer.Train(trainingImages, labels);
+                    var result = faceRecognizer.Predict(capturedFace);
+
+                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+                    return result.Label == 1 && result.Distance <= 99;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in face verification: " + ex.Message);
+                return false;
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = ex.Message });
-    }
-}
-
- 
- 
- 
- 
-[HttpPost]
- public IActionResult AttendanceData([FromBody] AttendanceRequest model)
- {
-     try
-     {
-         var UserId = HttpContext.Request.Cookies["Session"];
-         var UserName = HttpContext.Request.Cookies["UserName"];
-         if (string.IsNullOrEmpty(UserId))
-             return Json(new { success = false, message = "User session not found!" });
-
-         string Pno = UserId;
-         string Name = UserName;
-
-         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-         if (!System.IO.File.Exists(storedImagePath))
-         {
-             return Json(new { success = false, message = "Stored image not found!" });
-         }
 
 
-         string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+        private Mat BitmapToMat(Bitmap bitmap)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+                byte[] imageData = ms.ToArray();
+
+                Mat mat = new Mat();
+                CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
+
+                if (mat.IsEmpty)
+                {
+                    Console.WriteLine("Error: Image conversion failed!");
+                }
+
+                return mat;
+            }
+        }
+        private void SaveBase64ImageToFile(string base64String, string filePath)
+        {
+            try
+            {
+                byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+                using (MemoryStream ms = new MemoryStream(imageBytes))
+                {
+                    using (Bitmap bmp = new Bitmap(ms))
+                    {
+                        bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
+            }
+        }
 
 
-         SaveBase64ImageToFile(model.ImageData, capturedImagePath);
-
-         bool isFaceMatched = false;
-
-
-         using (Bitmap capturedImage = new Bitmap(capturedImagePath))
-         using (Bitmap storedImage = new Bitmap(storedImagePath))
-         {
-             isFaceMatched = VerifyFace(capturedImage, storedImage);
-         }
-
-
-         //System.IO.File.Delete(capturedImagePath);
-
-         if (isFaceMatched)
-         {
-             string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-             string currentTime = DateTime.Now.ToString("HH:mm");
-
-             if (model.Type == "Punch In")
-             {
-                
-
-                 StoreData(currentDate, currentTime, null, Pno, model.ImageData);
-             }
-             else
-             {
-                 StoreData(currentDate, null, currentTime, Pno, model.ImageData);
-             }
-
-             return Json(new { success = true, message = "Attendance recorded successfully." });
-         }
-         else
-         {
-             return Json(new { success = false, message = "Face does not match!" });
-         }
-     }
-     catch (Exception ex)
-     {
-         return Json(new { success = false, message = ex.Message });
-     }
- }
-
-
-in this iwant only that temporary capturedImage that is for comparision don't delete it . stored that when PunchIn and again if the captured the image then update that image
+in this logic i want one thing that it compares with CapturedImage and delete that image , in this when i punchIn it stores that CapturedImage of that day as Pno-Captured.jpg . now i want that it matches with both image means it compare with both images , means if the user is not recognize with base stored Image then it can also compare with last captured Image
