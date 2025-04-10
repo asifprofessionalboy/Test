@@ -65,4 +65,4 @@
  }
 
 
-in this iwant only that temporary capturedImage that is for comparision don't delete it . stored that when PunchIn 
+in this iwant only that temporary capturedImage that is for comparision don't delete it . stored that when PunchIn and again if the captured the image then update that image
