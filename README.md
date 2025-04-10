@@ -1,210 +1,65 @@
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
-{
-    if (!string.IsNullOrEmpty(photoData) && !string.IsNullOrEmpty(Pno) && !string.IsNullOrEmpty(Name))
-    {
-        try
-        {
-            // Convert base64 to byte array (remove the 'data:image/jpeg;base64,' part if present)
-            byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+in this i want that if face matched then the captured image will stored on my images folder in wwwroot when PunchIn 
 
-            // Define folder path
-            string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images");
-
-            // Create directory if it doesn't exist
-            if (!Directory.Exists(folderPath))
-            {
-                Directory.CreateDirectory(folderPath);
-            }
-
-            // Create file name and path
-            string fileName = $"{Pno}-{Name}.jpg";
-            string filePath = Path.Combine(folderPath, fileName);
-
-            // Save image file to wwwroot/Images
-            System.IO.File.WriteAllBytes(filePath, imageBytes);
-
-            // Save person info in the database
-            var person = new AppPerson
-            {
-                Pno = Pno,
-                Name = Name,
-                Image = fileName
-            };
-
-            context.AppPeople.Add(person);
-            await context.SaveChangesAsync();
-
-            // Return success response for AJAX
-            return Ok(new { success = true, message = "Image uploaded and data saved successfully." });
-        }
-        catch (Exception ex)
-        {
-            // Log exception if needed
-            return StatusCode(500, new { success = false, message = "Error saving image: " + ex.Message });
-        }
-    }
-
-    return BadRequest(new { success = false, message = "Missing required fields!" });
-}
-
-document.getElementById('form2').addEventListener('submit', function (event) {
-    event.preventDefault();
-
-    var isValid = true;
-    var form = this;
-    var elements = form.querySelectorAll('input, select, textarea');
-
-    elements.forEach(function (element) {
-        if (['ApprovalFile'].includes(element.id)) {
-            return;
-        }
-
-        if (element.value.trim() === '') {
-            isValid = false;
-            element.classList.add('is-invalid');
-        } else {
-            element.classList.remove('is-invalid');
-        }
-    });
-
-    if (isValid) {
-        // Show loading
-        Swal.fire({
-            title: "Uploading...",
-            text: "Please wait while your image is being uploaded.",
-            didOpen: () => {
-                Swal.showLoading();
-            },
-            allowOutsideClick: false,
-            allowEscapeKey: false
-        });
-
-        // Prepare form data
-        const formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url; // handle redirect if needed
-            } else if (response.ok) {
-                Swal.fire({
-                    title: "Success!",
-                    text: "Data Saved Successfully",
-                    icon: "success",
-                    confirmButtonText: "OK"
-                });
-            } else {
-                throw new Error("Upload failed.");
-            }
-        })
-        .catch(error => {
-            Swal.fire("Error", "There was an error uploading the image: " + error.message, "error");
-        });
-    }
-});
- 
- 
- 
  [HttpPost]
- [ValidateAntiForgeryToken]
- public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
  {
-     if (!string.IsNullOrEmpty(photoData) && !string.IsNullOrEmpty(Pno) && !string.IsNullOrEmpty(Name))
+     try
      {
-         try
+         var UserId = HttpContext.Request.Cookies["Session"];
+         var UserName = HttpContext.Request.Cookies["UserName"];
+         if (string.IsNullOrEmpty(UserId))
+             return Json(new { success = false, message = "User session not found!" });
+
+         string Pno = UserId;
+         string Name = UserName;
+
+         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+         if (!System.IO.File.Exists(storedImagePath))
          {
-            
-             byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+             return Json(new { success = false, message = "Stored image not found!" });
+         }
 
-            
-             string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images");
 
-          
-             if (!Directory.Exists(folderPath))
+         string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+
+         SaveBase64ImageToFile(model.ImageData, capturedImagePath);
+
+         bool isFaceMatched = false;
+
+
+         using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+         using (Bitmap storedImage = new Bitmap(storedImagePath))
+         {
+             isFaceMatched = VerifyFace(capturedImage, storedImage);
+         }
+
+
+         System.IO.File.Delete(capturedImagePath);
+
+         if (isFaceMatched)
+         {
+             string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+             string currentTime = DateTime.Now.ToString("HH:mm");
+
+             if (model.Type == "Punch In")
              {
-                 Directory.CreateDirectory(folderPath);
+                 StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+             }
+             else
+             {
+                 StoreData(currentDate, null, currentTime, Pno, model.ImageData);
              }
 
-           
-             string fileName = $"{Pno}-{Name}.jpg";
-             string filePath = Path.Combine(folderPath, fileName);
-
-            
-             System.IO.File.WriteAllBytes(filePath, imageBytes);
-
-            
-             var person = new AppPerson
-             {
-                 Pno = Pno,
-                 Name = Name,
-                 Image = $"{fileName}" 
-             };
-
-             context.AppPeople.Add(person);
-             await context.SaveChangesAsync();
-
-             return RedirectToAction("UploadImage","User");
+             return Json(new { success = true, message = "Attendance recorded successfully." });
          }
-         catch (Exception ex)
+         else
          {
-             ModelState.AddModelError("", "Error saving image: " + ex.Message);
+             return Json(new { success = false, message = "Face does not match!" });
          }
      }
-     else
+     catch (Exception ex)
      {
-         ModelState.AddModelError("", "Missing required fields!");
+         return Json(new { success = false, message = ex.Message });
      }
-
-     return View();
  }
-
-and this is my js
-
-  document.getElementById('form2').addEventListener('submit', function (event) {
-      event.preventDefault();
-
-
-      var isValid = true;
-      var elements = this.querySelectorAll('input, select, textarea');
-
-     
-
-      elements.forEach(function (element) {
-         
-          if (['ApprovalFile'].includes(element.id)) {
-              return;
-          }
-
-       
-          if (element.value.trim() === '') {
-              isValid = false;
-              element.classList.add('is-invalid');
-          } else {
-              element.classList.remove('is-invalid');
-          }
-      });
-
-
-
-
-     
-      if (isValid) {
-          Swal.fire({
-              title: "Success!",
-              text: "Data Saved Successfully",
-              icon: "success",
-              confirmButtonText: "OK"
-          }).then((result) => {
-              if (result.isConfirmed) {
-                  document.getElementById('form2').submit();
-              }
-          });
-      }
-  });
-
-i want that when data is stored success after that success alert shows until process it shows loading 
