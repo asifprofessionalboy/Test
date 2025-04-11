@@ -1,3 +1,85 @@
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+        if (!System.IO.File.Exists(cascadePath))
+        {
+            Console.WriteLine("Error: Haarcascade file not found!");
+            return false;
+        }
+
+        var faceCascade = new CascadeClassifier(cascadePath);
+
+        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 10, Size.Empty, new Size(100, 100));
+        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 10, Size.Empty, new Size(100, 100));
+
+        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        {
+            Console.WriteLine("No face detected in one of the images.");
+            return false;
+        }
+
+        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+        Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+        // Resize and preprocess
+        Size targetSize = new Size(150, 150);
+        CvInvoke.Resize(capturedFace, capturedFace, targetSize);
+        CvInvoke.Resize(storedFace, storedFace, targetSize);
+
+        CvInvoke.CvtColor(capturedFace, capturedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(storedFace, storedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+        CvInvoke.EqualizeHist(capturedFace, capturedFace);
+        CvInvoke.EqualizeHist(storedFace, storedFace);
+
+        using (var recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 70))
+        {
+            var trainingImages = new VectorOfMat();
+            trainingImages.Push(storedFace);
+            var labels = new VectorOfInt(new int[] { 1 });
+
+            recognizer.Train(trainingImages, labels);
+            var result = recognizer.Predict(capturedFace);
+
+            double histSimilarity = CompareHistograms(capturedFace, storedFace);
+
+            Console.WriteLine($"Label: {result.Label}, Distance: {result.Distance}, Histogram: {histSimilarity}");
+
+            return result.Label == 1 && result.Distance <= 70 && histSimilarity > 0.5;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
+    }
+}
+
+public void TestFaceRecognition()
+{
+    string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/123-John.jpg");
+    string testImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/123-Test.jpg");
+
+    if (!File.Exists(storedImagePath) || !File.Exists(testImagePath))
+    {
+        Console.WriteLine("Test images not found.");
+        return;
+    }
+
+    using (Bitmap stored = new Bitmap(storedImagePath))
+    using (Bitmap test = new Bitmap(testImagePath))
+    {
+        bool result = VerifyFace(test, stored);
+        Console.WriteLine("Face Match Result: " + (result ? "Matched" : "Not Matched"));
+    }
+}
+        
+        
         [HttpPost]
         public IActionResult AttendanceData([FromBody] AttendanceRequest model)
         {
