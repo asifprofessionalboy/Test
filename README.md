@@ -1,130 +1,69 @@
-    <script type="text/javascript">
 
-        Chart.register(ChartDataLabels);
-        document.addEventListener("DOMContentLoaded", function () {
-            var hiddenField1 = document.getElementById('<%= HiddenChartData1.ClientID %>').value;
-            var chartData1 = hiddenField1.split(',').map(Number); // Convert string to array of numbers
-            var hoverchart = document.getElementById('<%= HiddenChartDaysCount.ClientID %>').value;
-           
-            var labels = ['MaleCount', 'FemaleCount', 'TransCount'];
-            var filteredData = [];
-            var filteredLabels = [];
-            var filteredColors = [];
-            var filteredhover = [];
-            var hover = hoverchart.split(',');
-            var colors = ['#48C9B0', '#ffa600', '#ff0000'];
-
-            for (var i = 0; i < chartData1.length; i++) {
-                if (chartData1[i] !== 0) {
-                    filteredData.push(chartData1[i]);
-                    filteredLabels.push(labels[i]);
-                    filteredColors.push(colors[i]);
-                    filteredhover.push(hover[i]);
-
-                }
-            }
-
-            var pieCtx1 = document.getElementById('pieChart1').getContext('2d');
-            var pieChart1 = new Chart(pieCtx1, {
-                type: 'pie',
-                data: {
-                    labels: filteredLabels,
-                    datasets: [{
-                        data: filteredData,
-                        backgroundColor: filteredColors,
-                        borderColor: filteredColors,
-                        borderWidth: 1,
-                        hh: filteredhover
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: {
-                        padding: 10,
+i want this to stick on bottom of page 
+<footer>
+    <div class="text-center d-flex justify-content-center" style="margin-top:93%;">
 
 
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'right',
-                            labels: {
-                                boxWidth: 10,
-                                padding: 5
+        <div class="button-container" style="">
+            <button class="button21" onclick="redirectToHome()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 1024 1024" stroke-width="0" fill="currentColor" stroke="currentColor" class="icon">
+                    <path d="M946.5 505L560.1 118.8l-25.9-25.9a31.5 31.5 0 0 0-44.4 0L77.5 505a63.9 63.9 0 0 0-18.8 46c.4 35.2 29.7 63.3 64.9 63.3h42.5V940h691.8V614.3h43.4c17.1 0 33.2-6.7 45.3-18.8a63.6 63.6 0 0 0 18.7-45.3c0-17-6.7-33.1-18.8-45.2zM568 868H456V664h112v204zm217.9-325.7V868H632V640c0-22.1-17.9-40-40-40H432c-22.1 0-40 17.9-40 40v228H238.1V542.3h-96l370-369.7 23.1 23.1L882 542.3h-96.1z"></path>
+                </svg>
 
-                            }
-                        },
-                        //tooltip: {
-                        //    callbacks: {
-                        //        label: function (tooltipItem) {
+            </button>
+            <button class="button21" onclick="redirectToIframePage()">
+                <svg class="svgIcon" viewBox="0 0 384 512">
+                    <path d="M64 32C46.3 32 32 46.3 32 64V448c0 17.7 14.3 32 32 32H320c17.7 0 32-14.3 32-32V160L240 32H64zM272 48l80 80H272V48zM128 232c0-8.8 7.2-16 16-16h112c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm0 64c0-8.8 7.2-16 16-16h112c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm0 64c0-8.8 7.2-16 16-16h80c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm208-16c6.2 6.2 6.2 16.4 0 22.6l-48 48c-6.2 6.2-16.4 6.2-22.6 0l-24-24c-6.2-6.2-6.2-16.4 0-22.6s16.4-6.2 22.6 0l12 12 36.4-36.4c6.2-6.2 16.4-6.2 22.6 0z" />
+                </svg>
+            </button>
+            <button class="button21" onclick="redirectToHome()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" stroke-width="0" fill="currentColor" stroke="currentColor" class="icon">
+                    <path d="M12 2.5a5.5 5.5 0 0 1 3.096 10.047 9.005 9.005 0 0 1 5.9 8.181.75.75 0 1 1-1.499.044 7.5 7.5 0 0 0-14.993 0 .75.75 0 0 1-1.5-.045 9.005 9.005 0 0 1 5.9-8.18A5.5 5.5 0 0 1 12 2.5ZM8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z"></path>
+                </svg>
+            </button>
 
-                        //            let dataset = tooltipItem.dataset.data;
+            @* <button class="button21" onclick="redirectToChangePassword()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" stroke-linejoin="round" stroke-linecap="round" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor" class="icon">
+            <circle r="1" cy="21" cx="9"></circle>
+            <circle r="1" cy="21" cx="20"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            </button> *@
+        </div>
+    </div>
+</footer>
 
-                        //            let hoverdatas = tooltipItem.dataset.hh;
+.button-container {
+    display: flex;
+    position:;
+    background-color: rgb(57 62 243);
+    width: 100%;
+    height: 40px;
+    align-items: center;
+    justify-content: space-around;
+    border-radius: 10px;
+    box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px, rgb(73 85 245 / 50%) 5px 10px 15px;
+}
 
-                        //            let index = tooltipItem.dataIndex;
-                        //            let hovervalues = hover[index] ? hover[index].split(',') : [];
-                        //            let day1 = hovervalues.length > 0 ? hovervalues[0] : "0";
-                        //            let day2 = hovervalues.length > 1 ? hovervalues[1] : "0";
-                        //            let day3 = hovervalues.length > 2 ? hovervalues[2] : "0";
-                        //            let Greaterthan3Days = hovervalues.length > 3 ? hovervalues[3] : "0";
-                        //            return [
-                        //                /*tooltipItem.label+":",*/
-                        //                " Total : " + tooltipItem.dataset.data[index],
-                        //                " Day 1 : " + day1,
-                        //                " Day 2 : " + day2,
-                        //                " Day 3 : " + day3,
-                        //                " Greater than 3 : " + Greaterthan3Days
+.button21 {
+    outline: 0 !important;
+    border: 0 !important;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    transition: all ease-in-out 0.3s;
+    cursor: pointer;
+}
 
-                        //            ]; // Show number on hover
-                        //        }
-                        //    },
-                        //    titleFont: {
-                        //        size: 10
-                        //    },
-                        //    bodyFont: {
-                        //        size: 10,
-                        //        FooterFont: {
-                        //            size: 10
-                        //        }
-                        //    },
-                        //},
-                        datalabels: {
-                            formatter: (value, ctx) => {
-                                let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                                let percentage = ((value / sum) * 100).toFixed(1) + "%";
-                                return percentage; // Show percentage inside the pie chart
-                            },
-                            color: '#000',
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
-                    }
-                },
-                plugins: [ChartDataLabels] // Make sure to include ChartDataLabels
+    .button21:hover {
+        transform: translateY(-3px);
+    }
 
-            });
-
-            ////pieCtx1.canvas.onclick = function (evt) {
-            ////    var activePoints = pieChart1.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-            ////    if (activePoints.length) {
-            ////        var firstPoint = activePoints[0];
-            ////        var PieChartStatus = pieChart1.data.labels[firstPoint.index];
-            ////        //alert(PieChartStatus);
-            ////        //var value = pieChart1.data.datasets[firstPoint.datasetIndex].data[firstPoint.index];
-            ////        //alert(value);
-            ////       // var url = "PF_ESI_Dashboard_Data.aspx?label=" + encodeURIComponent(label) + "&value=" + encodeURIComponent(value);
-            ////        var url = "PF_ESI_Dashboard_Data.aspx?PieChartStatus=" + encodeURIComponent(PieChartStatus);
-            ////       /* window.location.href = url; */// Redirect to the new URL
-
-            ////        window.open(url, '_blank');
-            ////    }
-            ////};
-
-           
-        }
-       
-
-    </script>
+.icon {
+    font-size: 20px;
+}
