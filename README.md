@@ -1,3 +1,152 @@
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+        if (!System.IO.File.Exists(cascadePath))
+        {
+            Console.WriteLine("Error: Haarcascade file not found!");
+            return false;
+        }
+
+        CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false;
+        }
+
+        // Crop faces
+        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+        Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+        // Resize to same size
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+        // Calculate histogram
+        DenseHistogram histCaptured = new DenseHistogram(256, new RangeF(0, 256));
+        DenseHistogram histStored = new DenseHistogram(256, new RangeF(0, 256));
+
+        histCaptured.Calculate(new Image<Gray, byte>(capturedFace.Bitmap), false, null);
+        histStored.Calculate(new Image<Gray, byte>(storedFace.Bitmap), false, null);
+
+        // Normalize histograms
+        histCaptured.Normalize(1);
+        histStored.Normalize(1);
+
+        // Compare histograms using Correlation
+        double similarity = CvInvoke.CompareHist(histCaptured, histStored, Emgu.CV.CvEnum.HistogramCompMethod.Correl);
+
+        Console.WriteLine($"Histogram similarity (Correlation): {similarity}");
+
+        // You can tune this threshold; closer to 1.0 = more similar
+        return similarity >= 0.85;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
+    }
+}
+
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        // Convert to grayscale
+        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+        // Load Haar cascade for face detection
+        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+        if (!System.IO.File.Exists(cascadePath))
+        {
+            Console.WriteLine("Error: Haarcascade file not found!");
+            return false;
+        }
+
+        CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false;
+        }
+
+        // Crop and resize face regions
+        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+        Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+        // ===== 1. LBPH RECOGNITION =====
+        int lbphPredictionLabel = -1;
+        double lbphDistance = 999;
+
+        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 99))
+        {
+            CvInvoke.EqualizeHist(capturedFace, capturedFace);
+            CvInvoke.EqualizeHist(storedFace, storedFace);
+
+            VectorOfMat trainingImages = new VectorOfMat();
+            trainingImages.Push(storedFace);
+            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+            faceRecognizer.Train(trainingImages, labels);
+            var result = faceRecognizer.Predict(capturedFace);
+
+            lbphPredictionLabel = result.Label;
+            lbphDistance = result.Distance;
+        }
+
+        Console.WriteLine($"LBPH => Label: {lbphPredictionLabel}, Distance: {lbphDistance}");
+
+        bool isLBPHMatched = lbphPredictionLabel == 1 && lbphDistance <= 95;
+
+
+        // ===== 2. HISTOGRAM SIMILARITY =====
+        DenseHistogram histCaptured = new DenseHistogram(256, new RangeF(0, 256));
+        DenseHistogram histStored = new DenseHistogram(256, new RangeF(0, 256));
+
+        histCaptured.Calculate(new Image<Gray, byte>(capturedFace.Bitmap), false, null);
+        histStored.Calculate(new Image<Gray, byte>(storedFace.Bitmap), false, null);
+
+        histCaptured.Normalize(1);
+        histStored.Normalize(1);
+
+        double histogramSimilarity = CvInvoke.CompareHist(histCaptured, histStored, Emgu.CV.CvEnum.HistogramCompMethod.Correl);
+        Console.WriteLine($"Histogram Similarity (Correlation): {histogramSimilarity}");
+
+        bool isHistogramMatched = histogramSimilarity >= 0.85;
+
+        // ===== COMBINE BOTH =====
+        return isLBPHMatched && isHistogramMatched;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
+    }
+}
+
+
+
 this is my face recognition attendance system logic 
  [HttpPost]
  public IActionResult AttendanceData([FromBody] AttendanceRequest model)
