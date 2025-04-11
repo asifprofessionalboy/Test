@@ -1,3 +1,43 @@
+public IActionResult ImageViewer()
+{
+    var pno = HttpContext.Request.Cookies["Session"];
+    var userName = HttpContext.Request.Cookies["UserName"];
+
+    if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
+    {
+        return RedirectToAction("Login");
+    }
+
+    var fileName = $"{pno}-{userName}.jpg";
+    var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
+    var imageFilePath = Path.Combine(folderPath, fileName);
+
+    if (System.IO.File.Exists(imageFilePath))
+    {
+        // IMPORTANT: Include virtual directory in the image URL
+        ViewBag.ImagePath = $"/TSUISLARS/Images/{fileName}";
+    }
+    else
+    {
+        ViewBag.ImagePath = null;
+    }
+
+    return View();
+}
+
+@if (!string.IsNullOrEmpty(ViewBag.ImagePath))
+{
+    <img src="@ViewBag.ImagePath" class="img-fluid rounded shadow" style="max-height: 400px;" />
+}
+else
+{
+    <div class="alert alert-warning mt-3">
+        No image available for this user.
+    </div>
+}
+
+
+
 @{
     ViewData["Title"] = "Image Viewer";
     var imagePath = ViewBag.ImagePath as string;
