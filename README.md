@@ -1,3 +1,49 @@
+<body>
+    <div class="content-wrapper">
+        <!-- Your page content here -->
+    </div>
+
+    <footer class="footer-navbar">
+        <div class="text-center d-flex justify-content-center">
+            <div class="button-container">
+                <!-- Buttons here -->
+            </div>
+        </div>
+    </footer>
+</body>
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.content-wrapper {
+    flex: 1;
+}
+
+.footer-navbar {
+    background-color: transparent; /* or any background */
+}
+
+.button-container {
+    display: flex;
+    background-color: rgb(57, 62, 243);
+    width: 100%;
+    height: 40px;
+    align-items: center;
+    justify-content: space-around;
+    border-radius: 10px;
+    box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px, rgb(73 85 245 / 50%) 5px 10px 15px;
+}
+.footer-navbar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: transparent;
+    z-index: 1000;
+}
 
 i want this to stick on bottom of page 
 <footer>
