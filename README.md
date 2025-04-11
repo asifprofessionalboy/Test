@@ -5,6 +5,110 @@ private bool VerifyFace(Bitmap captured, Bitmap stored)
         Mat matCaptured = BitmapToMat(captured);
         Mat matStored = BitmapToMat(stored);
 
+        string protoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Models/deploy.prototxt");
+        string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Models/res10_300x300_ssd_iter_140000.caffemodel");
+
+        if (!File.Exists(protoPath) || !File.Exists(modelPath))
+        {
+            Console.WriteLine("DNN model files not found!");
+            return false;
+        }
+
+        var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+
+        Rectangle? faceCaptured = DetectFaceDNN(matCaptured, net);
+        Rectangle? faceStored = DetectFaceDNN(matStored, net);
+
+        if (faceCaptured == null || faceStored == null)
+        {
+            Console.WriteLine("No face detected using DNN.");
+            return false;
+        }
+
+        Mat capturedFace = new Mat(matCaptured, faceCaptured.Value);
+        Mat storedFace = new Mat(matStored, faceStored.Value);
+
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(150, 150));
+        CvInvoke.Resize(storedFace, storedFace, new Size(150, 150));
+
+        CvInvoke.CvtColor(capturedFace, capturedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(storedFace, storedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+        CvInvoke.GaussianBlur(capturedFace, capturedFace, new Size(3, 3), 0);
+        CvInvoke.GaussianBlur(storedFace, storedFace, new Size(3, 3), 0);
+
+        using (var recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 60))
+        {
+            var trainingImages = new VectorOfMat();
+            trainingImages.Push(storedFace);
+            var labels = new VectorOfInt(new int[] { 1 });
+
+            recognizer.Train(trainingImages, labels);
+            var result = recognizer.Predict(capturedFace);
+
+            Console.WriteLine($"Label: {result.Label}, Distance: {result.Distance}");
+
+            double histSimilarity = CompareHistograms(capturedFace, storedFace);
+            Console.WriteLine($"Histogram similarity: {histSimilarity}");
+
+            return result.Label == 1 && result.Distance <= 60 && histSimilarity > 0.5;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in DNN face verification: " + ex.Message);
+        return false;
+    }
+}
+
+private Rectangle? DetectFaceDNN(Mat image, Net net)
+{
+    try
+    {
+        Size inputSize = new Size(300, 300);
+        double scaleFactor = 1.0;
+        MCvScalar meanVal = new MCvScalar(104.0, 177.0, 123.0);
+        bool swapRB = false;
+
+        using var blob = DnnInvoke.BlobFromImage(image, scaleFactor, inputSize, meanVal, swapRB, false);
+        net.SetInput(blob);
+
+        using var detections = net.Forward();
+
+        float confidenceThreshold = 0.5f;
+
+        for (int i = 0; i < detections.SizeOfDimension[2]; i++)
+        {
+            float confidence = detections.GetData(new int[] { 0, 0, i, 2 })[0];
+            if (confidence > confidenceThreshold)
+            {
+                float x1 = detections.GetData(new int[] { 0, 0, i, 3 })[0] * image.Cols;
+                float y1 = detections.GetData(new int[] { 0, 0, i, 4 })[0] * image.Rows;
+                float x2 = detections.GetData(new int[] { 0, 0, i, 5 })[0] * image.Cols;
+                float y2 = detections.GetData(new int[] { 0, 0, i, 6 })[0] * image.Rows;
+
+                Rectangle faceRect = new Rectangle((int)x1, (int)y1, (int)(x2 - x1), (int)(y2 - y1));
+                return faceRect;
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error during DNN face detection: " + ex.Message);
+    }
+
+    return null;
+}
+
+
+
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
         string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
         if (!System.IO.File.Exists(cascadePath))
         {
