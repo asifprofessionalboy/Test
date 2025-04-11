@@ -1,189 +1,216 @@
-private bool VerifyFace(Bitmap captured, Bitmap stored)
-{
-    try
-    {
-        Mat matCaptured = BitmapToMat(captured);
-        Mat matStored = BitmapToMat(stored);
+this is my logic which i want to implement in my existing code which is using LBPHFaceRecognizer, i want to change that to this logic 
 
-        string protoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Models/deploy.prototxt");
-        string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Models/res10_300x300_ssd_iter_140000.caffemodel");
+this is my main      
 
-        if (!File.Exists(protoPath) || !File.Exists(modelPath))
+   [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
         {
-            Console.WriteLine("DNN model files not found!");
-            return false;
-        }
-
-        var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
-
-        Rectangle? faceCaptured = DetectFaceDNN(matCaptured, net);
-        Rectangle? faceStored = DetectFaceDNN(matStored, net);
-
-        if (faceCaptured == null || faceStored == null)
-        {
-            Console.WriteLine("No face detected using DNN.");
-            return false;
-        }
-
-        Mat capturedFace = new Mat(matCaptured, faceCaptured.Value);
-        Mat storedFace = new Mat(matStored, faceStored.Value);
-
-        CvInvoke.Resize(capturedFace, capturedFace, new Size(150, 150));
-        CvInvoke.Resize(storedFace, storedFace, new Size(150, 150));
-
-        CvInvoke.CvtColor(capturedFace, capturedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-        CvInvoke.CvtColor(storedFace, storedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-
-        CvInvoke.GaussianBlur(capturedFace, capturedFace, new Size(3, 3), 0);
-        CvInvoke.GaussianBlur(storedFace, storedFace, new Size(3, 3), 0);
-
-        using (var recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 60))
-        {
-            var trainingImages = new VectorOfMat();
-            trainingImages.Push(storedFace);
-            var labels = new VectorOfInt(new int[] { 1 });
-
-            recognizer.Train(trainingImages, labels);
-            var result = recognizer.Predict(capturedFace);
-
-            Console.WriteLine($"Label: {result.Label}, Distance: {result.Distance}");
-
-            double histSimilarity = CompareHistograms(capturedFace, storedFace);
-            Console.WriteLine($"Histogram similarity: {histSimilarity}");
-
-            return result.Label == 1 && result.Distance <= 60 && histSimilarity > 0.5;
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error in DNN face verification: " + ex.Message);
-        return false;
-    }
-}
-
-private Rectangle? DetectFaceDNN(Mat image, Net net)
-{
-    try
-    {
-        Size inputSize = new Size(300, 300);
-        double scaleFactor = 1.0;
-        MCvScalar meanVal = new MCvScalar(104.0, 177.0, 123.0);
-        bool swapRB = false;
-
-        using var blob = DnnInvoke.BlobFromImage(image, scaleFactor, inputSize, meanVal, swapRB, false);
-        net.SetInput(blob);
-
-        using var detections = net.Forward();
-
-        float confidenceThreshold = 0.5f;
-
-        for (int i = 0; i < detections.SizeOfDimension[2]; i++)
-        {
-            float confidence = detections.GetData(new int[] { 0, 0, i, 2 })[0];
-            if (confidence > confidenceThreshold)
+            try
             {
-                float x1 = detections.GetData(new int[] { 0, 0, i, 3 })[0] * image.Cols;
-                float y1 = detections.GetData(new int[] { 0, 0, i, 4 })[0] * image.Rows;
-                float x2 = detections.GetData(new int[] { 0, 0, i, 5 })[0] * image.Cols;
-                float y2 = detections.GetData(new int[] { 0, 0, i, 6 })[0] * image.Rows;
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
 
-                Rectangle faceRect = new Rectangle((int)x1, (int)y1, (int)(x2 - x1), (int)(y2 - y1));
-                return faceRect;
+                string Pno = UserId;
+                string Name = UserName;
+
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                if (!System.IO.File.Exists(storedImagePath))
+                {
+                    return Json(new { success = false, message = "Stored image not found!" });
+                }
+
+
+                string capturedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+
+                SaveBase64ImageToFile(model.ImageData, capturedImagePath);
+
+                bool isFaceMatched = false;
+
+
+                using (Bitmap capturedImage = new Bitmap(capturedImagePath))
+                using (Bitmap storedImage = new Bitmap(storedImagePath))
+                {
+                    isFaceMatched = VerifyFace(capturedImage, storedImage);
+                }
+
+
+                System.IO.File.Delete(capturedImagePath);
+
+                if (isFaceMatched)
+                {
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+                    }
+
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
             }
         }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error during DNN face detection: " + ex.Message);
-    }
-
-    return null;
-}
-
-
-
-private bool VerifyFace(Bitmap captured, Bitmap stored)
-{
-    try
-    {
-        Mat matCaptured = BitmapToMat(captured);
-        Mat matStored = BitmapToMat(stored);
-
-        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
-        if (!System.IO.File.Exists(cascadePath))
+        private Mat DetectFace(Mat image)
         {
-            Console.WriteLine("Error: Haarcascade file not found!");
-            return false;
+            string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+            string protoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/deploy.prototxt");
+
+            if (!System.IO.File.Exists(modelPath) || !System.IO.File.Exists(protoPath))
+            {
+                Console.WriteLine("Error: Face detection model files not found!");
+                return null;
+            }
+
+            Net faceNet = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+            Mat blob = DnnInvoke.BlobFromImage(image, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
+            faceNet.SetInput(blob);
+            Mat detections = faceNet.Forward();
+
+            Array detectionArray = detections.GetData();
+            float[] detectionData = detectionArray.Cast<float>().ToArray();
+            int numDetections = detections.SizeOfDimension[2];
+
+            for (int i = 0; i < numDetections; i++)
+            {
+                float confidence = detectionData[i * 7 + 2];
+
+                if (confidence > 0.85) // More strict confidence level
+                {
+                    int x1 = (int)(detectionData[i * 7 + 3] * image.Width);
+                    int y1 = (int)(detectionData[i * 7 + 4] * image.Height);
+                    int x2 = (int)(detectionData[i * 7 + 5] * image.Width);
+                    int y2 = (int)(detectionData[i * 7 + 6] * image.Height);
+
+                    Rectangle faceRect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+                    return new Mat(image, faceRect);
+                }
+            }
+
+            return null;
         }
 
-        var faceCascade = new CascadeClassifier(cascadePath);
-
-        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 10, Size.Empty, new Size(100, 100));
-        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 10, Size.Empty, new Size(100, 100));
-
-        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        private bool VerifyFace(Bitmap captured, Bitmap stored)
         {
-            Console.WriteLine("No face detected in one of the images.");
-            return false;
+            try
+            {
+                Mat matCaptured = BitmapToMat(captured);
+                Mat matStored = BitmapToMat(stored);
+
+                Mat capturedFace = DetectFace(matCaptured);
+                Mat storedFace = DetectFace(matStored);
+
+                if (capturedFace == null || storedFace == null)
+                {
+                    Console.WriteLine("No face detected in one or both images.");
+                    return false;
+                }
+
+                // Resize both face regions to 96x96
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(96, 96));
+                CvInvoke.Resize(storedFace, storedFace, new Size(96, 96));
+
+                float[] capturedEmbedding = GetFaceEmbedding(capturedFace);
+                float[] storedEmbedding = GetFaceEmbedding(storedFace);
+
+                double distance = CalculateEuclideanDistance(capturedEmbedding, storedEmbedding);
+                Console.WriteLine($"[FaceMatch] Euclidean Distance: {distance}");
+
+                return distance < 0.45; // Stricter threshold to avoid false matches
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in face verification: " + ex.Message);
+                return false;
+            }
         }
 
-        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-        Mat storedFace = new Mat(matStored, storedFaces[0]);
 
-        // Resize and preprocess
-        Size targetSize = new Size(150, 150);
-        CvInvoke.Resize(capturedFace, capturedFace, targetSize);
-        CvInvoke.Resize(storedFace, storedFace, targetSize);
-
-        CvInvoke.CvtColor(capturedFace, capturedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-        CvInvoke.CvtColor(storedFace, storedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-
-        CvInvoke.EqualizeHist(capturedFace, capturedFace);
-        CvInvoke.EqualizeHist(storedFace, storedFace);
-
-        using (var recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 70))
+        private float[] GetFaceEmbedding(Mat face)
         {
-            var trainingImages = new VectorOfMat();
-            trainingImages.Push(storedFace);
-            var labels = new VectorOfInt(new int[] { 1 });
+            string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/nn4.small2.v1.t7");
+            if (!System.IO.File.Exists(modelPath))
+            {
+                Console.WriteLine("Error: Face recognition model file not found!");
+                return null;
+            }
 
-            recognizer.Train(trainingImages, labels);
-            var result = recognizer.Predict(capturedFace);
+            Net faceRecognizer = DnnInvoke.ReadNetFromTorch(modelPath);
+            Mat blob = DnnInvoke.BlobFromImage(face, 1.0 / 255, new Size(96, 96), new MCvScalar(0, 0, 0), true, false);
+            faceRecognizer.SetInput(blob);
+            Mat output = faceRecognizer.Forward();
 
-            double histSimilarity = CompareHistograms(capturedFace, storedFace);
-
-            Console.WriteLine($"Label: {result.Label}, Distance: {result.Distance}, Histogram: {histSimilarity}");
-
-            return result.Label == 1 && result.Distance <= 70 && histSimilarity > 0.5;
+            return output.GetData().Cast<float>().ToArray();
         }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error in face verification: " + ex.Message);
-        return false;
-    }
-}
 
-public void TestFaceRecognition()
-{
-    string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/123-John.jpg");
-    string testImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/123-Test.jpg");
 
-    if (!File.Exists(storedImagePath) || !File.Exists(testImagePath))
-    {
-        Console.WriteLine("Test images not found.");
-        return;
-    }
+        private double CalculateEuclideanDistance(float[] vec1, float[] vec2)
+        {
+            if (vec1.Length != vec2.Length) return double.MaxValue;
 
-    using (Bitmap stored = new Bitmap(storedImagePath))
-    using (Bitmap test = new Bitmap(testImagePath))
-    {
-        bool result = VerifyFace(test, stored);
-        Console.WriteLine("Face Match Result: " + (result ? "Matched" : "Not Matched"));
-    }
-}
-        
-        
+            double sum = 0;
+            for (int i = 0; i < vec1.Length; i++)
+            {
+                sum += Math.Pow(vec1[i] - vec2[i], 2);
+            }
+
+            return Math.Sqrt(sum);
+        }
+
+
+        private Mat BitmapToMat(Bitmap bitmap)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+                byte[] imageData = ms.ToArray();
+
+                Mat mat = new Mat();
+                CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
+
+                if (mat.IsEmpty)
+                {
+                    Console.WriteLine("Error: Image conversion failed!");
+                }
+
+                return mat;
+            }
+        }
+
+        private void SaveBase64ImageToFile(string base64String, string filePath)
+        {
+            try
+            {
+                byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+                using (MemoryStream ms = new MemoryStream(imageBytes))
+                {
+                    using (Bitmap bmp = new Bitmap(ms))
+                    {
+                        bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
+            }
+        }
+
+and this is old code 
         [HttpPost]
         public IActionResult AttendanceData([FromBody] AttendanceRequest model)
         {
@@ -265,7 +292,7 @@ public void TestFaceRecognition()
             }
         }
 
-
+       
 
 
         private bool VerifyFace(Bitmap captured, Bitmap stored)
@@ -275,6 +302,11 @@ public void TestFaceRecognition()
                 Mat matCaptured = BitmapToMat(captured);
                 Mat matStored = BitmapToMat(stored);
 
+
+                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+
                 string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
                 if (!System.IO.File.Exists(cascadePath))
                 {
@@ -282,50 +314,43 @@ public void TestFaceRecognition()
                     return false;
                 }
 
-                var faceCascade = new CascadeClassifier(cascadePath);
+                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
 
-                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5, Size.Empty, new Size(80, 80));
-                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5, Size.Empty, new Size(80, 80));
 
                 if (capturedFaces.Length == 0 || storedFaces.Length == 0)
                 {
-                    Console.WriteLine("No face detected.");
+                    Console.WriteLine("No face detected in one or both images.");
                     return false;
                 }
+
+
+
 
                 Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
                 Mat storedFace = new Mat(matStored, storedFaces[0]);
 
-               
-                Size targetSize = new Size(150, 150);
-                CvInvoke.Resize(capturedFace, capturedFace, targetSize);
-                CvInvoke.Resize(storedFace, storedFace, targetSize);
 
-              
-                CvInvoke.CvtColor(capturedFace, capturedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-                CvInvoke.CvtColor(storedFace, storedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(96, 96));
+                CvInvoke.Resize(storedFace, storedFace, new Size(96, 96));
 
-              
-                CvInvoke.GaussianBlur(capturedFace, capturedFace, new Size(3, 3), 0);
-                CvInvoke.GaussianBlur(storedFace, storedFace, new Size(3, 3), 0);
 
-               
-                using (var recognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 60)) // threshold = 50
+                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 95))
                 {
-                    var trainingImages = new VectorOfMat();
+                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
+                    CvInvoke.EqualizeHist(storedFace, storedFace);
+
+                    VectorOfMat trainingImages = new VectorOfMat();
                     trainingImages.Push(storedFace);
-                    var labels = new VectorOfInt(new int[] { 1 });
+                    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
 
-                    recognizer.Train(trainingImages, labels);
-                    var result = recognizer.Predict(capturedFace);
+                    faceRecognizer.Train(trainingImages, labels);
+                    var result = faceRecognizer.Predict(capturedFace);
 
-                    Console.WriteLine($"Label: {result.Label}, Distance: {result.Distance}");
+                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
 
-                   
-                    double histSimilarity = CompareHistograms(capturedFace, storedFace);
-                    Console.WriteLine($"Histogram similarity: {histSimilarity}");
-
-                    return result.Label == 1 && result.Distance <= 60 && histSimilarity > 0.5;
+                    return result.Label == 1 && result.Distance <= 95;
                 }
             }
             catch (Exception ex)
@@ -333,20 +358,6 @@ public void TestFaceRecognition()
                 Console.WriteLine("Error in face verification: " + ex.Message);
                 return false;
             }
-        }
-
-        private double CompareHistograms(Mat img1, Mat img2)
-        {
-            DenseHistogram hist1 = new DenseHistogram(256, new RangeF(0, 256));
-            DenseHistogram hist2 = new DenseHistogram(256, new RangeF(0, 256));
-
-            hist1.Calculate(new Image<Gray, byte>[] { img1.ToImage<Gray, byte>() }, false, null);
-            hist2.Calculate(new Image<Gray, byte>[] { img2.ToImage<Gray, byte>() }, false, null);
-
-            CvInvoke.Normalize(hist1, hist1, 0, 1, Emgu.CV.CvEnum.NormType.MinMax);
-            CvInvoke.Normalize(hist2, hist2, 0, 1, Emgu.CV.CvEnum.NormType.MinMax);
-
-            return CvInvoke.CompareHist(hist1, hist2, Emgu.CV.CvEnum.HistogramCompMethod.Correl);
         }
 
 
@@ -386,6 +397,5 @@ public void TestFaceRecognition()
             {
                 Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
             }
-        } 
+        }
 
-        this is not working, when matching the face it shows everytime face doesnot match, please check this out and also give a hardcoded testing for images
