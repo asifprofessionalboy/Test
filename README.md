@@ -1,69 +1,87 @@
-private Mat DetectFace(Mat image)
+this is my face recognition code 
+
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
-    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/res10_300x300_ssd_iter_140000_fp16.caffemodel");
-    string protoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/deploy.prototxt");
-
-    if (!System.IO.File.Exists(modelPath) || !System.IO.File.Exists(protoPath))
+    try
     {
-        Console.WriteLine("Error: Face detection model files not found!");
-        return null;
-    }
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
 
-    Net faceNet = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
-    Mat blob = DnnInvoke.BlobFromImage(image, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
-    faceNet.SetInput(blob);
-    Mat detections = faceNet.Forward();
+        string Pno = UserId;
+        string Name = UserName;
 
-    Array detectionArray = detections.GetData();
-    float[] detectionData = detectionArray.Cast<float>().ToArray();
-    int numDetections = detections.SizeOfDimension[2];
+        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+        string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
 
-    for (int i = 0; i < numDetections; i++)
-    {
-        float confidence = detectionData[i * 7 + 2];
 
-        if (confidence > 0.90) // Stricter confidence
+
+        if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
         {
-            int x1 = (int)(detectionData[i * 7 + 3] * image.Width);
-            int y1 = (int)(detectionData[i * 7 + 4] * image.Height);
-            int x2 = (int)(detectionData[i * 7 + 5] * image.Width);
-            int y2 = (int)(detectionData[i * 7 + 6] * image.Height);
+            return Json(new { success = false, message = "No reference image found to verify face!" });
+        }
 
-            Rectangle faceRect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+        
+        string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Temp-{DateTime.Now.Ticks}.jpg");
+        SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
 
-            if (faceRect.Width > 50 && faceRect.Height > 50) // avoid too small detections
-                return new Mat(image, faceRect);
+        bool isFaceMatched = false;
+
+        using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+        {
+            if (System.IO.File.Exists(storedImagePath))
+            {
+                using (Bitmap stored = new Bitmap(storedImagePath))
+                {
+                    isFaceMatched = VerifyFace(tempCaptured, stored);
+                }
+            }
+
+           
+            if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+            {
+                using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                {
+                    isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                }
+            }
+        }
+
+        
+        System.IO.File.Delete(tempCapturedPath);
+
+        if (isFaceMatched)
+        {
+            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+            string currentTime = DateTime.Now.ToString("HH:mm");
+
+            if (model.Type == "Punch In")
+            {
+                
+                string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+            }
+            else
+            {
+                StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+            }
+
+            return Json(new { success = true, message = "Attendance recorded successfully." });
+        }
+        else
+        {
+            return Json(new { success = false, message = "Face does not match!" });
         }
     }
-
-    return null;
-}
-
-private float[] NormalizeEmbedding(float[] vector)
-{
-    double norm = Math.Sqrt(vector.Sum(x => x * x));
-    return vector.Select(v => (float)(v / norm)).ToArray();
-}
-        
-private float[] GetFaceEmbedding(Mat face)
-{
-    string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/nn4.small2.v1.t7");
-    if (!System.IO.File.Exists(modelPath))
+    catch (Exception ex)
     {
-        Console.WriteLine("Error: Face recognition model file not found!");
-        return null;
+        return Json(new { success = false, message = ex.Message });
     }
-
-    Net faceRecognizer = DnnInvoke.ReadNetFromTorch(modelPath);
-    Mat blob = DnnInvoke.BlobFromImage(face, 1.0 / 255, new Size(96, 96), new MCvScalar(0, 0, 0), true, false);
-    faceRecognizer.SetInput(blob);
-    Mat output = faceRecognizer.Forward();
-
-    float[] embedding = output.GetData().Cast<float>().ToArray();
-    return NormalizeEmbedding(embedding);
 }
-        
-        
         private Mat DetectFace(Mat image)
         {
             string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/res10_300x300_ssd_iter_140000_fp16.caffemodel");
@@ -103,6 +121,8 @@ private float[] GetFaceEmbedding(Mat face)
             return null;
         }
 
+
+
         private bool VerifyFace(Bitmap captured, Bitmap stored)
         {
             try
@@ -119,7 +139,7 @@ private float[] GetFaceEmbedding(Mat face)
                     return false;
                 }
 
-               
+
                 CvInvoke.Resize(capturedFace, capturedFace, new Size(96, 96));
                 CvInvoke.Resize(storedFace, storedFace, new Size(96, 96));
 
@@ -129,7 +149,7 @@ private float[] GetFaceEmbedding(Mat face)
                 double distance = CalculateEuclideanDistance(capturedEmbedding, storedEmbedding);
                 Console.WriteLine($"[FaceMatch] Euclidean Distance: {distance}");
 
-                return distance < 0.45; 
+                return distance < 0.45;
             }
             catch (Exception ex)
             {
@@ -137,6 +157,7 @@ private float[] GetFaceEmbedding(Mat face)
                 return false;
             }
         }
+
 
 
         private float[] GetFaceEmbedding(Mat face)
@@ -170,4 +191,6 @@ private float[] GetFaceEmbedding(Mat face)
             return Math.Sqrt(sum);
         }
 
-make it lil bit strict, sometimes it matches with same user with everyone and some times not
+
+
+some times it matches with everyone and some times not , make it more strict and also matches with same person that is stored as a jpg
