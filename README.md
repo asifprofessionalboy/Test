@@ -1,3 +1,33 @@
+private double CalculateCosineSimilarity(float[] vec1, float[] vec2)
+{
+    if (vec1.Length != vec2.Length) return -1;
+
+    double dotProduct = 0.0;
+    double magnitude1 = 0.0;
+    double magnitude2 = 0.0;
+
+    for (int i = 0; i < vec1.Length; i++)
+    {
+        dotProduct += vec1[i] * vec2[i];
+        magnitude1 += Math.Pow(vec1[i], 2);
+        magnitude2 += Math.Pow(vec2[i], 2);
+    }
+
+    magnitude1 = Math.Sqrt(magnitude1);
+    magnitude2 = Math.Sqrt(magnitude2);
+
+    if (magnitude1 == 0 || magnitude2 == 0)
+        return -1;
+
+    return dotProduct / (magnitude1 * magnitude2); // returns value between -1 to 1
+}
+
+
+
+double similarity = CalculateCosineSimilarity(capturedEmbedding, storedEmbedding);
+Console.WriteLine($"[FaceMatch] Cosine Similarity: {similarity}");
+return similarity > 0.55; // You can tune this threshold (0.5–0.6 is typically strict)
+
 this is my face recognition code 
 
 [HttpPost]
