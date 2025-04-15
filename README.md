@@ -1,3 +1,32 @@
+List<string> locationList = new List<string>();
+
+if (!string.IsNullOrEmpty(attendanceLocation))
+{
+    locationList = attendanceLocation
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(l => l.Trim())
+                    .Where(l => !string.IsNullOrEmpty(l))
+                    .ToList();
+}
+
+ViewBag.AttendanceLocations = locationList;
+
+@if (ViewBag.AttendanceLocations != null && ((List<string>)ViewBag.AttendanceLocations).Any())
+{
+    <ol class="text-start">
+        @foreach (var location in (List<string>)ViewBag.AttendanceLocations)
+        {
+            <li>@location</li>
+        }
+    </ol>
+}
+else
+{
+    <p>No location available.</p>
+}
+
+
+
 public IActionResult ImageViewer()
 {
     var pno = HttpContext.Request.Cookies["Session"];
