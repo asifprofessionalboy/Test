@@ -1,3 +1,9 @@
+<img src="@($"{ViewBag.BaseImagePath}?t={DateTime.Now.Ticks}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
+
+  <img src="@($"{ViewBag.CapturedImagePath}?t={DateTime.Now.Ticks}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
+
+  
+  
   public IActionResult ImageViewer()
   {
       var pno = HttpContext.Request.Cookies["Session"];
