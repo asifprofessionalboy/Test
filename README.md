@@ -1,220 +1,196 @@
-List<string> locationList = new List<string>();
+this is my controller method 
 
-if (!string.IsNullOrEmpty(attendanceLocation))
-{
-    locationList = attendanceLocation
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(l => l.Trim())
-                    .Where(l => !string.IsNullOrEmpty(l))
-                    .ToList();
-}
 
-ViewBag.AttendanceLocations = locationList;
-
-@if (ViewBag.AttendanceLocations != null && ((List<string>)ViewBag.AttendanceLocations).Any())
-{
-    <ol class="text-start">
-        @foreach (var location in (List<string>)ViewBag.AttendanceLocations)
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
         {
-            <li>@location</li>
+            try
+            {
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
+
+                string Pno = UserId;
+                string Name = UserName;
+
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+
+
+
+                if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+                {
+                    return Json(new { success = false, message = "No reference image found to verify face!" });
+                }
+
+                
+                string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Temp-{DateTime.Now.Ticks}.jpg");
+                SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+                bool isFaceMatched = false;
+
+                using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+                {
+                    if (System.IO.File.Exists(storedImagePath))
+                    {
+                        using (Bitmap stored = new Bitmap(storedImagePath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, stored);
+                        }
+                    }
+
+                   
+                    if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+                    {
+                        using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                        }
+                    }
+                }
+
+                
+                System.IO.File.Delete(tempCapturedPath);
+
+                if (isFaceMatched)
+                {
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        
+                        string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                        SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                        StoreData(currentDate, currentTime, null, Pno, model.ImageData);
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno, model.ImageData);
+                    }
+
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
-    </ol>
-}
-else
-{
-    <p>No location available.</p>
-}
 
+this is my js 
 
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
+    const successSound = document.getElementById("successSound");
+    const errorSound = document.getElementById("errorSound");
 
-public IActionResult ImageViewer()
-{
-    var pno = HttpContext.Request.Cookies["Session"];
-    var userName = HttpContext.Request.Cookies["UserName"];
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            let video = document.getElementById("video");
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
 
-    if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
-    {
-        return RedirectToAction("Login");
+ 
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
+
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
+
+        
+        Swal.fire({
+            title: "Verifying Face...",
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+       
+       
+
+        fetch("/TSUISLARS/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    var now = new Date();
+                    var formattedDateTime = now.toLocaleString();
+                    successSound.play();
+                    triggerHapticFeedback("success");
+
+                    Swal.fire({
+                        title: "Face Matched!",
+                        text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
+                        icon: "success",
+                        timer: 3000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload();  
+                    }); 
+
+                } else {
+                    errorSound.play();
+                    triggerHapticFeedback("error");
+                    var now = new Date();
+                    var formattedDateTime = now.toLocaleString();
+                    Swal.fire({
+                        title: "Face Not Recognized.",
+                        text: "Click the button again to retry.\nDate & Time: " + formattedDateTime,
+                        icon: "error",
+                        confirmButtonText: "Retry"
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                triggerHapticFeedback("error");
+
+                Swal.fire({
+                    title: "Error!",
+                    text: "An error occurred while processing your request.",
+                    icon: "error"
+                });
+            });
+            
     }
 
-    var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
-
-    // Base image: Pno-Username.jpg
-    var baseImageFile = $"{pno}-{userName}.jpg";
-    var baseImagePath = Path.Combine(folderPath, baseImageFile);
-    ViewBag.BaseImagePath = System.IO.File.Exists(baseImagePath) ? $"/Images/{baseImageFile}" : null;
-
-    // Captured image: Pno-Captured.jpg
-    var capturedImageFile = $"{pno}-Captured.jpg";
-    var capturedImagePath = Path.Combine(folderPath, capturedImageFile);
-    ViewBag.CapturedImagePath = System.IO.File.Exists(capturedImagePath) ? $"/Images/{capturedImageFile}" : null;
-
-    // Fetch worksite (attendance location)
-    string attendanceLocation = "N/A";
-    string connectionString = "YourConnectionStringHere";
-
-    using (SqlConnection conn = new SqlConnection(connectionString))
-    {
-        conn.Open();
-        string query = @"
-            SELECT ps.Worksite 
-            FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps
-            INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position
-            WHERE es.Pno = @UserId";
-
-        using (SqlCommand cmd = new SqlCommand(query, conn))
-        {
-            cmd.Parameters.AddWithValue("@UserId", pno);
-            var result = cmd.ExecuteScalar();
-            if (result != null)
-            {
-                attendanceLocation = result.ToString();
+    function triggerHapticFeedback(type) {
+        if ("vibrate" in navigator) {
+            if (type === "success") {
+                navigator.vibrate(100); 
+            } else if (type === "error") {
+                navigator.vibrate([200, 100, 200]); 
             }
         }
     }
+</script>
 
-    ViewBag.AttendanceLocation = attendanceLocation;
-
-    return View();
-}
-
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <!-- Base Image -->
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Base Image</h4>
-
-                    @if (!string.IsNullOrEmpty(ViewBag.BaseImagePath))
-                    {
-                        <img src="@ViewBag.BaseImagePath" class="img-fluid rounded shadow" style="max-height: 200px;" />
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning mt-3">
-                            No image available for this user.
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <!-- Captured Image -->
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Current Captured Image</h4>
-
-                    @if (!string.IsNullOrEmpty(ViewBag.CapturedImagePath))
-                    {
-                        <img src="@ViewBag.CapturedImagePath" class="img-fluid rounded shadow" style="max-height: 200px;" />
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning mt-3">
-                            No captured image available.
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <!-- Attendance Location -->
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Attendance Location</h4>
-                    <p>@ViewBag.AttendanceLocation</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-  
-  
-  
-  public IActionResult ImageViewer()
-  {
-      var pno = HttpContext.Request.Cookies["Session"];
-      var userName = HttpContext.Request.Cookies["UserName"];
-
-      if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
-      {
-          return RedirectToAction("Login"); 
-      }
-
-      var fileName = $"{pno}-{userName}.jpg";
-      var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
-      var imageFilePath = Path.Combine(folderPath, fileName);
-
-      if (System.IO.File.Exists(imageFilePath))
-      {
-         
-          ViewBag.ImagePath = $"/Images/{fileName}";
-      }
-      else
-      {
-          ViewBag.ImagePath = null;
-      }
-
-      return View();
-  }
-
-this is my view side 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Base Image</h4>
-
-                    @if (!string.IsNullOrEmpty(ViewBag.ImagePath))
-                    {
-                        <img src="@ViewBag.ImagePath" class="img-fluid rounded shadow" style="max-height: 200px;" />
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning mt-3">
-                            No image available for this user.
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Current Captured Image</h4>
-
-                    @if (!string.IsNullOrEmpty(ViewBag.ImagePath))
-                    {
-                        <img src="@ViewBag.ImagePath" class="img-fluid rounded shadow" style="max-height: 200px;" />
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning mt-3">
-                            No image available for this user.
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Attendance Location</h4>
-                    <p>Corporate Office</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-and this is my query to fetch user's location 
-SELECT ps.Worksite FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps 
-                     INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position 
-                     WHERE es.Pno = @UserId
-
-
-in this i want that base image logic will be same it fetches like 15151-shashikumar.jpg now i want current captured image as like 151514-Captured.jpg and set Attendance location using the query
+i am getting this error 
+An error occurred while processing your request.
