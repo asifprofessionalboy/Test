@@ -1,111 +1,84 @@
-this is my cookies authentication 
+  public IActionResult ImageViewer()
+  {
+      var pno = HttpContext.Request.Cookies["Session"];
+      var userName = HttpContext.Request.Cookies["UserName"];
 
-builder.Services.AddAuthentication("Cookies")
-.AddCookie("Cookies", options =>
-{
-    options.LoginPath = "/User/Login";
-    options.ExpireTimeSpan = TimeSpan.FromDays(1);
-    options.SlidingExpiration = true;
-});
-builder.Services.AddAuthorization();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromDays(1);
-    options.Cookie.HttpOnly = false;
-    options.Cookie.IsEssential = true;
-});
-app.Use(async (context, next) =>
-{
-    if (!context.User.Identity.IsAuthenticated)
-    {
-        var userId = context.Request.Cookies["Session"];
-        var UserName = context.Request.Cookies["UserName"];
-        var Pno = context.Request.Cookies["UserSession"];
-        if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(UserName) && !string.IsNullOrEmpty(Pno))
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name,UserName),
-                new Claim("Pno",Pno),
-                new Claim("Session",userId)
-            };
+      if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
+      {
+          return RedirectToAction("Login"); 
+      }
 
-            var identity = new ClaimsIdentity(claims, "Cookies");
-            var principal = new ClaimsPrincipal(identity);
-            context.User = principal;
+      var fileName = $"{pno}-{userName}.jpg";
+      var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
+      var imageFilePath = Path.Combine(folderPath, fileName);
 
-        }
-    }
-        await next();
-});
+      if (System.IO.File.Exists(imageFilePath))
+      {
+         
+          ViewBag.ImagePath = $"/Images/{fileName}";
+      }
+      else
+      {
+          ViewBag.ImagePath = null;
+      }
 
- [HttpPost]
- public async Task<IActionResult> Login(AppLogin login)
- {
+      return View();
+  }
 
-     if (!string.IsNullOrEmpty(login.UserId) && string.IsNullOrEmpty(login.Password))
-     {
-         ViewBag.FailedMsg = "Login Failed: Password is required";
-         return View(login);
-     }
+this is my view side 
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4 text-center">
+            <div class="card shadow-lg border-0">
+                <div class="card-body">
+                    <h4 class="card-title mb-4">Base Image</h4>
 
+                    @if (!string.IsNullOrEmpty(ViewBag.ImagePath))
+                    {
+                        <img src="@ViewBag.ImagePath" class="img-fluid rounded shadow" style="max-height: 200px;" />
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning mt-3">
+                            No image available for this user.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="card shadow-lg border-0">
+                <div class="card-body">
+                    <h4 class="card-title mb-4">Current Captured Image</h4>
 
-     var user = await context.AppLogins
-         .Where(x => x.UserId == login.UserId)
-         .FirstOrDefaultAsync();
+                    @if (!string.IsNullOrEmpty(ViewBag.ImagePath))
+                    {
+                        <img src="@ViewBag.ImagePath" class="img-fluid rounded shadow" style="max-height: 200px;" />
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning mt-3">
+                            No image available for this user.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="card shadow-lg border-0">
+                <div class="card-body">
+                    <h4 class="card-title mb-4">Attendance Location</h4>
+                    <p>Corporate Office</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-     if (user != null)
-     {
-
-         bool isPasswordValid = hash_Password.VerifyPassword(login.Password, user.Password, user.PasswordSalt);
-
-         if (isPasswordValid)
-         {
-             var UserLoginData = await context1.AppEmployeeMasters.
-                 Where(x => x.Pno == login.UserId).FirstOrDefaultAsync();
-
-             string userName = UserLoginData?.Ename ?? "Guest";
-
-
-
-             HttpContext.Session.SetString("Session", UserLoginData?.Pno ?? "N/A");
-             HttpContext.Session.SetString("UserName", UserLoginData?.Ename ?? "Guest");
-             HttpContext.Session.SetString("UserSession",login.UserId);
-
-             //store cookies
-
-             var cookieOptions = new CookieOptions
-             {
-                 Expires = DateTimeOffset.Now.AddDays(1),
-                 HttpOnly = false,
-                 Secure = true,
-                 IsEssential = true
-             };
-
-             Response.Cookies.Append("UserSession", login.UserId, cookieOptions);
-             Response.Cookies.Append("Session", UserLoginData?.Pno ?? "N/A", cookieOptions);
-             Response.Cookies.Append("UserName", UserLoginData?.Ename ?? "Guest", cookieOptions);
+and this is my query to fetch user's location 
+SELECT ps.Worksite FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps 
+                     INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position 
+                     WHERE es.Pno = @UserId
 
 
-
-
-
-
-            
-                 return RedirectToAction("GeoFencing", "Geo");
-             
-         }
-         else
-         {
-             ViewBag.FailedMsg = "Login Failed: Incorrect password";
-         }
-     }
-     else
-     {
-         ViewBag.FailedMsg = "Login Failed: User not found";
-     }
-
-     return View(login);
- }
-
-is this the logic is creating problem to for not creating my MAUI url , it redirects to http?
+in this i want that base image logic will be same it fetches like 15151-shashikumar.jpg now i want current captured image as like 151514-Captured.jpg and set Attendance location using the query
