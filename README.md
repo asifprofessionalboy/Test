@@ -1,3 +1,22 @@
+<script>
+    function reloadBaseImage() {
+        const baseImage = document.getElementById("baseImage");
+        if (baseImage) {
+            const originalSrc = "@ViewBag.BaseImagePath";
+            const timestamp = new Date().getTime();
+            baseImage.src = `${originalSrc}?t=${timestamp}`;
+        }
+    }
+
+    // Option 1: Call it manually when needed
+    // reloadBaseImage();
+
+    // Option 2: Auto refresh every 5 seconds (optional)
+    // setInterval(reloadBaseImage, 5000);
+</script>
+
+
+
 <img src="@($"{ViewBag.BaseImagePath}?t={DateTime.Now.Ticks}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
 
   <img src="@($"{ViewBag.CapturedImagePath}?t={DateTime.Now.Ticks}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
