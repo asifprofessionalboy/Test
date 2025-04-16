@@ -1,81 +1,58 @@
-<script>
-    function reloadBaseImage() {
-        const baseImage = document.getElementById("baseImage");
-        if (baseImage) {
-            const originalSrc = "@ViewBag.BaseImagePath";
-            const timestamp = new Date().getTime();
-            baseImage.src = `${originalSrc}?t=${timestamp}`;
-        }
-    }
+this is my controller logic 
+ 
+public IActionResult ImageViewer()
+ {
+     var pno = HttpContext.Request.Cookies["Session"];
+     var userName = HttpContext.Request.Cookies["UserName"];
 
-    // Option 1: Call it manually when needed
-    // reloadBaseImage();
+     if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
+     {
+         return RedirectToAction("Login","User");
+     }
 
-    // Option 2: Auto refresh every 5 seconds (optional)
-    // setInterval(reloadBaseImage, 5000);
-</script>
+     var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
 
-
-
-<img src="@($"{ViewBag.BaseImagePath}?t={DateTime.Now.Ticks}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
-
-  <img src="@($"{ViewBag.CapturedImagePath}?t={DateTime.Now.Ticks}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
-
-  
-  
-  public IActionResult ImageViewer()
-  {
-      var pno = HttpContext.Request.Cookies["Session"];
-      var userName = HttpContext.Request.Cookies["UserName"];
-
-      if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
-      {
-          return RedirectToAction("Login","User");
-      }
-
-      var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
+    
+     var baseImageFile = $"{pno}-{userName}.jpg";
+     var baseImagePath = Path.Combine(folderPath, baseImageFile);
+     ViewBag.BaseImagePath = System.IO.File.Exists(baseImagePath) ? $"/TSUISLARS/Images/{baseImageFile}" : null;
 
      
-      var baseImageFile = $"{pno}-{userName}.jpg";
-      var baseImagePath = Path.Combine(folderPath, baseImageFile);
-      ViewBag.BaseImagePath = System.IO.File.Exists(baseImagePath) ? $"/TSUISLARS/Images/{baseImageFile}" : null;
+     var capturedImageFile = $"{pno}-Captured.jpg";
+     var capturedImagePath = Path.Combine(folderPath, capturedImageFile);
+     ViewBag.CapturedImagePath = System.IO.File.Exists(capturedImagePath) ? $"/TSUISLARS/Images/{capturedImageFile}" : null;
 
-      
-      var capturedImageFile = $"{pno}-Captured.jpg";
-      var capturedImagePath = Path.Combine(folderPath, capturedImageFile);
-      ViewBag.CapturedImagePath = System.IO.File.Exists(capturedImagePath) ? $"/TSUISLARS/Images/{capturedImageFile}" : null;
+     
+     string attendanceLocation = "N/A";
+     string connectionString = GetRFIDConnectionString();
 
-      
-      string attendanceLocation = "N/A";
-      string connectionString = GetRFIDConnectionString();
+     using (SqlConnection conn = new SqlConnection(connectionString))
+     {
+         conn.Open();
+         string query = @"
+     SELECT ps.Worksite 
+     FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps
+     INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position
+     WHERE es.Pno = @UserId";
 
-      using (SqlConnection conn = new SqlConnection(connectionString))
-      {
-          conn.Open();
-          string query = @"
-      SELECT ps.Worksite 
-      FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps
-      INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position
-      WHERE es.Pno = @UserId";
-
-          using (SqlCommand cmd = new SqlCommand(query, conn))
-          {
-              cmd.Parameters.AddWithValue("@UserId", pno);
-              var result = cmd.ExecuteScalar();
-              if (result != null)
-              {
-                  attendanceLocation = result.ToString();
-              }
-          }
-      }
+         using (SqlCommand cmd = new SqlCommand(query, conn))
+         {
+             cmd.Parameters.AddWithValue("@UserId", pno);
+             var result = cmd.ExecuteScalar();
+             if (result != null)
+             {
+                 attendanceLocation = result.ToString();
+             }
+         }
+     }
 
 
-      ViewBag.AttendanceLocation = attendanceLocation;
+     ViewBag.AttendanceLocation = attendanceLocation;
 
-      return View();
-  }
+     return View();
+ }
 
-
+and this is viewside 
 <div class="container mt-5">
     <div class="row justify-content-center">
         <!-- Base Image -->
@@ -86,7 +63,7 @@
 
                     @if (!string.IsNullOrEmpty(ViewBag.BaseImagePath))
                     {
-                        <img src="@ViewBag.BaseImagePath" class="img-fluid rounded shadow" style="max-height: 170px;" />
+                        <img id="baseImage" src="@ViewBag.BaseImagePath" class="img-fluid rounded shadow" style="max-height: 170px;" />
                     }
                     else
                     {
@@ -106,7 +83,7 @@
 
                     @if (!string.IsNullOrEmpty(ViewBag.CapturedImagePath))
                     {
-                        <img src="@ViewBag.CapturedImagePath" class="img-fluid rounded shadow" style="max-height: 170px;" />
+                        <img id="capturedImage" src="@ViewBag.CapturedImagePath" class="img-fluid rounded shadow" style="max-height: 170px;" />
                     }
                     else
                     {
@@ -127,7 +104,7 @@
                 </div>
             </div>
         </div>
+
+in this i am facing not reload properly , after sometimes it shows the updated image. please provide some process to solve this problem
     </div>
 </div>
-
-image is showing after late, it captures but showing late why please solve it
