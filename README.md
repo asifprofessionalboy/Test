@@ -1,262 +1,228 @@
-private bool VerifyFace(Bitmap captured, Bitmap stored)
-{
-    try
-    {
-        // Convert Bitmaps to grayscale Mats
-        Mat matCaptured = BitmapToMat(captured);
-        Mat matStored = BitmapToMat(stored);
+this is my controller logic to face matching 
+ [HttpPost]
+ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+ {
+     try
+     {
+         var UserId = HttpContext.Request.Cookies["Session"];
+         var UserName = HttpContext.Request.Cookies["UserName"];
+         if (string.IsNullOrEmpty(UserId))
+             return Json(new { success = false, message = "User session not found!" });
 
-        CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-        CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+         string Pno = UserId;
+         string Name = UserName;
 
-        // Load Haar cascade
-        string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
-        if (!System.IO.File.Exists(cascadePath))
-        {
-            Console.WriteLine("Error: Haarcascade file not found!");
-            return false;
-        }
-
-        CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
-
-        // Detect faces
-        Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-        Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
-
-        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
-        {
-            Console.WriteLine("No face detected in one or both images.");
-            return false;
-        }
-
-        // Extract and normalize face regions
-        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-        Mat storedFace = new Mat(matStored, storedFaces[0]);
-
-        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
-        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
-
-        CvInvoke.EqualizeHist(capturedFace, capturedFace);
-        CvInvoke.EqualizeHist(storedFace, storedFace);
-
-        // Initialize LBPH recognizer with adjusted parameters
-        using (var faceRecognizer = new LBPHFaceRecognizer(2, 16, 8, 8, 100)) // 100 is a high threshold to force manual check
-        {
-            VectorOfMat trainingImages = new VectorOfMat();
-            trainingImages.Push(storedFace);
-
-            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
-            faceRecognizer.Train(trainingImages, labels);
-
-            var result = faceRecognizer.Predict(capturedFace);
-
-            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
-
-            // Use stricter threshold
-            return result.Label == 1 && result.Distance <= 55; // Tighter threshold for better accuracy
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Error in face verification: " + ex.Message);
-        return false;
-    }
-}
+         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+         string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+ 
+         if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+         {
+             return Json(new { success = false, message = "No reference image found to verify face!" });
+         }
 
 
+         string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+         SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
 
+         bool isFaceMatched = false;
 
-this is my face recognition logic 
-        [HttpPost]
-        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
-        {
-            try
+         using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+         {
+             if (System.IO.File.Exists(storedImagePath))
+             {
+                 using (Bitmap stored = new Bitmap(storedImagePath))
+                 {
+                     isFaceMatched = VerifyFace(tempCaptured, stored);
+                 }
+             }
+
+            
+             if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+             {
+                 using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                 {
+                     isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                 }
+             }
+         }
+
+         
+         System.IO.File.Delete(tempCapturedPath);
+
+         if (isFaceMatched)
+         {
+             string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+             string currentTime = DateTime.Now.ToString("HH:mm");
+
+             if (model.Type == "Punch In")
+             {
+                 
+                 string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                 SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                 StoreData(currentDate, currentTime, null, Pno);
+             }
+             else
+             {
+                 StoreData(currentDate, null, currentTime, Pno);
+             }
+
+             return Json(new { success = true, message = "Attendance recorded successfully." });
+         }
+         else
+         {
+             return Json(new { success = false, message = "Face does not match!" });
+         }
+     }
+     catch (Exception ex)
+     {
+         return Json(new { success = false, message = ex.Message });
+     }
+ }
+
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <input type="hidden" name="Type" id="EntryType" />
+
+    <div class="mt-5 form-group">
+        <div class="col d-flex justify-content-center mb-4">
+            @if (ViewBag.InOut == "O" || string.IsNullOrEmpty(ViewBag.InOut))
             {
-                var UserId = HttpContext.Request.Cookies["Session"];
-                var UserName = HttpContext.Request.Cookies["UserName"];
-                if (string.IsNullOrEmpty(UserId))
-                    return Json(new { success = false, message = "User session not found!" });
+                <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                    Punch In
+                </button>
+            }
+        </div>
 
-                string Pno = UserId;
-                string Name = UserName;
+        <div class="col d-flex justify-content-center">
+            @if (ViewBag.InOut == "I")
+            {
+                <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                    Punch Out
+                </button>
+            }
+        </div>
 
-                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-                string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+    </div>
 
-              
+  
+</form>
+<script>
+    function OnOff() {
+        setTimeout(() => {
+            var punchIn = document.getElementById('PunchIn');
+            var punchOut = document.getElementById('PunchOut');
 
+           
+            if (punchIn) {
+                punchIn.disabled = true;
+                punchIn.classList.add("disabled");
+            }
+            if (punchOut) {
+                punchOut.disabled = true;
+                punchOut.classList.add("disabled");
+            }
 
-                if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
-                {
-                    return Json(new { success = false, message = "No reference image found to verify face!" });
+            Swal.fire({
+                title: 'Please wait...',
+                text: 'Fetching your current location.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
                 }
+            });
 
-                
-                string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
-                SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        Swal.close();
 
-                bool isFaceMatched = false;
+                        const lat = roundTo(position.coords.latitude, 6);
+                        const lon = roundTo(position.coords.longitude, 6);
+                        // const lon = 22.79714;
+                        // const lon = 86.183471;
 
-                using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
-                {
-                    if (System.IO.File.Exists(storedImagePath))
-                    {
-                        using (Bitmap stored = new Bitmap(storedImagePath))
-                        {
-                            isFaceMatched = VerifyFace(tempCaptured, stored);
-                        }
-                    }
-
-                   
-                    if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
-                    {
-                        using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
-                        {
-                            isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
-                        }
-                    }
-                }
-
-                
-                System.IO.File.Delete(tempCapturedPath);
-
-                if (isFaceMatched)
-                {
-                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-                    string currentTime = DateTime.Now.ToString("HH:mm");
-
-                    if (model.Type == "Punch In")
-                    {
+                        const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
                         
-                        string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
-                        SaveBase64ImageToFile(model.ImageData, newCapturedPath);
 
-                        StoreData(currentDate, currentTime, null, Pno);
-                    }
-                    else
+                        let isInsideRadius = false;
+                        let minDistance = Number.MAX_VALUE;
+
+                        locations.forEach((location) => {
+                            const allowedRange = parseFloat(location.range || location.Range);
+                            const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
+                            //console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
+
+                            if (distance <= allowedRange) {
+                                isInsideRadius = true;
+                            } else {
+                                minDistance = Math.min(minDistance, distance);
+                            }
+                        });
+
+                        if (isInsideRadius) {
+                            if (punchIn) {
+                                punchIn.disabled = false;
+                                punchIn.classList.remove("disabled");
+                            }
+                            if (punchOut) {
+                                punchOut.disabled = false;
+                                punchOut.classList.remove("disabled");
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Out of Range",
+                                text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
+                            });
+                        }
+                    },
+                    function (error) {
+                        Swal.close();
+                        Swal.fire({
+                            title: "Error Fetching Location!",
+                            text: "please check your location permission or enable location",
+                            icon: "error",
+                            confirmButtonText: "OK"
+                        });
+                    },
                     {
-                        StoreData(currentDate, null, currentTime, Pno);
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
                     }
-
-                    return Json(new { success = true, message = "Attendance recorded successfully." });
-                }
-                else
-                {
-                    return Json(new { success = false, message = "Face does not match!" });
-                }
+                );
+            } else {
+                Swal.close();
+                alert("Geolocation is not supported by this browser");
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = ex.Message });
-            }
-        }
+        }, 500); 
+    }
 
-      
-        private bool VerifyFace(Bitmap captured, Bitmap stored)
-        {
-            try
-            {
-                Mat matCaptured = BitmapToMat(captured);
-                Mat matStored = BitmapToMat(stored);
+   
+    window.onload = OnOff;
 
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const toRad = angle => (angle * Math.PI) / 180;
+        let dLat = toRad(lat2 - lat1);
+        let dLon = toRad(lon2 - lon1);
+        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
 
-                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
-                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+    function roundTo(num, places) {
+        return +(Math.round(num + "e" + places) + "e-" + places);
+    }
 
+    window.onload = OnOff;
+</script>
 
-                string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
-                if (!System.IO.File.Exists(cascadePath))
-                {
-                    Console.WriteLine("Error: Haarcascade file not found!");
-                    return false;
-                }
-
-                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
-                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
-                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
-
-
-                if (capturedFaces.Length == 0 || storedFaces.Length == 0)
-                {
-                    Console.WriteLine("No face detected in one or both images.");
-                    return false;
-                }
-
-
-
-
-                Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
-                Mat storedFace = new Mat(matStored, storedFaces[0]);
-
-
-                CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
-                CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
-
-
-                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 96))
-                {
-                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
-                    CvInvoke.EqualizeHist(storedFace, storedFace);
-
-                    VectorOfMat trainingImages = new VectorOfMat();
-                    trainingImages.Push(storedFace);
-                    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
-
-                    faceRecognizer.Train(trainingImages, labels);
-                    var result = faceRecognizer.Predict(capturedFace);
-
-                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
-
-                    return result.Label == 1 && result.Distance <= 96;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error in face verification: " + ex.Message);
-                return false;
-            }
-        }
-
-        
-
-
-
-        private Mat BitmapToMat(Bitmap bitmap)
-        {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
-                byte[] imageData = ms.ToArray();
-
-                Mat mat = new Mat();
-                CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
-
-                if (mat.IsEmpty)
-                {
-                    Console.WriteLine("Error: Image conversion failed!");
-                }
-
-                return mat;
-            }
-        }
-        private void SaveBase64ImageToFile(string base64String, string filePath)
-        {
-            try
-            {
-                byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
-                using (MemoryStream ms = new MemoryStream(imageBytes))
-                {
-                    using (Bitmap bmp = new Bitmap(ms))
-                    {
-                        bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
-            }
-        }
-
-
-in this i want lil bit accuracy , sometimes it matches with anyone , make it little bit accurate that user's stored image matches with tempcaptured and lastcaptured , i am matching photo to photo
+in this i want when face doesnot match three times then it trigger a sms to that user and also user put the otp then match with that if otp matches enable the buttons, first check user is within range then this logic happens 
