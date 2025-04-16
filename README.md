@@ -1,4 +1,20 @@
 this is my controller logic 
+
+@{
+    var timestamp = DateTime.Now.Ticks;
+}
+
+<!-- Base Image -->
+@if (!string.IsNullOrEmpty(ViewBag.BaseImagePath))
+{
+    <img id="baseImage" src="@($"{ViewBag.BaseImagePath}?v={timestamp}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
+}
+
+<!-- Captured Image -->
+@if (!string.IsNullOrEmpty(ViewBag.CapturedImagePath))
+{
+    <img id="capturedImage" src="@($"{ViewBag.CapturedImagePath}?v={timestamp}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
+}
  
 public IActionResult ImageViewer()
  {
