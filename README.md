@@ -1,126 +1,194 @@
-this is my controller logic 
+this is my face recognition logic 
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+        {
+            try
+            {
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
 
-@{
-    var timestamp = DateTime.Now.Ticks;
-}
+                string Pno = UserId;
+                string Name = UserName;
 
-<!-- Base Image -->
-@if (!string.IsNullOrEmpty(ViewBag.BaseImagePath))
-{
-    <img id="baseImage" src="@($"{ViewBag.BaseImagePath}?v={timestamp}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
-}
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
 
-<!-- Captured Image -->
-@if (!string.IsNullOrEmpty(ViewBag.CapturedImagePath))
-{
-    <img id="capturedImage" src="@($"{ViewBag.CapturedImagePath}?v={timestamp}")" class="img-fluid rounded shadow" style="max-height: 170px;" />
-}
- 
-public IActionResult ImageViewer()
- {
-     var pno = HttpContext.Request.Cookies["Session"];
-     var userName = HttpContext.Request.Cookies["UserName"];
-
-     if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
-     {
-         return RedirectToAction("Login","User");
-     }
-
-     var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
-
-    
-     var baseImageFile = $"{pno}-{userName}.jpg";
-     var baseImagePath = Path.Combine(folderPath, baseImageFile);
-     ViewBag.BaseImagePath = System.IO.File.Exists(baseImagePath) ? $"/TSUISLARS/Images/{baseImageFile}" : null;
-
-     
-     var capturedImageFile = $"{pno}-Captured.jpg";
-     var capturedImagePath = Path.Combine(folderPath, capturedImageFile);
-     ViewBag.CapturedImagePath = System.IO.File.Exists(capturedImagePath) ? $"/TSUISLARS/Images/{capturedImageFile}" : null;
-
-     
-     string attendanceLocation = "N/A";
-     string connectionString = GetRFIDConnectionString();
-
-     using (SqlConnection conn = new SqlConnection(connectionString))
-     {
-         conn.Open();
-         string query = @"
-     SELECT ps.Worksite 
-     FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps
-     INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position
-     WHERE es.Pno = @UserId";
-
-         using (SqlCommand cmd = new SqlCommand(query, conn))
-         {
-             cmd.Parameters.AddWithValue("@UserId", pno);
-             var result = cmd.ExecuteScalar();
-             if (result != null)
-             {
-                 attendanceLocation = result.ToString();
-             }
-         }
-     }
+              
 
 
-     ViewBag.AttendanceLocation = attendanceLocation;
+                if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+                {
+                    return Json(new { success = false, message = "No reference image found to verify face!" });
+                }
 
-     return View();
- }
+                
+                string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+                SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
 
-and this is viewside 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <!-- Base Image -->
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Base Image</h4>
+                bool isFaceMatched = false;
 
-                    @if (!string.IsNullOrEmpty(ViewBag.BaseImagePath))
+                using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+                {
+                    if (System.IO.File.Exists(storedImagePath))
                     {
-                        <img id="baseImage" src="@ViewBag.BaseImagePath" class="img-fluid rounded shadow" style="max-height: 170px;" />
+                        using (Bitmap stored = new Bitmap(storedImagePath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, stored);
+                        }
+                    }
+
+                   
+                    if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+                    {
+                        using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                        }
+                    }
+                }
+
+                
+                System.IO.File.Delete(tempCapturedPath);
+
+                if (isFaceMatched)
+                {
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        
+                        string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                        SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                        StoreData(currentDate, currentTime, null, Pno);
                     }
                     else
                     {
-                        <div class="alert alert-warning mt-3">
-                            No image available for this user.
-                        </div>
+                        StoreData(currentDate, null, currentTime, Pno);
                     }
-                </div>
-            </div>
-        </div>
 
-        <!-- Captured Image -->
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Current Captured Image</h4>
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
 
-                    @if (!string.IsNullOrEmpty(ViewBag.CapturedImagePath))
+      
+        private bool VerifyFace(Bitmap captured, Bitmap stored)
+        {
+            try
+            {
+                Mat matCaptured = BitmapToMat(captured);
+                Mat matStored = BitmapToMat(stored);
+
+
+                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+
+                string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+                if (!System.IO.File.Exists(cascadePath))
+                {
+                    Console.WriteLine("Error: Haarcascade file not found!");
+                    return false;
+                }
+
+                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+
+                if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+                {
+                    Console.WriteLine("No face detected in one or both images.");
+                    return false;
+                }
+
+
+
+
+                Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+                Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+                CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+
+                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 96))
+                {
+                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
+                    CvInvoke.EqualizeHist(storedFace, storedFace);
+
+                    VectorOfMat trainingImages = new VectorOfMat();
+                    trainingImages.Push(storedFace);
+                    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+                    faceRecognizer.Train(trainingImages, labels);
+                    var result = faceRecognizer.Predict(capturedFace);
+
+                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+                    return result.Label == 1 && result.Distance <= 96;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in face verification: " + ex.Message);
+                return false;
+            }
+        }
+
+        
+
+
+
+        private Mat BitmapToMat(Bitmap bitmap)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+                byte[] imageData = ms.ToArray();
+
+                Mat mat = new Mat();
+                CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
+
+                if (mat.IsEmpty)
+                {
+                    Console.WriteLine("Error: Image conversion failed!");
+                }
+
+                return mat;
+            }
+        }
+        private void SaveBase64ImageToFile(string base64String, string filePath)
+        {
+            try
+            {
+                byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+                using (MemoryStream ms = new MemoryStream(imageBytes))
+                {
+                    using (Bitmap bmp = new Bitmap(ms))
                     {
-                        <img id="capturedImage" src="@ViewBag.CapturedImagePath" class="img-fluid rounded shadow" style="max-height: 170px;" />
+                        bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
                     }
-                    else
-                    {
-                        <div class="alert alert-warning mt-3">
-                            No captured image available.
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
+            }
+        }
 
-        <!-- Attendance Location -->
-        <div class="col-md-4 text-center">
-            <div class="card shadow-lg border-0">
-                <div class="card-body">
-                    <h4 class="card-title mb-4">Attendance Location</h4>
-                    <p>@ViewBag.AttendanceLocation</p>
-                </div>
-            </div>
-        </div>
 
-in this i am facing not reload properly , after sometimes it shows the updated image. please provide some process to solve this problem
-    </div>
-</div>
+in this i want lil bit accuracy , sometimes it matches with anyone , make it little bit accurate that user's stored image matches with tempcaptured and lastcaptured , i am matching photo to photo
