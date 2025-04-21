@@ -1,3 +1,57 @@
+WITH dateseries AS (
+    SELECT 
+        DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) AS punchdate 
+    FROM master.dbo.spt_values 
+    WHERE type = 'p'
+        AND DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) 
+            <= EOMONTH(GETDATE())  -- Only current month
+)
+SELECT
+    FORMAT(ds.punchdate, 'dd-MM-yyyy') AS PDE_PUNCHDATE,
+    ISNULL(MIN(CONVERT(TIME, t.PDE_PUNCHTIME)), '00:00:00') AS FirstIn,
+    ISNULL(MAX(CONVERT(TIME, t.PDE_PUNCHTIME)), '00:00:00') AS LastOut,
+    COUNT(t.PDE_PUNCHTIME) AS SumofPunching
+FROM dateseries ds 
+LEFT JOIN TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS t 
+    ON ds.punchdate = t.PDE_PUNCHDATE 
+    AND t.PDE_PSRNO = @PsrNo
+GROUP BY ds.punchdate
+ORDER BY ds.punchdate ASC
+
+
+WITH dateseries AS (
+    SELECT 
+        DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) AS punchdate 
+    FROM master.dbo.spt_values 
+    WHERE type = 'p'
+        AND DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) 
+            <= EOMONTH(GETDATE())  -- Limit to current month only
+)
+SELECT
+    FORMAT(ds.punchdate, 'dd-MM-yyyy') AS PDE_PUNCHDATE,
+    ISNULL(
+        MIN(CASE 
+                WHEN t.PDE_INOUT LIKE '%I%' THEN CONVERT(TIME, t.PDE_PUNCHTIME) 
+            END), 
+        '00:00:00'
+    ) AS PunchInTime,
+    ISNULL(
+        MAX(CASE 
+                WHEN t.PDE_INOUT LIKE '%O%' THEN CONVERT(TIME, t.PDE_PUNCHTIME) 
+            END), 
+        '00:00:00'
+    ) AS PunchOutTime,
+    COUNT(CASE WHEN t.PDE_INOUT LIKE '%I%' THEN 1 END) +
+    COUNT(CASE WHEN t.PDE_INOUT LIKE '%O%' THEN 1 END) AS SumofPunching
+FROM dateseries ds 
+LEFT JOIN TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS t 
+    ON ds.punchdate = t.PDE_PUNCHDATE 
+    AND t.PDE_PSRNO = @PsrNo
+GROUP BY ds.punchdate
+ORDER BY ds.punchdate ASC
+
+
+
 this is my query for Rdlc Attendance Report 
  WITH dateseries AS (
     SELECT 
