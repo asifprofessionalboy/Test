@@ -1,3 +1,77 @@
+[HttpPost]
+public IActionResult ResendOtp()
+{
+    var userId = HttpContext.Request.Cookies["Session"];
+    if (string.IsNullOrEmpty(userId))
+        return Json(new { success = false, message = "User session not found!" });
+
+    string otp = new Random().Next(100000, 999999).ToString();
+    UserOtpMap[userId] = otp;
+
+    SendSmsToUser(userId, otp);
+
+    return Json(new { success = true, message = "OTP resent successfully." });
+}
+<div class="modal fade" id="otpModal" tabindex="-1" aria-labelledby="otpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="otpModalLabel">Enter OTP</h5>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="form-control" id="otpInput" placeholder="Enter OTP">
+        <p class="mt-2" id="timer"></p>
+        <button class="btn btn-link p-0 mt-2" id="resendBtn" onclick="resendOtp()" style="display: none;">Resend OTP</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="submitOtp()">Verify</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+function startOTPTimer() {
+    let timeLeft = 120;
+    const timerLabel = document.getElementById("timer");
+    const resendBtn = document.getElementById("resendBtn");
+    resendBtn.style.display = "none";
+
+    otpInterval = setInterval(() => {
+        let mins = Math.floor(timeLeft / 60);
+        let secs = timeLeft % 60;
+        timerLabel.innerText = `OTP expires in ${mins}:${secs.toString().padStart(2, '0')}`;
+        timeLeft--;
+
+        if (timeLeft < 0) {
+            clearInterval(otpInterval);
+            timerLabel.innerText = "OTP expired.";
+            resendBtn.style.display = "block";
+        }
+    }, 1000);
+}
+
+function resendOtp() {
+    fetch("/Geo/ResendOtp", {
+        method: "POST"
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: "OTP Resent!",
+                icon: "info",
+                timer: 2000,
+                showConfirmButton: false
+            });
+            clearOtpModal();
+            startOTPTimer(); // Restart timer
+        } else {
+            Swal.fire("Error", data.message || "Could not resend OTP", "error");
+        }
+    });
+}
+
+
 when verifying Otp getting null of model.pno , storedOtp
 
         [HttpPost]
