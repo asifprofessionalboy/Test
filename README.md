@@ -1,78 +1,24 @@
-string query = @"
-SELECT COUNT(*) 
-FROM T_TRBDGDAT_EARS 
-WHERE TRBDGDA_BD_PNO = @Pno 
-AND TRBDGDA_BD_DATE = @CurrentDate";
-
-int punchCount = 0;
-
-using (var connection = new SqlConnection(connectionString))
-{
-    punchCount = connection.QuerySingleOrDefault<int>(query, new { Pno = pno, CurrentDate = currentDate });
-}
-
-int mod = punchCount % 2;
-ViewBag.InOut = mod == 0 ? "I" : "O"; // 0 => Punch In, 1 => Punch Out
-
-<div class="mt-5 form-group">
-    <div class="col d-flex justify-content-center mb-4">
-        @if (ViewBag.InOut == "I")
-        {
-            <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
-                Punch In
-            </button>
-        }
-    </div>
-
-    <div class="col d-flex justify-content-center">
-        @if (ViewBag.InOut == "O")
-        {
-            <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
-                Punch Out
-            </button>
-        }
-    </div>
-</div>
+this is my query for Rdlc Attendance Report 
+ WITH dateseries AS (
+    SELECT 
+        DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) AS punchdate 
+    FROM master.dbo.spt_values 
+    WHERE type = 'p'
+        AND DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) 
+            <= (SELECT MAX(PDE_PUNCHDATE) FROM TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS)
+)
+SELECT
+    FORMAT(ds.punchdate, 'dd-MM-yyyy') AS PDE_PUNCHDATE,
+    ISNULL(MIN(CASE WHEN PDE_INOUT LIKE '%I%' THEN PDE_PUNCHTIME END), 0) AS PunchInTime,
+    ISNULL(MAX(CASE WHEN PDE_INOUT LIKE '%O%' THEN PDE_PUNCHTIME END), 0) AS PunchOutTime,
+    COUNT(CASE WHEN PDE_INOUT LIKE '%I%' THEN 1 END)+
+    COUNT(CASE WHEN PDE_INOUT LIKE '%O%' THEN 1 END) as SumofPunching
+FROM dateseries ds 
+LEFT JOIN TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS t 
+    ON ds.punchdate = t.PDE_PUNCHDATE 
+    AND t.PDE_PSRNO = @PsrNo
+GROUP BY ds.punchdate
+ORDER BY ds.punchdate ASC
 
 
-
-this is my query 
-    string query = @"
-SELECT count(*)
-FROM T_TRBDGDAT_EARS 
-WHERE TRBDGDA_BD_PNO = @Pno 
-AND TRBDGDA_BD_DATE = @CurrentDate";
-
-    string inoutValue = "";
-
-    using (var connection = new SqlConnection(connectionString))
-    {
-        inoutValue = connection.QuerySingleOrDefault<string>(query, new { Pno = pno, CurrentDate = currentDate })?.Trim();
-    }
-
-    ViewBag.InOut = inoutValue; 
-
-
-in this the data i want to modulus that if modulus is 0 then shows punchIn and if modulus values is 1 then shows PunchOut
-
-this is my view side 
- <div class="mt-5 form-group">
-     <div class="col d-flex justify-content-center mb-4">
-         @if (ViewBag.InOut == "O" || string.IsNullOrEmpty(ViewBag.InOut))
-         {
-             <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
-                 Punch In
-             </button>
-         }
-     </div>
-
-     <div class="col d-flex justify-content-center">
-         @if (ViewBag.InOut == "I")
-         {
-             <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
-                 Punch Out
-             </button>
-         }
-     </div>
-
- </div>
+in this some issue i want to resolve that , i want to show current month records but it is showing All months of year, let this month is April then i want only April if the May start then may show and in this i want check the first value of day as PunchIn and the last value shows PunchOut 
