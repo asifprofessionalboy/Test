@@ -1,3 +1,11 @@
+const modalElement = document.getElementById('otpModal');
+const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+modal.hide();
+
+<div class="modal fade" id="otpModal" tabindex="-1" aria-labelledby="otpModalLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+
+
 
 function resendOtp() {
     fetch("/Geo/ResendOtp", {
