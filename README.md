@@ -1,3 +1,76 @@
+
+function resendOtp() {
+    fetch("/Geo/ResendOtp", {
+        method: "POST"
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: "OTP Resent!",
+                icon: "info",
+                timer: 1000,
+                showConfirmButton: false
+            });
+
+            clearOtpModal();
+            startOTPTimer(); // Restart timer
+
+            // Show modal again
+            const otpModal = new bootstrap.Modal(document.getElementById('otpModal'));
+            otpModal.show();
+
+        } else {
+            Swal.fire("Error", data.message || "Could not resend OTP", "error");
+        }
+    });
+}
+
+function getCookie(name) {
+    const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+    return match ? match[2] : null;
+}
+
+function submitOtp() {
+    const otp = document.getElementById("otpInput").value;
+    const pno = getCookie("Session"); // Get from cookie
+
+    if (!pno) {
+        Swal.fire("Error", "User session not found. Please refresh.", "error");
+        return;
+    }
+
+    fetch("/Geo/VerifyOtp", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ otp, pno }) // Include pno!
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            Swal.fire({
+                title: "OTP Verified! Attendance Recorded Successfully",
+                icon: "success",
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('otpModal'));
+            modal.hide();
+            clearOtpModal();
+        } else {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid OTP",
+                text: result.message || "Please try again."
+            });
+        }
+    });
+}
+
+
 <div class="modal fade" id="otpModal" tabindex="-1" aria-labelledby="otpModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
