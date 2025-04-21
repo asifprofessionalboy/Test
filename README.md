@@ -18,61 +18,10 @@ LEFT JOIN TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS t
 GROUP BY ds.punchdate
 ORDER BY ds.punchdate ASC
 
+data of current date
 
-WITH dateseries AS (
-    SELECT 
-        DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) AS punchdate 
-    FROM master.dbo.spt_values 
-    WHERE type = 'p'
-        AND DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) 
-            <= EOMONTH(GETDATE())  -- Limit to current month only
-)
-SELECT
-    FORMAT(ds.punchdate, 'dd-MM-yyyy') AS PDE_PUNCHDATE,
-    ISNULL(
-        MIN(CASE 
-                WHEN t.PDE_INOUT LIKE '%I%' THEN CONVERT(TIME, t.PDE_PUNCHTIME) 
-            END), 
-        '00:00:00'
-    ) AS PunchInTime,
-    ISNULL(
-        MAX(CASE 
-                WHEN t.PDE_INOUT LIKE '%O%' THEN CONVERT(TIME, t.PDE_PUNCHTIME) 
-            END), 
-        '00:00:00'
-    ) AS PunchOutTime,
-    COUNT(CASE WHEN t.PDE_INOUT LIKE '%I%' THEN 1 END) +
-    COUNT(CASE WHEN t.PDE_INOUT LIKE '%O%' THEN 1 END) AS SumofPunching
-FROM dateseries ds 
-LEFT JOIN TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS t 
-    ON ds.punchdate = t.PDE_PUNCHDATE 
-    AND t.PDE_PSRNO = @PsrNo
-GROUP BY ds.punchdate
-ORDER BY ds.punchdate ASC
+21-04-2025	09:23:00.0000000	09:23:00.0000000
 
+using this query i am getting a problem that user is punchIn then why it is showing in punchOut column?
 
-
-this is my query for Rdlc Attendance Report 
- WITH dateseries AS (
-    SELECT 
-        DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) AS punchdate 
-    FROM master.dbo.spt_values 
-    WHERE type = 'p'
-        AND DATEADD(DAY, number, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) 
-            <= (SELECT MAX(PDE_PUNCHDATE) FROM TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS)
-)
-SELECT
-    FORMAT(ds.punchdate, 'dd-MM-yyyy') AS PDE_PUNCHDATE,
-    ISNULL(MIN(CASE WHEN PDE_INOUT LIKE '%I%' THEN PDE_PUNCHTIME END), 0) AS PunchInTime,
-    ISNULL(MAX(CASE WHEN PDE_INOUT LIKE '%O%' THEN PDE_PUNCHTIME END), 0) AS PunchOutTime,
-    COUNT(CASE WHEN PDE_INOUT LIKE '%I%' THEN 1 END)+
-    COUNT(CASE WHEN PDE_INOUT LIKE '%O%' THEN 1 END) as SumofPunching
-FROM dateseries ds 
-LEFT JOIN TSUISLRFIDDB.dbo.T_TRPUNCHDATA_EARS t 
-    ON ds.punchdate = t.PDE_PUNCHDATE 
-    AND t.PDE_PSRNO = @PsrNo
-GROUP BY ds.punchdate
-ORDER BY ds.punchdate ASC
-
-
-in this some issue i want to resolve that , i want to show current month records but it is showing All months of year, let this month is April then i want only April if the May start then may show and in this i want check the first value of day as PunchIn and the last value shows PunchOut 
+	1
