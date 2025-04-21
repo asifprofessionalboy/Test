@@ -1,16 +1,162 @@
 when verifying Otp getting null of model.pno , storedOtp
 
- [HttpPost]
- public IActionResult VerifyOtp([FromBody] OtpRequest model)
- {
-     if (UserOtpMap.TryGetValue(model.Pno, out string storedOtp) && model.Otp == storedOtp)
-     {
-         UserOtpMap.Remove(model.Pno);
-         return Json(new { success = true });
-     }
-     return Json(new { success = false, message = "Invalid or expired OTP." });
- }
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+        {
+            try
+            {
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
 
+                string Pno = UserId;
+                string Name = UserName;
+
+                //string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                //string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"159445-Adwine Keshav Jha.jpg");
+                string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"159445-Adwine Keshav Jha.jpg");
+
+                if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+                {
+                    return Json(new { success = false, message = "No reference image found to verify face!" });
+                }
+
+                string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"155478-Pramod Kumar Bhanbheru.jpg");
+                SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+                bool isFaceMatched = false;
+
+                using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+                {
+                    if (System.IO.File.Exists(storedImagePath))
+                    {
+                        using (Bitmap stored = new Bitmap(storedImagePath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, stored);
+                        }
+                    }
+
+                    if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+                    {
+                        using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                        }
+                    }
+                }
+
+                //System.IO.File.Delete(tempCapturedPath);
+
+                if (isFaceMatched)
+                {
+                    FaceRetryCount[Pno] = 0; 
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                        SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                        StoreData(currentDate, currentTime, null, Pno);
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno);
+                    }
+
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    if (!FaceRetryCount.ContainsKey(Pno))
+                        FaceRetryCount[Pno] = 1;
+                    else
+                        FaceRetryCount[Pno]++;
+
+                    if (FaceRetryCount[Pno] >= 3)
+                    {
+                        FaceRetryCount[Pno] = 0;
+                        string otp = new Random().Next(100000, 999999).ToString();
+                        UserOtpMap[Pno] = otp;
+
+                        SendSmsToUser(UserId, otp); 
+
+                        return Json(new { success = false, otpRequired = true, message = "Face not matched. OTP has been sent." });
+                    }
+
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+       
+
+        private void SendSmsToUser(string userContact, string otp)
+        {
+            try
+            {
+                string connectionString = GetRFIDConnectionString();
+
+                string query = @"
+        SELECT Phone
+        FROM UserLoginDB.dbo.App_EmployeeMaster
+        WHERE Pno = @pno ";
+
+                string phoneNumber = "";
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    phoneNumber = connection.QuerySingleOrDefault<string>(query, new { pno = userContact });
+                }
+
+                if (string.IsNullOrEmpty(phoneNumber))
+                {
+                    Console.WriteLine("Phone number not found for user.");
+                    return;
+                }
+
+
+                string message = $"Your OTP for attendance is {otp}.valid for 2 min. -Tata Steel UISL (JUSCO)";
+                string smsUrl = $"https://enterprise.smsgupshup.com/GatewayAPI/rest?method=SendMessage&send_to={phoneNumber}&msg={Uri.EscapeDataString(message)}&msg_type=TEXT&userid=2000060285&auth_scheme=plain&password=jusco&v=1.1&format=text";
+
+                WebRequest request = WebRequest.Create(smsUrl);
+                request.Proxy = WebRequest.DefaultWebProxy;
+                request.UseDefaultCredentials = true;
+                request.Proxy.Credentials = new NetworkCredential("###", "###");
+
+                using (WebResponse response = request.GetResponse())
+                {
+                    using (StreamReader reader = new StreamReader(response.GetResponseStream()))
+                    {
+                        string result = reader.ReadToEnd();
+                        Console.WriteLine("SMS Sent: " + result);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error sending SMS: " + ex.Message);
+            }
+        }
+
+        [HttpPost]
+        public IActionResult VerifyOtp([FromBody] OtpRequest model)
+        {
+            if (UserOtpMap.TryGetValue(model.Pno, out string storedOtp) && model.Otp == storedOtp)
+            {
+                UserOtpMap.Remove(model.Pno);
+                return Json(new { success = true });
+            }
+            return Json(new { success = false, message = "Invalid or expired OTP." });
+        }
 <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
@@ -199,3 +345,5 @@ when verifying Otp getting null of model.pno , storedOtp
         clearInterval(otpInterval);
     }
 </script>
+
+and if time is finished then and otp is not verified then resend option of send sms again 
