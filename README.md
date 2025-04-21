@@ -1,3 +1,14 @@
+let otpModalInstance;
+
+otpModalInstance = new bootstrap.Modal(document.getElementById('otpModal'));
+otpModalInstance.show();
+
+if (otpModalInstance) {
+    otpModalInstance.hide();
+}
+clearOtpModal();
+
+
 const modalElement = document.getElementById('otpModal');
 const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
 modal.hide();
