@@ -1,3 +1,7 @@
+=FILTER(Sheet1!A2:A1000, ISNA(MATCH(Sheet1!A2:A1000, Sheet2!A2:A1000, 0)))
+
+
+
 <div id="resendBtn" class="text-center mt-3" style="display: none;">
     <button class="btn btn-secondary" onclick="resendOtp()">Resend OTP</button>
 </div>
