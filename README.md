@@ -1,3 +1,61 @@
+<div id="resendBtn" class="text-center mt-3" style="display: none;">
+    <button class="btn btn-secondary" onclick="resendOtp()">Resend OTP</button>
+</div>
+
+function resendOtp() {
+    fetch("/Geo/ResendOtp", {
+        method: "POST"
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: "info",
+                title: "OTP Resent",
+                text: "A new OTP has been sent to your registered mobile number.",
+                timer: 3000,
+                showConfirmButton: false
+            });
+            document.getElementById("otpInput").value = "";
+            document.getElementById("resendBtn").style.display = "none";
+            startOTPTimer();
+        } else {
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: data.message || "Failed to resend OTP."
+            });
+        }
+    });
+}
+
+<button type="button" class="btn-close" aria-label="Close" onclick="hideOtpModal()"></button>
+
+
+function hideOtpModal() {
+    if (otpModalInstance) {
+        otpModalInstance.hide();
+    }
+    clearOtpModal();
+}
+
+[HttpPost]
+public IActionResult ResendOtp()
+{
+    var Pno = HttpContext.Request.Cookies["Session"];
+    if (string.IsNullOrEmpty(Pno))
+        return Json(new { success = false, message = "User session not found!" });
+
+    string otp = new Random().Next(100000, 999999).ToString();
+    DateTime expiry = DateTime.Now.AddMinutes(1);
+
+    UserOtpMap[Pno] = (otp, expiry);
+
+    SendSmsToUser(Pno, otp);
+
+    return Json(new { success = true, message = "OTP resent successfully." });
+}
+
 [HttpPost]
 public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
