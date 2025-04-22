@@ -1,3 +1,32 @@
+private static Dictionary<string, (string Otp, DateTime Expiry)> UserOtpMap = new();
+
+string otp = new Random().Next(100000, 999999).ToString();
+DateTime expiry = DateTime.Now.AddMinutes(1); // 1-minute expiry
+
+UserOtpMap[Pno] = (otp, expiry);
+
+[HttpPost]
+public IActionResult VerifyOtp([FromBody] OtpRequest model)
+{
+    if (UserOtpMap.TryGetValue(model.Pno, out var otpEntry))
+    {
+        if (DateTime.Now > otpEntry.Expiry)
+        {
+            UserOtpMap.Remove(model.Pno); // Clean up expired OTP
+            return Json(new { success = false, message = "OTP expired. Please request a new one." });
+        }
+
+        if (model.Otp == otpEntry.Otp)
+        {
+            UserOtpMap.Remove(model.Pno);
+            return Json(new { success = true });
+        }
+    }
+
+    return Json(new { success = false, message = "Invalid or expired OTP." });
+}
+
+
 let otpModalInstance;
 
 otpModalInstance = new bootstrap.Modal(document.getElementById('otpModal'));
