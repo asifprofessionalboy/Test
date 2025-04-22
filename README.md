@@ -1,152 +1,203 @@
-private static Dictionary<string, (string Otp, DateTime Expiry)> UserOtpMap = new();
-
-string otp = new Random().Next(100000, 999999).ToString();
-DateTime expiry = DateTime.Now.AddMinutes(1); // 1-minute expiry
-
-UserOtpMap[Pno] = (otp, expiry);
-
 [HttpPost]
-public IActionResult VerifyOtp([FromBody] OtpRequest model)
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
-    if (UserOtpMap.TryGetValue(model.Pno, out var otpEntry))
+    try
     {
-        if (DateTime.Now > otpEntry.Expiry)
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
+
+        string Pno = UserId;
+        string Name = UserName;
+
+        //string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+        //string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+
+        string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"159445-Adwine Keshav Jha.jpg");
+        string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"159445-Adwine Keshav Jha.jpg");
+
+        if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
         {
-            UserOtpMap.Remove(model.Pno); // Clean up expired OTP
-            return Json(new { success = false, message = "OTP expired. Please request a new one." });
+            return Json(new { success = false, message = "No reference image found to verify face!" });
         }
 
-        if (model.Otp == otpEntry.Otp)
+        string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"155478-Pramod Kumar Bhanbheru.jpg");
+        SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+        bool isFaceMatched = false;
+
+        using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
         {
-            UserOtpMap.Remove(model.Pno);
-            return Json(new { success = true });
+            if (System.IO.File.Exists(storedImagePath))
+            {
+                using (Bitmap stored = new Bitmap(storedImagePath))
+                {
+                    isFaceMatched = VerifyFace(tempCaptured, stored);
+                }
+            }
+
+            if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+            {
+                using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                {
+                    isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                }
+            }
+        }
+
+        //System.IO.File.Delete(tempCapturedPath);
+
+        if (isFaceMatched)
+        {
+            FaceRetryCount[Pno] = 0; 
+            string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+            string currentTime = DateTime.Now.ToString("HH:mm");
+
+            if (model.Type == "Punch In")
+            {
+                string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                StoreData(currentDate, currentTime, null, Pno);
+            }
+            else
+            {
+                StoreData(currentDate, null, currentTime, Pno);
+            }
+
+            return Json(new { success = true, message = "Attendance recorded successfully." });
+        }
+        else
+        {
+            if (!FaceRetryCount.ContainsKey(Pno))
+                FaceRetryCount[Pno] = 1;
+            else
+                FaceRetryCount[Pno]++;
+
+            if (FaceRetryCount[Pno] >= 3)
+            {
+                FaceRetryCount[Pno] = 0;
+                string otp = new Random().Next(100000, 999999).ToString();
+                DateTime expiry = DateTime.Now.AddMinutes(1);
+
+                UserOtpMap[Pno] = (otp, expiry);
+
+
+                SendSmsToUser(UserId, otp); 
+
+                return Json(new { success = false, otpRequired = true, message = "Face not matched. OTP has been sent." });
+            }
+
+            return Json(new { success = false, message = "Face does not match!" });
         }
     }
-
-    return Json(new { success = false, message = "Invalid or expired OTP." });
-}
-
-
-let otpModalInstance;
-
-otpModalInstance = new bootstrap.Modal(document.getElementById('otpModal'));
-otpModalInstance.show();
-
-if (otpModalInstance) {
-    otpModalInstance.hide();
-}
-clearOtpModal();
-
-
-const modalElement = document.getElementById('otpModal');
-const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-modal.hide();
-
-<div class="modal fade" id="otpModal" tabindex="-1" aria-labelledby="otpModalLabel" aria-hidden="true"
-     data-bs-backdrop="static" data-bs-keyboard="false">
-
-
-
-function resendOtp() {
-    fetch("/Geo/ResendOtp", {
-        method: "POST"
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire({
-                title: "OTP Resent!",
-                icon: "info",
-                timer: 1000,
-                showConfirmButton: false
-            });
-
-            clearOtpModal();
-            startOTPTimer(); // Restart timer
-
-            // Show modal again
-            const otpModal = new bootstrap.Modal(document.getElementById('otpModal'));
-            otpModal.show();
-
-        } else {
-            Swal.fire("Error", data.message || "Could not resend OTP", "error");
-        }
-    });
-}
-
-function getCookie(name) {
-    const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-    return match ? match[2] : null;
-}
-
-function submitOtp() {
-    const otp = document.getElementById("otpInput").value;
-    const pno = getCookie("Session"); // Get from cookie
-
-    if (!pno) {
-        Swal.fire("Error", "User session not found. Please refresh.", "error");
-        return;
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
     }
-
-    fetch("/Geo/VerifyOtp", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ otp, pno }) // Include pno!
-    })
-    .then(res => res.json())
-    .then(result => {
-        if (result.success) {
-            Swal.fire({
-                title: "OTP Verified! Attendance Recorded Successfully",
-                icon: "success",
-                timer: 2000,
-                showConfirmButton: false
-            });
-
-            const modal = bootstrap.Modal.getInstance(document.getElementById('otpModal'));
-            modal.hide();
-            clearOtpModal();
-        } else {
-            Swal.fire({
-                icon: "error",
-                title: "Invalid OTP",
-                text: result.message || "Please try again."
-            });
-        }
-    });
 }
 
 
-<div class="modal fade" id="otpModal" tabindex="-1" aria-labelledby="otpModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+       private void SendSmsToUser(string userContact, string otp)
+       {
+           try
+           {
+               string connectionString = GetRFIDConnectionString();
 
-            <div class="modal-header">
-                <h5 class="modal-title" id="otpModalLabel">OTP Verification</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="clearOtpModal()"></button>
-            </div>
+               string query = @"
+       SELECT Phone
+       FROM UserLoginDB.dbo.App_EmployeeMaster
+       WHERE Pno = @pno ";
 
-            <div class="modal-body">
-                <p>An OTP has been sent to your registered mobile number. Please enter it below:</p>
-                <input type="text" id="otpInput" maxlength="6" class="form-control" placeholder="Enter 6-digit OTP" />
-                <div id="timer" class="mt-2 text-danger fw-bold text-center"></div>
-                <button class="btn btn-link p-0 mt-2" id="resendBtn" onclick="resendOtp()" style="display: none;">Resend OTP</button>
+               string phoneNumber = "";
 
-            </div>
+               using (var connection = new SqlConnection(connectionString))
+               {
+                   phoneNumber = connection.QuerySingleOrDefault<string>(query, new { pno = userContact });
+               }
 
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" onclick="submitOtp()">Submit OTP</button>
-            </div>
+               if (string.IsNullOrEmpty(phoneNumber))
+               {
+                   Console.WriteLine("Phone number not found for user.");
+                   return;
+               }
 
-        </div>
-    </div>
-</div>
 
-this is my js 
+               string message = $"Your OTP for attendance is {otp}.valid for 1 min. -Tata Steel UISL (JUSCO)";
+               string smsUrl = $"https://enterprise.smsgupshup.com/GatewayAPI/rest?method=SendMessage&send_to={phoneNumber}&msg={Uri.EscapeDataString(message)}&msg_type=TEXT&userid=2000060285&auth_scheme=plain&password=jusco&v=1.1&format=text";
+
+               WebRequest request = WebRequest.Create(smsUrl);
+               request.Proxy = WebRequest.DefaultWebProxy;
+               request.UseDefaultCredentials = true;
+               request.Proxy.Credentials = new NetworkCredential("###", "###");
+
+               using (WebResponse response = request.GetResponse())
+               {
+                   using (StreamReader reader = new StreamReader(response.GetResponseStream()))
+                   {
+                       string result = reader.ReadToEnd();
+                       Console.WriteLine("SMS Sent: " + result);
+                   }
+               }
+           }
+           catch (Exception ex)
+           {
+               Console.WriteLine("Error sending SMS: " + ex.Message);
+           }
+       }
+
+       [HttpPost]
+       public IActionResult VerifyOtp([FromBody] OtpRequest model)
+       {
+           var Pno = HttpContext.Request.Cookies["Session"];
+
+           if (UserOtpMap.TryGetValue(Pno, out var otpEntry))
+           {
+               if (DateTime.Now > otpEntry.Expiry)
+               {
+                   UserOtpMap.Remove(Pno); 
+                   return Json(new { success = false, message = "OTP expired. Please request a new one." });
+               }
+
+               if (model.Otp == otpEntry.Otp)
+               {
+                   UserOtpMap.Remove(Pno);
+                   return Json(new { success = true });
+               }
+           }
+
+           return Json(new { success = false, message = "Invalid or expired OTP." });
+       }
+
+
+ <div class="modal fade" id="otpModal" tabindex="-1" aria-labelledby="otpModalLabel" aria-hidden="true"
+      data-bs-backdrop="static" data-bs-keyboard="false">
+     <div class="modal-dialog modal-dialog-centered">
+         <div class="modal-content">
+
+             <div class="modal-header">
+                 <h5 class="modal-title" id="otpModalLabel">OTP Verification</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="clearOtpModal()"></button>
+             </div>
+
+             <div class="modal-body">
+                 <p>An OTP has been sent to your registered mobile number. Please enter it below:</p>
+                 <input type="text" id="otpInput" maxlength="6" class="form-control" placeholder="Enter 6-digit OTP" autocomplete="off"/>
+                 <div id="timer" class="mt-2 text-danger fw-bold text-center"></div>
+
+             </div>
+
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-primary" onclick="submitOtp()">Submit OTP</button>
+             </div>
+
+         </div>
+     </div>
+ </div>
 
 <script>
+    let otpModalInstance;
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
     const EntryTypeInput = document.getElementById("EntryType");
@@ -209,9 +260,9 @@ this is my js
 
                     Swal.fire({
                         title: "Face Matched!",
-                        text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
+                        html: "<strong>Attendance Recorded Successfully</strong><br>" + formattedDateTime,
                         icon: "success",
-                        timer: 3000,
+                        timer: 5000,
                         showConfirmButton: false
                     }).then(() => {
                         location.reload();
@@ -224,8 +275,9 @@ this is my js
                     
                     startOTPTimer();
 
-                    const otpModal = new bootstrap.Modal(document.getElementById('otpModal'));
-                    otpModal.show();
+                    otpModalInstance = new bootstrap.Modal(document.getElementById('otpModal'));
+                    otpModalInstance.show();
+
                 } else {
                     errorSound.play();
                     triggerHapticFeedback("error");
@@ -234,7 +286,7 @@ this is my js
 
                     Swal.fire({
                         title: "Face Not Recognized.",
-                        text: "Click the button again to retry.\nDate & Time: " + formattedDateTime,
+                        html: "<strong>Click the button again to retry</strong><br>Date & Time: " + formattedDateTime,
                         icon: "error",
                         confirmButtonText: "Retry"
                     });
@@ -308,15 +360,21 @@ this is my js
             .then(res => res.json())
             .then(result => {
                 if (result.success) {
+
+                    var now = new Date();
+                    var formattedDateTime = now.toLocaleString();
+
                     Swal.fire({
-                        title: "OTP Verified!Attendance Recorded Successfully",
+                        title: "OTP Verified",
+                        html: "<strong>Attendance Recorded Successfully</strong><br>" + formattedDateTime,
                         icon: "success",
-                        timer: 2000,
+                        timer: 5000,
                         showConfirmButton: false
                     });
 
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('otpModal'));
-                    modal.hide();
+                    if (otpModalInstance) {
+                        otpModalInstance.hide();
+                    }
                     clearOtpModal();
                    
                 } else {
@@ -330,47 +388,7 @@ this is my js
     }
 
 
-    function resendOtp() {
-        fetch("/Geo/ResendOtp", {
-            method: "POST"
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert("Ohh yes");
-                    Swal.fire({
-                        title: "OTP Resent!",
-                        icon: "info",
-                        timer: 1000,
-                        showConfirmButton: false
-                    });
-                    clearOtpModal();
-                    startOTPTimer(); // Restart timer
-                } else {
-                    Swal.fire("Error", data.message || "Could not resend OTP", "error");
-                }
-            });
-    }
-</script>
+  </script>
 
- [HttpPost]
- public IActionResult ResendOtp()
- {
-     var userId = HttpContext.Request.Cookies["Session"];
-     if (string.IsNullOrEmpty(userId))
-         return Json(new { success = false, message = "User session not found!" });
+this is my logic for Otp and Face recognition . in this logic i want to add a new logic that if expiration time is expired then i want a resendOtp button for again resend logic and in this logic i have issue when i click on cross to cut the modal then model is not hiding 
 
-     string otp = new Random().Next(100000, 999999).ToString();
-     UserOtpMap[userId] = otp;
-
-     SendSmsToUser(userId, otp);
-
-     return Json(new { success = true, message = "OTP resent successfully." });
- }
-
-
-
-in this when i resend the otp modal is not opening for again entering otp and  it shows 
- This page isn’t working
-If the problem continues, contact the site owner.
-HTTP ERROR 415
