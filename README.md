@@ -1,3 +1,22 @@
+SELECT t2.pno
+FROM Table2 t2
+LEFT JOIN Table1 t1 ON t2.pno = t1.pno
+WHERE t1.pno IS NULL;
+
+SELECT pno
+FROM Table2
+WHERE pno NOT IN (SELECT pno FROM Table1);
+
+SELECT pno
+FROM Table2 t2
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM Table1 t1
+    WHERE t1.pno = t2.pno
+);
+
+
+
 =FILTER(Sheet1!A2:A1000, ISNA(MATCH(Sheet1!A2:A1000, Sheet2!A2:A1000, 0)))
 
 
