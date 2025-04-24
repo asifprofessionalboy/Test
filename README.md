@@ -1,3 +1,58 @@
+protected void SubmitBtn_Click(object sender, EventArgs e)
+{
+    string selectedDate = Date.Text.Trim(); // Already in yyyy-MM-dd format
+    string punchType = PunchType.SelectedValue;
+
+    if (!string.IsNullOrEmpty(selectedDate) && !string.IsNullOrEmpty(punchType))
+    {
+        LoadReport(selectedDate, punchType);
+    }
+    else
+    {
+        // Optionally display a validation message
+    }
+}
+
+private DataTable GetStudentData(string date, string punchType)
+{
+    string query = "SELECT DISTINCT PDE_PUNCHDATE, PDE_PUNCHTIME, PDE_PSRNO " +
+                   "FROM T_TRPUNCHDATA_EARS " +
+                   "WHERE PDE_PUNCHDATE = @Date AND PDE_SUBAREA = 'JUSC12' AND PDE_INOUT = @PunchType " +
+                   "ORDER BY PDE_PUNCHTIME DESC";
+
+    DataTable dt = new DataTable();
+
+    using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
+    {
+        using (SqlCommand cmd = new SqlCommand(query, con))
+        {
+            cmd.Parameters.AddWithValue("@Date", date);
+            cmd.Parameters.AddWithValue("@PunchType", punchType);
+
+            using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+            {
+                sda.Fill(dt);
+            }
+        }
+    }
+
+    return dt;
+}
+
+
+private void LoadReport(string date, string punchType)
+{
+    DataTable inoData = GetStudentData(date, punchType);
+
+    ReportViewer1.LocalReport.ReportPath = Server.MapPath("AttendaceDetails.rdlc");
+    ReportViewer1.LocalReport.DataSources.Clear();
+    ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
+    ReportViewer1.LocalReport.DataSources.Add(rds);
+    ReportViewer1.LocalReport.Refresh();
+}
+
+
+
 this is my aspx page
 
  <div class="form-inline row">
