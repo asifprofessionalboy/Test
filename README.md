@@ -1,3 +1,17 @@
+protected void Page_Load(object sender, EventArgs e)
+{
+    if (!IsPostBack)
+    {
+        string today = DateTime.Now.ToString("yyyy-MM-dd");
+        Date.Text = today;
+        PunchType.SelectedValue = "I"; // Default to PunchIn
+        LoadReport(today, "I");
+    }
+}
+
+
+
+
 protected void SubmitBtn_Click(object sender, EventArgs e)
 {
     string selectedDate = Date.Text.Trim(); // Already in yyyy-MM-dd format
