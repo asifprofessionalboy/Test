@@ -1,3 +1,90 @@
+$('#submitButton').click(function (e) {
+    e.preventDefault();
+
+    if (!validateForm()) {
+        alert('Please fill in all required fields.');
+        return;
+    }
+
+    const id = $('#LocationId').val();
+    const pno = $('#Pno').val().trim();
+    const position = $('#Position').val().trim();
+
+    $.ajax({
+        url: '@Url.Action("EmployeePositionMaster", "Master")',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+        },
+        data: JSON.stringify({
+            Id: id,
+            Pno: pno,
+            Position: position,
+            actionType: "Submit"
+        }),
+        success: function (response) {
+            alert('Position saved successfully!');
+            $('#formContainer').hide();
+        },
+        error: function (xhr, status, error) {
+            alert('An error occurred while saving the locations.');
+            console.error(xhr.responseText);
+        }
+    });
+});
+
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> EmployeePositionMaster([FromBody] AppEmpPosition appPosition)
+{
+    var actionType = Request.Query["actionType"].ToString() ?? "Submit"; // optional if still sending it via query or body
+
+    if (string.IsNullOrEmpty(actionType))
+    {
+        return BadRequest("No action specified.");
+    }
+
+    var existingParameter = await context.AppEmpPositions.FindAsync(appPosition.Id);
+
+    var UserId = HttpContext.Request.Cookies["Session"];
+    
+    if (actionType == "Submit")
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        if (existingParameter != null)
+        {
+            context.Entry(existingParameter).CurrentValues.SetValues(appPosition);
+            await context.SaveChangesAsync();
+            return Ok("Updated");
+        }
+        else
+        {
+            await context.AppEmpPositions.AddAsync(appPosition);
+            await context.SaveChangesAsync();
+            return Ok("Created");
+        }
+    }
+    else if (actionType == "Delete")
+    {
+        if (existingParameter != null)
+        {
+            context.AppEmpPositions.Remove(existingParameter);
+            await context.SaveChangesAsync();
+            return Ok("Deleted");
+        }
+    }
+
+    return BadRequest("Invalid action.");
+}
+
+
+
+
 this is my view side 
 
 <div id="formContainer" style="display:none;">
