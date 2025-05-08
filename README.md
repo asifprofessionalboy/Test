@@ -1,3 +1,20 @@
+$.ajax({
+    url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Submit',
+    type: 'POST',
+    contentType: 'application/json',
+    headers: {
+        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+    },
+    data: JSON.stringify({
+        Id: id,
+        Pno: pno,
+        Position: position
+    }),
+public async Task<IActionResult> EmployeePositionMaster([FromBody] AppEmpPosition appPosition, [FromQuery] string actionType)
+
+
+
+
 $('#submitButton').click(function (e) {
     e.preventDefault();
 
