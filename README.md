@@ -1,3 +1,36 @@
+$('#deleteButton').click(function (e) {
+    e.preventDefault();
+
+    const id = $('#LocationId').val();
+
+    $.ajax({
+        url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Delete',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+        },
+        data: JSON.stringify({
+            Id: id,
+            Pno: $('#Pno').val().trim(),
+            Position: $('#Position').val().trim()
+        }),
+        success: function (response) {
+            alert('Position deleted successfully!');
+            $('#formContainer').hide();
+        },
+        error: function (xhr) {
+            alert('An error occurred while deleting the location.');
+            console.error(xhr.responseText);
+        }
+    });
+});
+
+
+
+
+
+
 $.ajax({
     url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Submit',
     type: 'POST',
