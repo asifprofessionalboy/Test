@@ -1,6 +1,111 @@
 $('#deleteButton').click(function (e) {
     e.preventDefault();
 
+    // Show SweetAlert confirmation
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "Do you really want to delete this position?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const id = $('#LocationId').val();
+
+            $.ajax({
+                url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Delete',
+                type: 'POST',
+                contentType: 'application/json',
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                data: JSON.stringify({
+                    Id: id,
+                    Pno: $('#Pno').val().trim(),
+                    Position: $('#Position').val().trim()
+                }),
+                success: function (response) {
+                    Swal.fire({
+                        title: 'Deleted!',
+                        text: 'The position has been deleted.',
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6'
+                    }).then(() => {
+                        $('#formContainer').hide();
+                    });
+                },
+                error: function (xhr) {
+                    Swal.fire(
+                        'Error!',
+                        'An error occurred while deleting the position.',
+                        'error'
+                    );
+                    console.error(xhr.responseText);
+                }
+            });
+        }
+    });
+});
+
+$('#submitButton').click(function (e) {
+    e.preventDefault();
+
+    // Validate form fields
+    if (!validateForm()) {
+        Swal.fire({
+            title: 'Validation Error',
+            text: 'Please fill in all required fields.',
+            icon: 'warning',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+
+    const id = $('#LocationId').val();
+    const pno = $('#Pno').val().trim();
+    const position = $('#Position').val().trim();
+
+    $.ajax({
+        url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Submit',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+        },
+        data: JSON.stringify({
+            Id: id,
+            Pno: pno,
+            Position: position
+        }),
+        success: function (response) {
+            Swal.fire({
+                title: 'Success!',
+                text: 'Position saved successfully.',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            }).then(() => {
+                $('#formContainer').hide();
+            });
+        },
+        error: function (xhr) {
+            Swal.fire(
+                'Error!',
+                'An error occurred while saving the position.',
+                'error'
+            );
+            console.error(xhr.responseText);
+        }
+    });
+});
+
+
+
+
+$('#deleteButton').click(function (e) {
+    e.preventDefault();
+
     const id = $('#LocationId').val();
 
     $.ajax({
