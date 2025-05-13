@@ -1,3 +1,31 @@
+var worksiteDictionary = context.AppLocationMasters
+    .ToDictionary(x => x.Id.ToString().ToLower(), x => x.WorkSite);
+
+foreach (var item in pagedData)
+{
+    if (!string.IsNullOrWhiteSpace(item.Worksite))
+    {
+        var ids = item.Worksite
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(id => id.Trim().ToLower())
+            .ToList();
+
+        var names = ids
+            .Where(id => worksiteDictionary.ContainsKey(id))
+            .Select(id => worksiteDictionary[id])
+            .ToList();
+
+        item.Worksite = names.Count > 0 ? string.Join(", ", names) : "(Invalid Worksite IDs)";
+    }
+    else
+    {
+        item.Worksite = "(No Worksite)";
+    }
+}
+
+
+
+
 public async Task<IActionResult> PositionMaster(Guid? id, AppPositionWorksite appPosition, int page = 1, string searchValue = "")
 {
     var UserId = HttpContext.Request.Cookies["Session"];
