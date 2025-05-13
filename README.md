@@ -1,84 +1,89 @@
-string attendanceLocation = "";
+i have this login logic 
 
-using (SqlConnection conn = new SqlConnection(connectionString))
+  public async Task<IActionResult> Login(AppLogin login)
+  {
+
+      if (!string.IsNullOrEmpty(login.UserId) && string.IsNullOrEmpty(login.Password))
+      {
+          ViewBag.FailedMsg = "Login Failed: Password is required";
+          return View(login);
+      }
+
+
+      var user = await context.AppLogins
+          .Where(x => x.UserId == login.UserId)
+          .FirstOrDefaultAsync();
+
+      if (user != null)
+      {
+
+          bool isPasswordValid = hash_Password.VerifyPassword(login.Password, user.Password, user.PasswordSalt);
+
+          if (isPasswordValid)
+          {
+              var UserLoginData = await context1.AppEmployeeMasters.
+                  Where(x => x.Pno == login.UserId).FirstOrDefaultAsync();
+
+              string userName = UserLoginData?.Ename ?? "Guest";
+
+
+
+              HttpContext.Session.SetString("Session", UserLoginData?.Pno ?? "N/A");
+              HttpContext.Session.SetString("UserName", UserLoginData?.Ename ?? "Guest");
+              HttpContext.Session.SetString("UserSession",login.UserId);
+
+              //store cookies
+
+              var cookieOptions = new CookieOptions
+              {
+                  Expires = DateTimeOffset.Now.AddYears(1),
+                  HttpOnly = false,
+                  Secure = true,
+                  IsEssential = true
+              };
+
+              Response.Cookies.Append("UserSession", login.UserId, cookieOptions);
+              Response.Cookies.Append("Session", UserLoginData?.Pno ?? "N/A", cookieOptions);
+              Response.Cookies.Append("UserName", UserLoginData?.Ename ?? "Guest", cookieOptions);
+
+
+
+
+
+
+             
+                  return RedirectToAction("GeoFencing", "Geo");
+              
+          }
+          else
+          {
+              ViewBag.FailedMsg = "Login Failed: Incorrect password";
+          }
+      }
+      else
+      {
+          ViewBag.FailedMsg = "Login Failed: User not found";
+      }
+
+      return View(login);
+  }
+
+and this is my program.cs
+builder.Services.AddAuthentication("Cookies")
+.AddCookie("Cookies", options =>
 {
-    conn.Open();
-
-    string query = @"
-        SELECT ps.Worksite 
-        FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps
-        INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position
-        WHERE es.Pno = @UserId";
-
-    using (SqlCommand cmd = new SqlCommand(query, conn))
-    {
-        cmd.Parameters.AddWithValue("@UserId", pno);
-        var result = cmd.ExecuteScalar();
-
-        if (result != null)
-        {
-            var worksiteIds = result.ToString()
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(id => id.Trim())
-                .ToList();
-
-            if (worksiteIds.Count > 0)
-            {
-                // Convert to a SQL IN clause format: 'guid1','guid2',...
-                string idsForQuery = string.Join(",", worksiteIds.Select(id => $"'{id}'"));
-
-                string nameQuery = $@"
-                    SELECT WorkSite 
-                    FROM TSUISLRFIDDB.DBO.App_Location_Master
-                    WHERE Id IN ({idsForQuery})";
-
-                using (SqlCommand nameCmd = new SqlCommand(nameQuery, conn))
-                {
-                    using (SqlDataReader reader = nameCmd.ExecuteReader())
-                    {
-                        List<string> locationNames = new List<string>();
-                        while (reader.Read())
-                        {
-                            locationNames.Add(reader["WorkSite"].ToString());
-                        }
-
-                        attendanceLocation = string.Join(", ", locationNames);
-                    }
-                }
-            }
-        }
-    }
-}
-
-ViewBag.AttendanceLocation = attendanceLocation;
+    options.LoginPath = "/User/Login";
+    options.ExpireTimeSpan = TimeSpan.FromDays(365);
+    options.SlidingExpiration = true;
+});
+builder.Services.AddAuthorization();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromDays(365);
+    options.Cookie.HttpOnly = false;
+    options.Cookie.IsEssential = true;
+});
 
 
 
-
-
-now this is to fetch the Location of that Position 
-
- using (SqlConnection conn = new SqlConnection(connectionString))
- {
-     conn.Open();
-     string query = @"
- SELECT ps.Worksite 
- FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps
- INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position
- WHERE es.Pno = @UserId";
-
-     using (SqlCommand cmd = new SqlCommand(query, conn))
-     {
-         cmd.Parameters.AddWithValue("@UserId", pno);
-         var result = cmd.ExecuteScalar();
-         if (result != null)
-         {
-             attendanceLocation = result.ToString();
-         }
-     }
- }
-
-
- ViewBag.AttendanceLocation = attendanceLocation;
-
-in this also i want to fetch using ID that is comma separated and Shows the Location 
+in this i want cookies value are 365 days means 1 year, is this logic is good is this working?
