@@ -1,512 +1,136 @@
-$('#deleteButton').click(function (e) {
-    e.preventDefault();
-
-    // Show SweetAlert confirmation
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "Do you really want to delete this position?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const id = $('#LocationId').val();
-
-            $.ajax({
-                url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Delete',
-                type: 'POST',
-                contentType: 'application/json',
-                headers: {
-                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-                },
-                data: JSON.stringify({
-                    Id: id,
-                    Pno: $('#Pno').val().trim(),
-                    Position: $('#Position').val().trim()
-                }),
-                success: function (response) {
-                    Swal.fire({
-                        title: 'Deleted!',
-                        text: 'The position has been deleted.',
-                        icon: 'success',
-                        confirmButtonColor: '#3085d6'
-                    }).then(() => {
-                        $('#formContainer').hide();
-                    });
-                },
-                error: function (xhr) {
-                    Swal.fire(
-                        'Error!',
-                        'An error occurred while deleting the position.',
-                        'error'
-                    );
-                    console.error(xhr.responseText);
-                }
-            });
-        }
-    });
-});
-
-$('#submitButton').click(function (e) {
-    e.preventDefault();
-
-    // Validate form fields
-    if (!validateForm()) {
-        Swal.fire({
-            title: 'Validation Error',
-            text: 'Please fill in all required fields.',
-            icon: 'warning',
-            confirmButtonColor: '#3085d6'
-        });
-        return;
-    }
-
-    const id = $('#LocationId').val();
-    const pno = $('#Pno').val().trim();
-    const position = $('#Position').val().trim();
-
-    $.ajax({
-        url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Submit',
-        type: 'POST',
-        contentType: 'application/json',
-        headers: {
-            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-        },
-        data: JSON.stringify({
-            Id: id,
-            Pno: pno,
-            Position: position
-        }),
-        success: function (response) {
-            Swal.fire({
-                title: 'Success!',
-                text: 'Position saved successfully.',
-                icon: 'success',
-                confirmButtonColor: '#3085d6'
-            }).then(() => {
-                $('#formContainer').hide();
-            });
-        },
-        error: function (xhr) {
-            Swal.fire(
-                'Error!',
-                'An error occurred while saving the position.',
-                'error'
-            );
-            console.error(xhr.responseText);
-        }
-    });
-});
-
-
-
-
-$('#deleteButton').click(function (e) {
-    e.preventDefault();
-
-    const id = $('#LocationId').val();
-
-    $.ajax({
-        url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Delete',
-        type: 'POST',
-        contentType: 'application/json',
-        headers: {
-            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-        },
-        data: JSON.stringify({
-            Id: id,
-            Pno: $('#Pno').val().trim(),
-            Position: $('#Position').val().trim()
-        }),
-        success: function (response) {
-            alert('Position deleted successfully!');
-            $('#formContainer').hide();
-        },
-        error: function (xhr) {
-            alert('An error occurred while deleting the location.');
-            console.error(xhr.responseText);
-        }
-    });
-});
-
-
-
-
-
-
-$.ajax({
-    url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Submit',
-    type: 'POST',
-    contentType: 'application/json',
-    headers: {
-        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-    },
-    data: JSON.stringify({
-        Id: id,
-        Pno: pno,
-        Position: position
-    }),
-public async Task<IActionResult> EmployeePositionMaster([FromBody] AppEmpPosition appPosition, [FromQuery] string actionType)
-
-
-
-
-$('#submitButton').click(function (e) {
-    e.preventDefault();
-
-    if (!validateForm()) {
-        alert('Please fill in all required fields.');
-        return;
-    }
-
-    const id = $('#LocationId').val();
-    const pno = $('#Pno').val().trim();
-    const position = $('#Position').val().trim();
-
-    $.ajax({
-        url: '@Url.Action("EmployeePositionMaster", "Master")',
-        type: 'POST',
-        contentType: 'application/json',
-        headers: {
-            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-        },
-        data: JSON.stringify({
-            Id: id,
-            Pno: pno,
-            Position: position,
-            actionType: "Submit"
-        }),
-        success: function (response) {
-            alert('Position saved successfully!');
-            $('#formContainer').hide();
-        },
-        error: function (xhr, status, error) {
-            alert('An error occurred while saving the locations.');
-            console.error(xhr.responseText);
-        }
-    });
-});
-
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> EmployeePositionMaster([FromBody] AppEmpPosition appPosition)
-{
-    var actionType = Request.Query["actionType"].ToString() ?? "Submit"; // optional if still sending it via query or body
-
-    if (string.IsNullOrEmpty(actionType))
-    {
-        return BadRequest("No action specified.");
-    }
-
-    var existingParameter = await context.AppEmpPositions.FindAsync(appPosition.Id);
-
-    var UserId = HttpContext.Request.Cookies["Session"];
-    
-    if (actionType == "Submit")
-    {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
-        if (existingParameter != null)
-        {
-            context.Entry(existingParameter).CurrentValues.SetValues(appPosition);
-            await context.SaveChangesAsync();
-            return Ok("Updated");
-        }
-        else
-        {
-            await context.AppEmpPositions.AddAsync(appPosition);
-            await context.SaveChangesAsync();
-            return Ok("Created");
-        }
-    }
-    else if (actionType == "Delete")
-    {
-        if (existingParameter != null)
-        {
-            context.AppEmpPositions.Remove(existingParameter);
-            await context.SaveChangesAsync();
-            return Ok("Deleted");
-        }
-    }
-
-    return BadRequest("Invalid action.");
-}
-
-
-
-
-this is my view side 
-
-<div id="formContainer" style="display:none;">
-    <form asp-action="EmployeePositionMaster" asp-controller="Master" id="form2" method="post">
-        @Html.AntiForgeryToken()
-        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-        <div class="card rounded-9">
-            <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
-                Location Master Entry
-            </div>
-            <div class="col-md-12">
-                <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
-                    <div class="row">
-
-                        <div class="form-group row">
-
-                            <div class="col-sm-1 d-flex">
-                                <label asp-for="Pno" class="control-label">Pno</label>
-                            </div>
-                            <div class="col-sm-3">
-                                <input asp-for="Pno" class="form-control form-control-sm PnoInput" id="Pno" placeholder="" required autocomplete="off" />
-
-                            </div>
-                            <div class="col-sm-1 d-flex">
-                                <label asp-for="Position" class="control-label">Position</label>
-                            </div>
-                            <div class="col-sm-2">
-                                <input asp-for="Position" class="form-control form-control-sm PositionInput" id="Position" placeholder="" required autocomplete="off" />
-
-                            </div>
-                         
-
-                        </div>
-
-                        <input type="hidden" name="Id" value="@Model.Id" />
-                        <div class="form-group row mt-2">
-
-                            <input asp-for="Id" type="text" value="@Model.Id" id="LocationId" hidden />
-                            
-                        </div>
-                        <input type="hidden" name="actionType" id="actionType" value="" />
-                        <div class="form-group row">
-                            <div class="col-sm-12 text-center">
-                                <!-- Submit Button -->
-                                <button type="button" id="submitButton" name="actionType" class="btn btn-primary">Submit</button>
-                                <button type="button" id="deleteButton" name="actionType" class="btn btn-danger">Delete</button>
-
-                            </div>
-                        </div>
-
-                    </div>
-                </fieldset>
-
-            </div>
-        </div>
-    </form>
-
-
-
-  
-
-  
-
-</div>
-this is my jquery 
-
-<script>
-    $(document).ready(function () {
-
-        function validateForm() {
-            let isValid = true;
-
-          
-            $('.is-invalid').removeClass('is-invalid');
-
-           
-            if ($('#Pno').val().trim() === '') {
-                $('#Pno').addClass('is-invalid');
-                isValid = false;
-            }
-            if ($('#Position').val().trim() === '') {
-                $('#Position').addClass('is-invalid');
-                isValid = false;
-            }
-
-            return isValid;
-        }
-
-        // Function to set the actionType before form submission
-        function setAction(actionType, event = null) {
-            if (event) event.preventDefault();
-            $('#actionType').val(actionType);
-            $('#form2').submit();
-        }
-
-        // Show the form for adding a new entry
-        $('#showFormButton2').click(function () {
-            $('#formContainer').show();
-            $('#form2')[0].reset(); // Clear form fields
-            $('#deleteButton').hide();
-            $('#addRowButton').show();
-        });
-
-        // Open filled form for editing
-        $(".OpenFilledForm").click(function (e) {
-            e.preventDefault();
-            $('#deleteButton').show();
-            $('#addRowButton').hide();
-
-            var id = $(this).data("id");
-            $.ajax({
-                url: '@Url.Action("EmployeePositionMaster", "Master")',
-                type: 'GET',
-                data: { id: id },
-                success: function (response) {
-                    // Populate form fields with response data
-                    $('#form2 #LocationId').val(response.id);
-                   
-                    $('#form2 #Pno').val(response.pno);
-                    $('#form2 #Position').val(response.position);
-                   
-
-                    // Show the form
-                    $('#formContainer').show();
-                },
-                error: function () {
-                    alert("An error occurred while loading the form data.");
-                }
-            });
-        });
-
-      
-
-
-        // Handle the submit button click
-        $('#submitButton').click(function (e) {
-            e.preventDefault();
-
-            // Validate form fields
-            if (!validateForm()) {
-                alert('Please fill in all required fields.');
-                return;
-            }
-
-            const id = $('#LocationId').val();
-            const rowsData = [];
-          
-                const pno = $(this).find('.PnoInput').val();
-                const position = $(this).find('.PositionInput').val();
-               
-
-                rowsData.push({
-                    Position: position,
-                    Pno: pno,
-                    Id: id
-                });
-       
-
-            $.ajax({
-                url: '@Url.Action("EmployeePositionMaster", "Master")',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    Id: id,
-                    actionType: "Submit"
-                }),
-                success: function (response) {
-                    alert('Position saved successfully!');
-                    $('#formContainer').hide();
-                },
-                error: function () {
-                    alert('An error occurred while saving the locations.');
-                }
-            });
-        });
-
-
-
-        // Handle the delete button click
-        $('#deleteButton').click(function (e) {
-            e.preventDefault();
-            const id = $('#LocationId').val();
-            const rowsData = [];
-            $('.location-row').each(function () {
-                //const id = $(this).data('id');
-                rowsData.push({ Id: id });
-            });
-
-            $.ajax({
-                url: '@Url.Action("EmployeePositionMaster", "Master")',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ Id: id, appLocations: rowsData, actionType: "Delete" }),
-                success: function (response) {
-                    alert('Locations deleted successfully!');
-                    $('#formContainer').hide();
-                },
-                error: function () {
-                    alert('An error occurred while deleting the locations.');
-                }
-            });
-        });
-    });
-</script>
-
-and this is my controller logic 
-
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> EmployeePositionMaster(AppEmpPosition appPosition, string actionType)
-{
-    if (string.IsNullOrEmpty(actionType))
-    {
-        return BadRequest("No action specified.");
-    }
-
-    var existingParameter = await context.AppEmpPositions.FindAsync(appPosition.Id);
-
-    var UserId = HttpContext.Request.Cookies["Session"];
-    if (actionType == "Submit")
-    {
-        if (!ModelState.IsValid)
-        {
-            foreach (var state in ModelState)
-            {
-                foreach (var error in state.Value.Errors)
-                {
-                    Console.WriteLine($"Key:{state.Key},Error:{error.ErrorMessage}");
-                }
-            }
-        }
-
-
-        if (ModelState.IsValid)
-        {
-
-
-            if (existingParameter != null)
-            {
-              
-                context.Entry(existingParameter).CurrentValues.SetValues(appPosition);
-                await context.SaveChangesAsync();
-                TempData["Updatedmsg"] = "Position Updated Successfully!";
-                return RedirectToAction("PositionMaster");
-            }
-            else
-            {
-
-                
-                await context.AppEmpPositions.AddAsync(appPosition);
-                await context.SaveChangesAsync();
-                TempData["msg"] = "Position Added Successfully!";
-                return RedirectToAction("PositionMaster");
-            }
-        }
-    }
-    else if (actionType == "Delete")
-    {
-        if (existingParameter != null)
-        {
-            context.AppEmpPositions.Remove(existingParameter);
-            await context.SaveChangesAsync();
-            TempData["Dltmsg"] = "Position Deleted Successfully!";
-        }
-    }
-
-    return RedirectToAction("PositionMaster");
-}
-
-in this i am getting An error occurred while saving the locations.
+i have this 2 two table , one is Location Master and another one is Position Master , from Location Master on Dropdown it shows the Worksite Name but store Id of that Location like this 
+428614DE-BCBB-4310-B13F-8080D973C6D2, D5397476-DDA4-466C-8C0E-67BC57CF83B9,E5A35ECD-D84F-4912-9DC8-D0209F5F6A03
+
+i want to show in grid not the ID i want to show Worksite against the ID
+
+
+i have this controller logic 
+
+   public async Task<IActionResult> PositionMaster(Guid? id, AppPositionWorksite appPosition, int page = 1, string searchValue = "")
+   {
+       var UserId = HttpContext.Request.Cookies["Session"];
+
+       if (!string.IsNullOrEmpty(UserId))
+       {
+
+           if (UserId != "151515" && UserId != "151514" && UserId != "155478")
+           {
+               return RedirectToAction("Login", "User");
+           }
+
+           int pageSize = 5;
+           var query = context.AppPositionWorksites.AsQueryable();
+
+
+           var position = context.AppEmpPositions
+               .Where(e => e.Pno == searchValue)
+               .Select(e => e.Position)
+               .FirstOrDefault();
+
+           if (!string.IsNullOrEmpty(position.ToString()))
+           {
+               query = query.Where(p => p.Position == position);
+           }
+           else
+           {
+
+               ViewBag.ErrorMessage = "No Position found for this P.No.";
+           }
+
+
+
+           var pagedData = query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+           var totalCount = query.Count();
+
+           ViewBag.pList = pagedData;
+           ViewBag.CurrentPage = page;
+           ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+           ViewBag.SearchValue = searchValue;
+
+
+           var WorksiteList = context.AppLocationMasters
+               .Select(x => new SelectListItem
+               {
+                   Value = x.Id.ToString(),
+                   Text = x.WorkSite
+               }).Distinct().ToList();
+
+           ViewBag.WorksiteDDList = WorksiteList;
+
+           var WorksiteList2 = context.AppEmpPositions
+               .Select(x => new SelectListItem
+               {
+                   Value = x.Position.ToString(),
+                   Text = x.Position.ToString()
+               }).ToList();
+
+           ViewBag.PositionDDList = WorksiteList2;
+
+           if (id.HasValue)
+           {
+               var model = await context.AppPositionWorksites.FindAsync(id.Value);
+               if (model == null)
+               {
+                   return NotFound();
+               }
+
+               return Json(new
+               {
+                   id = model.Id,
+                   position = model.Position,
+                   worksite = model.Worksite,
+                   createdby = UserId,
+                   createdon = model.CreatedOn,
+               });
+           }
+
+           return View(new AppPositionWorksite());
+       }
+       else
+       {
+           return RedirectToAction("Login", "User");
+       }
+   }
+
+and this is my grid 
+
+ <div class="col-md-12">
+     <table class="table" id="myTable">
+         <thead class="table" style="background-color: #d2b1ff;color: #000000;">
+             <tr>
+                 <th width="10%">Position</th>
+
+                 <th>Worksite</th>
+
+             </tr>
+         </thead>
+         <tbody>
+             @if (ViewBag.pList != null)
+             {
+                 @foreach (var item in ViewBag.pList)
+                 {
+                     <tr>
+                         <td>
+                             <a href="javascript:void(0);" data-id="@item.Id" class="OpenFilledForm btn gridbtn" style="text-decoration:none;background-color:;font-weight:bolder;">
+                                 @item.Position
+                             </a>
+                         </td>
+
+                         <td>@item.Worksite</td>
+
+
+                     </tr>
+                 }
+             }
+             else
+             {
+                 <tr>
+                     <td colspan="3">No data available</td>
+                 </tr>
+             }
+         </tbody>
+     </table>
+ 
+
+ </div>
+
