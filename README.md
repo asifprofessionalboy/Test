@@ -1,31 +1,57 @@
-SELECT DISTINCT App.Pno
-FROM INNOVATIONDB.dbo.App_Login AS Inn
-INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
-    ON Inn.UserId COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
-INNER JOIN APPROVERDB.dbo.App_ApproverMaster AS App
-    ON Emp.DepartmentName COLLATE DATABASE_DEFAULT = App.DepartmentName COLLATE DATABASE_DEFAULT;
+this is my controller logic 
+
+ [HttpPost]
+ public async Task<IActionResult> CorrectionOfAttendance(AppCoa model)
+ {
+     var user = HttpContext.Request.Cookies["Session"];
+     if (model == null)
+     {
+         return BadRequest("Invalid data.");
+     }
+
+     if (model.Id == Guid.Empty)
+     {
+         model.CreatedBy = user;
+         
+         context.AppCoas.Add(model);
+     }
+     else
+     {
+         var existingRecord = await context.AppCoas.FindAsync(model.Id);
+         if (existingRecord != null)
+         {
+             existingRecord.CreatedBy = user;
+             context.AppCoas.Update(existingRecord);
+         }
+         else
+         {
+             return NotFound("Record not found.");
+         }
+     }
+
+     await context.SaveChangesAsync();
+     return RedirectToAction("SubjectMaster");
+ }
+
+i have this in cshtml 
+
+ <div class="col-sm-2">
+
+     <div class="row">
+         <div class="col-sm-6">
+             <input asp-for="Intime" class="form-control form-control-sm" id="IntimeHH" value="" type="text" placeholder="(HH)">
+
+             </div>
+             <div class="col-sm-6">
+
+                  <input asp-for="Intime" class="form-control form-control-sm" id="IntimeMM" value="" type="text"  placeholder="(mm)">
+             </div>
+         
+    
+         </div>
+
+     
+ </div>
 
 
-
-
-SELECT DISTINCT App.Pno
-FROM INNOVATIONDB.dbo.App_Login AS Inn
-INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
-    ON Inn.UserId COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
-INNER JOIN App_ApproverMaster AS App
-    ON Emp.DepartmentName COLLATE DATABASE_DEFAULT = App.DepartmentName COLLATE DATABASE_DEFAULT;
-
-
-
-
-
-this is my first table where UserId is present, Select UserId from INNOVATIONDB.dbo.App_Login as Inn,
-this is my 2nd table from which i want to fetch department against the UserId from First table, Select DepartmentName From UserLoginDB.dbo.App_EmployeeMaster as Emp
-and this is my 3rd table i want to fetch Pno against the Department Name, Select Pno From App_ApproverMaster as App 
-
-and this is my query please provide correct query to fetch data that is explained above 
-select  distinct App.Pno from INNOVATIONDB.dbo.App_Login as Inn
-inner Join UserLoginDB.dbo.App_EmployeeMaster as Emp
-on Inn.UserId COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
-inner Join App_ApproverMaster as App
-on Emp.DepartmentName COLLATE DATABASE_DEFAULT = App.DepartmentName COLLATE DATABASE_DEFAULT
+i want to store in InTime if the user Input like in HH: 09 mm: 30 then i want to store in column like 09:30
