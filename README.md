@@ -1,3 +1,14 @@
+SELECT DISTINCT App.Pno
+FROM INNOVATIONDB.dbo.App_Login AS Inn
+INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+    ON Inn.UserId COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
+INNER JOIN App_ApproverMaster AS App
+    ON Emp.DepartmentName COLLATE DATABASE_DEFAULT = App.DepartmentName COLLATE DATABASE_DEFAULT;
+
+
+
+
+
 this is my first table where UserId is present, Select UserId from INNOVATIONDB.dbo.App_Login as Inn,
 this is my 2nd table from which i want to fetch department against the UserId from First table, Select DepartmentName From UserLoginDB.dbo.App_EmployeeMaster as Emp
 and this is my 3rd table i want to fetch Pno against the Department Name, Select Pno From App_ApproverMaster as App 
