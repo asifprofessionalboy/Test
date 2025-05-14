@@ -1,3 +1,30 @@
+<div class="col-sm-2">
+    <div class="row">
+        <div class="col-sm-6">
+            <input class="form-control form-control-sm" id="IntimeHH" type="text" placeholder="(HH)">
+        </div>
+        <div class="col-sm-6">
+            <input class="form-control form-control-sm" id="IntimeMM" type="text" placeholder="(mm)">
+        </div>
+    </div>
+
+    <!-- Hidden field to bind to model -->
+    <input asp-for="Intime" type="hidden" id="Intime" />
+</div>
+
+<script>
+    document.querySelector("form").addEventListener("submit", function (e) {
+        var hh = document.getElementById("IntimeHH").value.padStart(2, '0');
+        var mm = document.getElementById("IntimeMM").value.padStart(2, '0');
+
+        if (hh && mm) {
+            document.getElementById("Intime").value = hh + ":" + mm;
+        }
+    });
+</script>
+
+
+
 this is my controller logic 
 
  [HttpPost]
