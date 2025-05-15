@@ -1,3 +1,41 @@
+public interface IPermissionService
+{
+    List<string> GetAllowedPnos();
+}
+
+public class PermissionService : IPermissionService
+{
+    private readonly YourDbContext _context;
+
+    public PermissionService(YourDbContext context)
+    {
+        _context = context;
+    }
+
+    public List<string> GetAllowedPnos()
+    {
+        return _context.AppPermissionMaster
+                       .Select(x => x.Pno)
+                       .Where(p => p != null)
+                       .ToList();
+    }
+}
+services.AddScoped<IPermissionService, PermissionService>();
+@inject YourNamespace.IPermissionService PermissionService
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+
+@{
+    var userId = HttpContextAccessor.HttpContext.Request.Cookies["Session"] ?? "N/A";
+    var allowedPnos = PermissionService.GetAllowedPnos();
+}
+
+@if (allowedPnos.Contains(userId))
+{
+    <p>Welcome, authorized user!</p>
+}
+
+
+
 private readonly YourDbContext _context; // Injected via constructor
 
 public YourController(YourDbContext context)
