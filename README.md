@@ -1,3 +1,41 @@
+private readonly YourDbContext _context; // Injected via constructor
+
+public YourController(YourDbContext context)
+{
+    _context = context;
+}
+
+public IActionResult YourAction()
+{
+    var allowedPnos = _context.AppPermissionMaster
+                         .Select(x => x.Pno)
+                         .ToList();
+
+    var userId = Request.Cookies["Session"];
+
+    if (!allowedPnos.Contains(userId))
+    {
+        return RedirectToAction("Login", "User");
+    }
+
+    // Proceed if allowed
+    return View();
+}
+
+ViewBag.AllowedPnos = allowedPnos;
+return View();
+@{
+    var userId = HttpContextAccessor.HttpContext.Request.Cookies["Session"] ?? "N/A";
+    var allowedPnos = ViewBag.AllowedPnos as List<string>;
+}
+
+@if (allowedPnos != null && allowedPnos.Contains(userId))
+{
+    <p>Welcome, authorized user!</p>
+}
+p
+
+
 i have this model 
  public partial class AppPermissionMaster
  {
