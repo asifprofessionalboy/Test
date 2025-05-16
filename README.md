@@ -1,3 +1,26 @@
+<td>
+    @(item.ApprovedYn == true ? "Approved" :
+      item.ApprovedYn == false ? "Rejected" : "Pending")
+</td>
+<td>
+    @{
+        if (item.ApprovedYn == true)
+        {
+            @:Approved
+        }
+        else if (item.ApprovedYn == false)
+        {
+            @:Rejected
+        }
+        else
+        {
+            @:Pending
+        }
+    }
+</td>
+
+
+
 using System;
 using System.Linq;
 using System.Threading.Tasks;
