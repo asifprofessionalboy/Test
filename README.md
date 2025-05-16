@@ -1,108 +1,23 @@
-public interface IPermissionService
-{
-    List<string> GetAllowedPnos();
-}
+i have this js for fetching 
 
-public class PermissionService : IPermissionService
-{
-    private readonly YourDbContext _context;
+ refNoLinks.forEach(link => {
+     link.addEventListener("click", function (event) {
+         event.preventDefault();
+         cOAForm.style.display = "block";
 
-    public PermissionService(YourDbContext context)
-    {
-        _context = context;
-    }
+         document.getElementById("Pno").value = this.getAttribute("data-Pno");
+         document.getElementById("Cdate").value = this.getAttribute("data-Cdate");
+         document.getElementById("Reason").value = this.getAttribute("data-Reason");
+         document.getElementById("Remarks").value = this.getAttribute("data-Remarks");
+         document.getElementById("ApproverPno").value = this.getAttribute("data-ApproverPno");
+         document.getElementById("Approver").value = this.getAttribute("data-Approver");
+         document.getElementById("Intime").value = this.getAttribute("data-Intime");
+         document.getElementById("OutTime").value = this.getAttribute("data-OutTime");
+         document.getElementById("COAId").value = this.getAttribute("data-id"); // Set ID
 
-    public List<string> GetAllowedPnos()
-    {
-        return _context.AppPermissionMaster
-                       .Select(x => x.Pno)
-                       .Where(p => p != null)
-                       .ToList();
-    }
-}
-services.AddScoped<IPermissionService, PermissionService>();
-@inject YourNamespace.IPermissionService PermissionService
-@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
-
-@{
-    var userId = HttpContextAccessor.HttpContext.Request.Cookies["Session"] ?? "N/A";
-    var allowedPnos = PermissionService.GetAllowedPnos();
-}
-
-@if (allowedPnos.Contains(userId))
-{
-    <p>Welcome, authorized user!</p>
-}
+         deleteButton.style.display = "inline-block";
+     });
+ });
 
 
-
-private readonly YourDbContext _context; // Injected via constructor
-
-public YourController(YourDbContext context)
-{
-    _context = context;
-}
-
-public IActionResult YourAction()
-{
-    var allowedPnos = _context.AppPermissionMaster
-                         .Select(x => x.Pno)
-                         .ToList();
-
-    var userId = Request.Cookies["Session"];
-
-    if (!allowedPnos.Contains(userId))
-    {
-        return RedirectToAction("Login", "User");
-    }
-
-    // Proceed if allowed
-    return View();
-}
-
-ViewBag.AllowedPnos = allowedPnos;
-return View();
-@{
-    var userId = HttpContextAccessor.HttpContext.Request.Cookies["Session"] ?? "N/A";
-    var allowedPnos = ViewBag.AllowedPnos as List<string>;
-}
-
-@if (allowedPnos != null && allowedPnos.Contains(userId))
-{
-    <p>Welcome, authorized user!</p>
-}
-p
-
-
-i have this model 
- public partial class AppPermissionMaster
- {
-     public Guid Id { get; set; }
-     public string? Pno { get; set; }
- }
-
-and this is my code 
-
-if (UserId != "151515" && UserId!="151514" && UserId != "155478" && UserId != "159566")
-{
-    return RedirectToAction("Login", "User");
-}
-
-
-i have also this 
-
-@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
-
-@{
-    var userId = HttpContextAccessor.HttpContext.Request.Cookies["Session"] ?? "N/A";
-    var UserName = HttpContextAccessor.HttpContext.Request.Cookies["UserName"] ?? "Guest";
-}
-
-
-    @if (userId == "151514" || userId == "155478" || userId == "151515"|| userId == "159566")
-{
-
-}
-
-
-i want to fetch Pno from AppPermissionMaster and in place of hard code i want that all the pno that is stored in Pno give permission to those
+in InTime and OutTime it shows the value in hidden now in this i want to split that only
