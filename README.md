@@ -1,3 +1,33 @@
+query = query4.Where(a => a.Cdate.HasValue && a.Cdate.Value.ToString("dd-MM-yyyy").Contains(Date));
+
+if (DateTime.TryParseExact(Date, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+{
+    query = query4.Where(a => a.Cdate.HasValue && a.Cdate.Value.Date == parsedDate.Date);
+}
+
+<td>
+    @{
+        if (item.ApprovedYn == true)
+        {
+            @:Approved
+        }
+        else if (item.ApprovedYn == false)
+        {
+            @:Rejected
+        }
+        else
+        {
+            @:Pending
+        }
+    }
+</td>
+
+<td>
+    @(item.ApprovedYn == true ? "Approved" : item.ApprovedYn == false ? "Rejected" : "Pending")
+</td>
+
+
+
 var query4 = context.AppCoas.Where(x => x.Pno== session).AsQueryable();
 
  if (!string.IsNullOrEmpty(Date))
