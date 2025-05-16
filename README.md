@@ -1,3 +1,26 @@
+<!-- jQuery UI CSS & JS -->
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+<div class="form-group">
+    <label for="DateOfBirth">Date of Birth</label>
+    <input asp-for="DateOfBirth" class="form-control date-picker" autocomplete="off" />
+    <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+</div>
+
+<script>
+    $(function () {
+        $(".date-picker").datepicker({
+            changeMonth: true,
+            changeYear: true,
+            dateFormat: "dd-mm-yy",
+            yearRange: "1900:2100"
+        });
+    });
+</script>
+
+
 refNoLinks.forEach(link => {
     link.addEventListener("click", function (event) {
         event.preventDefault();
