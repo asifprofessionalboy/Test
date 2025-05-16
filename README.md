@@ -1,43 +1,97 @@
-query = query4.Where(a => a.Cdate.HasValue && a.Cdate.Value.ToString("dd-MM-yyyy").Contains(Date));
+this is my controller code 
 
-if (DateTime.TryParseExact(Date, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
-{
-    query = query4.Where(a => a.Cdate.HasValue && a.Cdate.Value.Date == parsedDate.Date);
-}
-
-<td>
-    @{
-        if (item.ApprovedYn == true)
+        public async Task<IActionResult> CorrectionOfAttendance(Guid? id, int page = 1, string Date = "")
         {
-            @:Approved
+            var session = HttpContext.Request.Cookies["Session"];
+            var userName = HttpContext.Request.Cookies["UserName"];
+
+            if (string.IsNullOrEmpty(session) || string.IsNullOrEmpty(userName))
+            {
+                return RedirectToAction("Login", "User");
+            }
+
+            ViewBag.Pno = session;
+            ViewBag.Name = userName;
+
+            string connectionString = GetRFIDConnectionString();
+
+            string query = @"
+select ema_reporting_to_pno as Apno ,ema_Dotted_Pno as adminPno,EMA_ENAME,EMA_EMPL_SGRADE 
+
+from SAPHRDB.dbo.T_EMPL_ALL where ema_perno=@Pno order by Apno";
+
+            string Pno = "";
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                Pno = connection.QuerySingleOrDefault<string>(query, new { Pno = session });
+            }
+
+            ViewBag.Approver = Pno;
+
+            string query2 = @"
+SELECT DISTINCT Emp.DepartmentName
+FROM INNOVATIONDB.dbo.App_Login AS Inn
+INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+    ON Inn.UserId COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
+    where Inn.UserId = @Pno";
+
+            string Department = "";
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                Department = connection.QuerySingleOrDefault<string>(query, new { Pno = session });
+            }
+
+            string query3 = @"
+    SELECT DISTINCT App.Pno
+FROM INNOVATIONDB.dbo.App_Login AS Inn
+INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+    ON Inn.UserId COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
+INNER JOIN App_ApproverMaster AS App
+    ON Emp.DepartmentName COLLATE DATABASE_DEFAULT = App.DepartmentName COLLATE DATABASE_DEFAULT
+where App.DepartmentName = @Pno";
+
+            string PNo = "";
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                PNo = connection.QuerySingleOrDefault<string>(query, new { Pno = Department });
+            }
+
+            ViewBag.HOD = PNo;
+
+            int pageSize = 5;
+            var query4 = context.AppCoas.Where(x => x.Pno== session).AsQueryable();
+
+            if (DateTime.TryParseExact(Date, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+            {
+                query = query4.Where(a => a.Cdate.HasValue && a.Cdate.Value.Date == parsedDate.Date);
+            }
+
+
+
+
+
+            var pagedData = await query4.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            var totalCount = query4.Count();
+
+            ViewBag.ListData2 = pagedData;
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            ViewBag.subject = Date;
+
+
+            AppCoa viewModel = null;
+
+            if (id.HasValue)
+            {
+                viewModel = await context.AppCoas.FirstOrDefaultAsync(a => a.Id == id);
+            }
+
+            return View(viewModel);
+
+
+
+            
         }
-        else if (item.ApprovedYn == false)
-        {
-            @:Rejected
-        }
-        else
-        {
-            @:Pending
-        }
-    }
-</td>
-
-<td>
-    @(item.ApprovedYn == true ? "Approved" : item.ApprovedYn == false ? "Rejected" : "Pending")
-</td>
-
-
-
-var query4 = context.AppCoas.Where(x => x.Pno== session).AsQueryable();
-
- if (!string.IsNullOrEmpty(Date))
- {
-     query = query4.Where(a => a.Cdate.Contains(Date));
- }
-
-error : 'DateTime?' does not contain a definition for 'Contains' and the best extension method overload 'MemoryExtensions.Contains<string>(ReadOnlySpan<string>, string)' requires a receiver of type 'System.ReadOnlySpan<string>'
-
-
-and in this query4 i want that check ApprovedYn value if it is false then show Rejected on grid if true show approved and if null then Show pending 
-
-<td>@item.ApprovedYn</td>
