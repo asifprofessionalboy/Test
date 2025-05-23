@@ -1,4 +1,39 @@
- [HttpPost]
+if (duplicate != null)
+{
+    return Ok(new { status = "duplicate", message = "Duplicate position exists for the same Personal No!" });
+}
+
+...
+
+return Ok(new { status = "success", message = "Created" });
+// or
+return Ok(new { status = "success", message = "Updated" });
+
+success: function (response) {
+    if (response.status === "duplicate") {
+        Swal.fire({
+            title: 'Duplicate Entry',
+            text: response.message,
+            icon: 'warning',
+            confirmButtonColor: '#3085d6'
+        });
+    } else {
+        Swal.fire({
+            title: 'Success!',
+            text: 'Position saved successfully.',
+            icon: 'success',
+            confirmButtonColor: '#3085d6'
+        }).then(() => {
+            $('#formContainer').hide();
+            location.reload();
+        });
+    }
+}
+ 
+ 
+ 
+ 
+[HttpPost]
  [ValidateAntiForgeryToken]
  public async Task<IActionResult> EmployeePositionMaster([FromBody] AppEmpPosition appPosition, [FromQuery] string actionType)
  {
