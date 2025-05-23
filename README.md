@@ -1,143 +1,113 @@
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> PositionMaster(AppPositionWorksite appPosition, string actionType)
-{
-    if (string.IsNullOrEmpty(actionType))
-    {
-        return BadRequest("No action specified.");
-    }
+ [HttpPost]
+ [ValidateAntiForgeryToken]
+ public async Task<IActionResult> EmployeePositionMaster([FromBody] AppEmpPosition appPosition, [FromQuery] string actionType)
+ {
+    
 
-    var existingParameter = await context.AppPositionWorksites.FindAsync(appPosition.Id);
-    var UserId = HttpContext.Request.Cookies["Session"];
+     if (string.IsNullOrEmpty(actionType))
+     {
+         return BadRequest("No action specified.");
+     }
 
-    if (actionType == "Submit")
-    {
-        if (!ModelState.IsValid)
-        {
-            foreach (var state in ModelState)
-            {
-                foreach (var error in state.Value.Errors)
-                {
-                    Console.WriteLine($"Key:{state.Key},Error:{error.ErrorMessage}");
-                }
-            }
-        }
+     var existingParameter = await context.AppEmpPositions.FindAsync(appPosition.Id);
 
-        if (ModelState.IsValid)
-        {
-            // DUPLICATE CHECK
-            var duplicate = await context.AppPositionWorksites
-                .Where(x => x.PositionName == appPosition.PositionName && x.WorksiteId == appPosition.WorksiteId)
-                .Where(x => x.Id != appPosition.Id) // Exclude self during update
-                .FirstOrDefaultAsync();
+     var UserId = HttpContext.Request.Cookies["Session"];
 
-            if (duplicate != null)
-            {
-                TempData["DuplicateMsg"] = "Duplicate position exists for the same worksite!";
-                return RedirectToAction("PositionMaster");
-            }
+     if (actionType == "Submit")
+     {
+         if (!ModelState.IsValid)
+         {
+             return BadRequest(ModelState);
+         }
 
-            if (existingParameter != null)
-            {
-                appPosition.CreatedBy = UserId;
-                context.Entry(existingParameter).CurrentValues.SetValues(appPosition);
-                await context.SaveChangesAsync();
-                TempData["Updatedmsg"] = "Position Updated Successfully!";
-                return RedirectToAction("PositionMaster");
-            }
-            else
-            {
-                appPosition.CreatedBy = UserId;
-                await context.AppPositionWorksites.AddAsync(appPosition);
-                await context.SaveChangesAsync();
-                TempData["msg"] = "Position Added Successfully!";
-                return RedirectToAction("PositionMaster");
-            }
-        }
-    }
-    else if (actionType == "Delete")
-    {
-        if (existingParameter != null)
-        {
-            context.AppPositionWorksites.Remove(existingParameter);
-            await context.SaveChangesAsync();
-            TempData["Dltmsg"] = "Position Deleted Successfully!";
-        }
-    }
+         var duplicate = await context.AppEmpPositions
+               .Where(x => x.Position == appPosition.Position&&x.Pno==appPosition.Pno)
+               .Where(x => x.Id != appPosition.Id) // Exclude self during update
+               .FirstOrDefaultAsync();
 
-    return RedirectToAction("PositionMaster");
-}
+         if (duplicate != null)
+         {
+             //TempData["DuplicateMsg"] = "Duplicate position exists for the same worksite!";
+             return Ok("Duplicate position exists for the same Personal No!");
+         }
+
+         if (existingParameter != null)
+         {
+             context.Entry(existingParameter).CurrentValues.SetValues(appPosition);
+             await context.SaveChangesAsync();
+             return Ok("Updated");
+         }
+         else
+         {
+             await context.AppEmpPositions.AddAsync(appPosition);
+             await context.SaveChangesAsync();
+             return Ok("Created");
+         }
+     }
+     else if (actionType == "Delete")
+     {
+         if (existingParameter != null)
+         {
+             context.AppEmpPositions.Remove(existingParameter);
+             await context.SaveChangesAsync();
+             return Ok("Deleted");
+         }
+     }
+
+     return BadRequest("Invalid action.");
+ }
 
 
-@if (TempData["DuplicateMsg"] != null)
-{
-    <div class="alert alert-warning">
-        @TempData["DuplicateMsg"]
-    </div>
-}
+  $('#submitButton').click(function (e) {
+      e.preventDefault();
 
+      // Validate form fields
+      if (!validateForm()) {
+          Swal.fire({
+              title: 'Validation Error',
+              text: 'Please fill in all required fields.',
+              icon: 'warning',
+              confirmButtonColor: '#3085d6'
+          });
+          return;
+      }
 
+      const id = $('#LocationId').val();
+      const pno = $('#Pno').val().trim();
+      const position = $('#Position').val().trim();
 
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> PositionMaster(AppPositionWorksite appPosition, string actionType)
-{
-    if (string.IsNullOrEmpty(actionType))
-    {
-        return BadRequest("No action specified.");
-    }
+      $.ajax({
+          url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Submit',
+          type: 'POST',
+          contentType: 'application/json',
+          headers: {
+              'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+          },
+          data: JSON.stringify({
+              Id: id,
+              Pno: pno,
+              Position: position
+          }),
+          success: function (response) {
+              Swal.fire({
+                  title: 'Success!',
+                  text: 'Position saved successfully.',
+                  icon: 'success',
+                  confirmButtonColor: '#3085d6'
+              }).then(() => {
+                  $('#formContainer').hide();
+                  location.reload();
+              });
+          },
+          error: function (xhr) {
+              Swal.fire(
+                  'Error!',
+                  'An error occurred while saving the position.',
+                  'error'
+              );
+              console.error(xhr.responseText);
+          }
+      });
+  });
 
-    var existingParameter = await context.AppPositionWorksites.FindAsync(appPosition.Id);
-
-    var UserId = HttpContext.Request.Cookies["Session"];
-    if (actionType == "Submit")
-    {
-        if (!ModelState.IsValid)
-        {
-            foreach (var state in ModelState)
-            {
-                foreach (var error in state.Value.Errors)
-                {
-                    Console.WriteLine($"Key:{state.Key},Error:{error.ErrorMessage}");
-                }
-            }
-        }
-
-
-        if (ModelState.IsValid)
-        {
-
-
-            if (existingParameter != null)
-            {
-                appPosition.CreatedBy = UserId;
-                context.Entry(existingParameter).CurrentValues.SetValues(appPosition);
-                await context.SaveChangesAsync();
-                TempData["Updatedmsg"] = "Position Updated Successfully!";
-                return RedirectToAction("PositionMaster");
-            }
-            else
-            {
-
-                appPosition.CreatedBy = UserId;
-                await context.AppPositionWorksites.AddAsync(appPosition);
-                await context.SaveChangesAsync();
-                TempData["msg"] = "Position Added Successfully!";
-                return RedirectToAction("PositionMaster");
-            }
-        }
-    }
-    else if (actionType == "Delete")
-    {
-        if (existingParameter != null)
-        {
-            context.AppPositionWorksites.Remove(existingParameter);
-            await context.SaveChangesAsync();
-            TempData["Dltmsg"] = "Position Deleted Successfully!";
-        }
-    }
-
-    return RedirectToAction("PositionMaster");
-}
-
-in this i want to check for duplicate records , if duplicate records then send alert 
+after duplicate it shows me position Saved Successfully it catches the duplicate value but because of this jquery i am getting this issue
