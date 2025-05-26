@@ -1,148 +1,166 @@
-if (duplicate != null)
+i have this two method 
+
+
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+        {
+            try
+            {
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
+
+                string Pno = UserId;
+                string Name = UserName;
+
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+ 
+                if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+                {
+                    return Json(new { success = false, message = "No reference image found to verify face!" });
+                }
+
+
+                string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+                SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+                bool isFaceMatched = false;
+
+                using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+                {
+                    if (System.IO.File.Exists(storedImagePath))
+                    {
+                        using (Bitmap stored = new Bitmap(storedImagePath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, stored);
+                        }
+                    }
+
+                   
+                    if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+                    {
+                        using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                        }
+                    }
+                }
+
+                
+                System.IO.File.Delete(tempCapturedPath);
+
+                if (isFaceMatched)
+                {
+                    string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                    string currentTime = DateTime.Now.ToString("HH:mm");
+
+                    if (model.Type == "Punch In")
+                    {
+                        
+                        string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                        SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                        StoreData(currentDate, currentTime, null, Pno);
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno);
+                    }
+
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+
+      
+
+        private bool VerifyFace(Bitmap captured, Bitmap stored)
+        {
+            try
+            {
+                Mat matCaptured = BitmapToMat(captured);
+                Mat matStored = BitmapToMat(stored);
+
+
+                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+
+                string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+                if (!System.IO.File.Exists(cascadePath))
+                {
+                    Console.WriteLine("Error: Haarcascade file not found!");
+                    return false;
+                }
+
+                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+
+                if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+                {
+                    Console.WriteLine("No face detected in one or both images.");
+                    return false;
+                }
+
+
+
+
+                Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+                Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+                CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+
+                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 98))
+                {
+                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
+                    CvInvoke.EqualizeHist(storedFace, storedFace);
+
+                    VectorOfMat trainingImages = new VectorOfMat();
+                    trainingImages.Push(storedFace);
+                    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+                    faceRecognizer.Train(trainingImages, labels);
+                    var result = faceRecognizer.Predict(capturedFace);
+
+                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+                    return result.Label == 1 && result.Distance <= 98;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in face verification: " + ex.Message);
+                return false;
+            }
+        }
+
+
+and this is my model to count details 
+public partial class AppFaceVerificationDetail
 {
-    return Ok(new { status = "duplicate", message = "Duplicate position exists for the same Personal No!" });
+    public Guid Id { get; set; }
+    public string? Pno { get; set; }
+    public DateTime? DateAndTime { get; set; }
+    public int? PunchInFailedCount { get; set; }
+    public bool? PunchInSuccess { get; set; }
+    public int? PunchOutFailedCount { get; set; }
+    public bool? PunchOutSuccess { get; set; }
 }
 
-...
-
-return Ok(new { status = "success", message = "Created" });
-// or
-return Ok(new { status = "success", message = "Updated" });
-
-success: function (response) {
-    if (response.status === "duplicate") {
-        Swal.fire({
-            title: 'Duplicate Entry',
-            text: response.message,
-            icon: 'warning',
-            confirmButtonColor: '#3085d6'
-        });
-    } else {
-        Swal.fire({
-            title: 'Success!',
-            text: 'Position saved successfully.',
-            icon: 'success',
-            confirmButtonColor: '#3085d6'
-        }).then(() => {
-            $('#formContainer').hide();
-            location.reload();
-        });
-    }
-}
- 
- 
- 
- 
-[HttpPost]
- [ValidateAntiForgeryToken]
- public async Task<IActionResult> EmployeePositionMaster([FromBody] AppEmpPosition appPosition, [FromQuery] string actionType)
- {
-    
-
-     if (string.IsNullOrEmpty(actionType))
-     {
-         return BadRequest("No action specified.");
-     }
-
-     var existingParameter = await context.AppEmpPositions.FindAsync(appPosition.Id);
-
-     var UserId = HttpContext.Request.Cookies["Session"];
-
-     if (actionType == "Submit")
-     {
-         if (!ModelState.IsValid)
-         {
-             return BadRequest(ModelState);
-         }
-
-         var duplicate = await context.AppEmpPositions
-               .Where(x => x.Position == appPosition.Position&&x.Pno==appPosition.Pno)
-               .Where(x => x.Id != appPosition.Id) // Exclude self during update
-               .FirstOrDefaultAsync();
-
-         if (duplicate != null)
-         {
-             //TempData["DuplicateMsg"] = "Duplicate position exists for the same worksite!";
-             return Ok("Duplicate position exists for the same Personal No!");
-         }
-
-         if (existingParameter != null)
-         {
-             context.Entry(existingParameter).CurrentValues.SetValues(appPosition);
-             await context.SaveChangesAsync();
-             return Ok("Updated");
-         }
-         else
-         {
-             await context.AppEmpPositions.AddAsync(appPosition);
-             await context.SaveChangesAsync();
-             return Ok("Created");
-         }
-     }
-     else if (actionType == "Delete")
-     {
-         if (existingParameter != null)
-         {
-             context.AppEmpPositions.Remove(existingParameter);
-             await context.SaveChangesAsync();
-             return Ok("Deleted");
-         }
-     }
-
-     return BadRequest("Invalid action.");
- }
-
-
-  $('#submitButton').click(function (e) {
-      e.preventDefault();
-
-      // Validate form fields
-      if (!validateForm()) {
-          Swal.fire({
-              title: 'Validation Error',
-              text: 'Please fill in all required fields.',
-              icon: 'warning',
-              confirmButtonColor: '#3085d6'
-          });
-          return;
-      }
-
-      const id = $('#LocationId').val();
-      const pno = $('#Pno').val().trim();
-      const position = $('#Position').val().trim();
-
-      $.ajax({
-          url: '@Url.Action("EmployeePositionMaster", "Master")' + '?actionType=Submit',
-          type: 'POST',
-          contentType: 'application/json',
-          headers: {
-              'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
-          },
-          data: JSON.stringify({
-              Id: id,
-              Pno: pno,
-              Position: position
-          }),
-          success: function (response) {
-              Swal.fire({
-                  title: 'Success!',
-                  text: 'Position saved successfully.',
-                  icon: 'success',
-                  confirmButtonColor: '#3085d6'
-              }).then(() => {
-                  $('#formContainer').hide();
-                  location.reload();
-              });
-          },
-          error: function (xhr) {
-              Swal.fire(
-                  'Error!',
-                  'An error occurred while saving the position.',
-                  'error'
-              );
-              console.error(xhr.responseText);
-          }
-      });
-  });
-
-after duplicate it shows me position Saved Successfully it catches the duplicate value but because of this jquery i am getting this issue
+i want that if face not recognized then count no. of failed attempt and if success then store true on PunchIn success and Punchout success 
