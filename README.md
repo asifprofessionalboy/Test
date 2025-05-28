@@ -1,4 +1,56 @@
-  protected void SubmitBtn_Click(object sender, EventArgs e)
+private DataTable GetGeoData(string condition, string department)
+{
+    string query = @"select DE.Pno, Emp.DepartmentName, DE.DateAndTime, 
+                            DE.PunchIn_FailedCount, DE.PunchOut_FailedCount 
+                     from App_FaceVerification_Details As DE 
+                     INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+                     ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT 
+                     where CAST(DateAndTime as Date) = @DateCondition";
+
+    if (!string.IsNullOrEmpty(department))
+    {
+        query += " AND Emp.DepartmentName = @Department";
+    }
+
+    query += " Order By Emp.DepartmentName";
+
+    DataTable dt = new DataTable();
+    using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
+    {
+        using (SqlCommand cmd = new SqlCommand(query, con))
+        {
+            cmd.Parameters.AddWithValue("@DateCondition", condition);
+
+            if (!string.IsNullOrEmpty(department))
+            {
+                cmd.Parameters.AddWithValue("@Department", department);
+            }
+
+            using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+            {
+                sda.Fill(dt);
+            }
+        }
+    }
+
+    return dt;
+}
+protected void SubmitBtn_Click(object sender, EventArgs e)
+{
+    string selectedDate = Date.Text.Trim();
+    string Department = DeptDropdown.Text.Trim();
+
+    ReportViewer1.Visible = true;
+
+    if (!string.IsNullOrEmpty(selectedDate))
+    {
+        LoadReport(selectedDate, Department);
+    }
+}
+
+  
+  
+   protected void SubmitBtn_Click(object sender, EventArgs e)
         {
             string selectedDate = Date.Text.Trim();
             string Department = DeptDropdown.Text.Trim();
