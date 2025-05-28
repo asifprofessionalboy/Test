@@ -1,36 +1,48 @@
-select DE.Pno,Emp.DepartmentName,DE.DateAndTime,DE.PunchIn_FailedCount,DE.PunchOut_FailedCount from App_FaceVerification_Details As DE 
-INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
-ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT where 
-Emp.DepartmentName = 'Corporate Function' And CAST(DateAndTime as Date) = '28-05-2025' Order By Emp.DepartmentName
-
-
-
-protected void Page_Load(object sender, EventArgs e)
+  protected void SubmitBtn_Click(object sender, EventArgs e)
         {
-            
+            string selectedDate = Date.Text.Trim();
+            string Department = DeptDropdown.Text.Trim();
 
-                if (!IsPostBack)
-                {
-                    string today = DateTime.Now.ToString("dd/MM/yyyy");
-                    Date.Text = today;
-                   
-
-                BindDepartmentDropdown();
-
+            ReportViewer1.Visible = true;
+            if (!string.IsNullOrEmpty(selectedDate))
+            {
+                LoadReport(selectedDate, Department);
             }
 
         }
+  private DataTable GetGeoData(string condition, string department)
+        {
+            string query = @"select DE.Pno,Emp.DepartmentName,DE.DateAndTime,DE.PunchIn_FailedCount,DE.PunchOut_FailedCount from App_FaceVerification_Details As DE 
+INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT where 
+Emp.DepartmentName = '"+department+"' And CAST(DateAndTime as Date) = '"+ condition + "' Order By Emp.DepartmentName";
 
-         <div class="form-group col-md-4 mb-1">
-                                 <label for="Date" class="m-0 mr-2 p-0 col-form-label-sm col-sm-3 font-weight-bold fs-6">Date:</label>
-                                 <asp:TextBox ID="Date" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoComplete="off" ToolTip="dd/MM/yyyy"></asp:TextBox>
-                                    <ask:CalendarExtender ID="CalendarExtender2" runat="server" Enabled="True"  Format="dd/MM/yyyy" PopupPosition="TopRight" TargetControlID="Date" TodaysDateFormat="dd/MM/yyyy" ></ask:CalendarExtender>  
-                             </div>
+           
+            DataTable dt = new DataTable();
+            using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
+            {
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+                    {
 
- getting this error 
-   System.Data.SqlClient.SqlException
-  HResult=0x80131904
-  Message=Conversion failed when converting date and/or time from character string.
-  Source=.Net SqlClient Data Provider
-  StackTrace:
-<Cannot evaluate the exception stack trace>
+                        sda.Fill(dt);
+                    }
+                }
+            }
+
+            return dt;
+        }
+
+  private void LoadReport(string date, string Department)
+        {
+            DataTable inoData = GetGeoData(date, Department);
+
+            ReportViewer1.LocalReport.ReportPath = Server.MapPath("FaceRecognition_Report.rdlc");
+            ReportViewer1.LocalReport.DataSources.Clear();
+            ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
+            ReportViewer1.LocalReport.DataSources.Add(rds);
+            ReportViewer1.LocalReport.Refresh();
+        }
+
+i want if deparment is not selected then value shows based on the Date 
