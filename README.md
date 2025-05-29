@@ -1,3 +1,46 @@
+[HttpGet]
+public IActionResult GetCount()
+{
+    try
+    {
+        string connectionString = GetRFIDConnectionString();
+
+        string query = @"
+            SELECT 
+                PunchIn_FailedCount AS FailedAttempt, 
+                COUNT(*) AS Users 
+            FROM 
+                App_FaceVerification_Details 
+            WHERE 
+                PunchIn_Success = 1
+                AND CAST(DateAndTime AS DATE) = @Today
+            GROUP BY 
+                PunchIn_FailedCount";
+
+        using (var connection = new SqlConnection(connectionString))
+        {
+            var result = connection.Query<AppDetails>(query, new { Today = DateTime.Today }).ToList();
+
+            // Debug: Output to server console
+            foreach (var row in result)
+            {
+                Console.WriteLine($"FailedAttempt: {row.FailedAttempt}, Users: {row.Users}");
+            }
+
+            return Json(result);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error: " + ex.Message);
+        return StatusCode(500, "An error occurred while processing your request.");
+    }
+}
+
+
+
+
+
 <div class="row">
     <div class="col-sm-12">
         <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;margin-top:20px;">
