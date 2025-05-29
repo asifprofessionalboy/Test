@@ -1,3 +1,63 @@
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch('/YourControllerName/GetCount') // Replace 'YourControllerName' if needed
+            .then(response => response.json())
+            .then(data => {
+                const labels = data.map(item => `Failed Attempts: ${item.failedAttempt}`);
+                const users = data.map(item => item.users);
+
+                const ctx = document.getElementById('barChart4').getContext('2d');
+                const barChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Users',
+                            data: users,
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Face Verification - Punch In Attempts'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Number of Users'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Failed Attempt Count'
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching chart data:', error);
+            });
+    });
+</script>
+
+
+
+
 i have this model 
  public partial class AppDetails
  {
