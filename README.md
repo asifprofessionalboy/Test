@@ -1,3 +1,97 @@
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        CvInvoke.CvtColor(matCaptured, matCaptured, ColorConversion.Bgr2Gray);
+        CvInvoke.CvtColor(matStored, matStored, ColorConversion.Bgr2Gray);
+
+        string protoPath = Path.Combine(Directory.GetCurrentDirectory(), "models", "deploy.prototxt");
+        string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "models", "res10_300x300_ssd_iter_140000.caffemodel");
+
+        if (!File.Exists(protoPath) || !File.Exists(modelPath))
+        {
+            Console.WriteLine("Error: DNN model files not found!");
+            return false;
+        }
+
+        var net = CvInvoke.ReadNetFromCaffe(protoPath, modelPath);
+
+        Rectangle[] DetectFaces(Mat image)
+        {
+            var blob = CvInvoke.DnnBlobFromImage(image, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
+            net.SetInput(blob);
+            var detection = net.Forward();
+
+            List<Rectangle> faces = new List<Rectangle>();
+            for (int i = 0; i < detection.SizeOfDimension[2]; i++)
+            {
+                float confidence = detection.GetData(new int[] { 0, 0, i, 2 });
+                if (confidence > 0.7) // Confidence threshold
+                {
+                    int x1 = (int)(detection.GetData(new int[] { 0, 0, i, 3 }) * image.Cols);
+                    int y1 = (int)(detection.GetData(new int[] { 0, 0, i, 4 }) * image.Rows);
+                    int x2 = (int)(detection.GetData(new int[] { 0, 0, i, 5 }) * image.Cols);
+                    int y2 = (int)(detection.GetData(new int[] { 0, 0, i, 6 }) * image.Rows);
+                    faces.Add(new Rectangle(x1, y1, x2 - x1, y2 - y1));
+                }
+            }
+            return faces.ToArray();
+        }
+
+        Rectangle[] capturedFaces = DetectFaces(matCaptured);
+        Rectangle[] storedFaces = DetectFaces(matStored);
+
+        if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false;
+        }
+
+        Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+        Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 98))
+        {
+            CvInvoke.EqualizeHist(capturedFace, capturedFace);
+            CvInvoke.EqualizeHist(storedFace, storedFace);
+
+            VectorOfMat trainingImages = new VectorOfMat();
+            trainingImages.Push(storedFace);
+            VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+            faceRecognizer.Train(trainingImages, labels);
+            var result = faceRecognizer.Predict(capturedFace);
+
+            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+            return result.Label == 1 && result.Distance <= 98;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in face verification: " + ex.Message);
+        return false;
+    }
+}
+
+
+private bool IsLowLight(Mat image)
+{
+    Mat gray = new Mat();
+    CvInvoke.CvtColor(image, gray, ColorConversion.Bgr2Gray);
+    double meanBrightness = CvInvoke.Mean(gray).V0;
+    return meanBrightness < 50; // Threshold for low light
+}
+
+
+
+
 this is my full code of controller 
         [HttpPost]
         public IActionResult AttendanceData([FromBody] AttendanceRequest model)
