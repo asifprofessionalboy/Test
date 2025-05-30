@@ -1,3 +1,46 @@
+function detectMotion() {
+    const context = canvas.getContext("2d");
+    // Resize for faster processing and sensitivity boost
+    const tempWidth = 160;  // Small resolution improves performance & sensitivity
+    const tempHeight = 120;
+
+    canvas.width = tempWidth;
+    canvas.height = tempHeight;
+    context.drawImage(video, 0, 0, tempWidth, tempHeight);
+
+    const currentFrame = context.getImageData(0, 0, tempWidth, tempHeight);
+
+    if (previousFrame) {
+        let diff = 0;
+        const threshold = 30;         // Color difference threshold
+        const motionThreshold = 2000; // Lowered from 15000 to 2000 for better sensitivity
+
+        for (let i = 0; i < currentFrame.data.length; i += 4) {
+            const r = Math.abs(currentFrame.data[i] - previousFrame.data[i]);
+            const g = Math.abs(currentFrame.data[i + 1] - previousFrame.data[i + 1]);
+            const b = Math.abs(currentFrame.data[i + 2] - previousFrame.data[i + 2]);
+
+            if (r > threshold || g > threshold || b > threshold) {
+                diff++;
+            }
+        }
+
+        motionDetected = diff > motionThreshold;
+
+        // Optional: log for debugging
+        // console.log("Pixel Diff:", diff, "Motion Detected:", motionDetected);
+    }
+
+    previousFrame = currentFrame;
+    requestAnimationFrame(detectMotion);
+}
+
+<div id="motionStatus" style="font-weight: bold; color: red;">Motion: Not Detected</div>
+document.getElementById("motionStatus").textContent = motionDetected ? "Motion: Detected" : "Motion: Not Detected";
+document.getElementById("motionStatus").style.color = motionDetected ? "green" : "red";
+
+
+
 in this js 
 <script>
     const video = document.getElementById("video");
