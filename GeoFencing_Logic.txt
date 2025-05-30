@@ -1,0 +1,1022 @@
+        [Authorize]
+        public IActionResult GeoFencing()
+        {
+            var session = HttpContext.Request.Cookies["Session"];
+            var userName = HttpContext.Request.Cookies["UserName"];
+
+
+            if (string.IsNullOrEmpty(session) || string.IsNullOrEmpty(userName))
+            {
+                return RedirectToAction("Login", "User");
+            }
+
+
+
+            var data = GetLocations();
+
+            var pno = session; 
+            var currentDate = DateTime.Now.ToString("yyyy-MM-dd");
+
+            string connectionString = GetRFIDConnectionString();
+
+            string query = @"
+SELECT COUNT(*) 
+FROM T_TRBDGDAT_EARS 
+WHERE TRBDGDA_BD_PNO = @Pno 
+AND TRBDGDA_BD_DATE = @CurrentDate";
+
+
+            int punchCount = 0;
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+                punchCount = connection.QuerySingleOrDefault<int>(query, new { Pno = pno, CurrentDate = currentDate });
+            }
+
+            int mod = punchCount % 2;
+            ViewBag.InOut = mod == 0 ? "I" : "O";
+
+
+
+            return View();
+        }
+
+        public IActionResult GetLocations()
+        {
+            var UserId = HttpContext.Request.Cookies["Session"];
+            string connectionString = GetRFIDConnectionString();
+
+            string query = @"SELECT ps.Worksite FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps 
+                     INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position 
+                     WHERE es.Pno = @UserId";
+
+            using (var connection = new SqlConnection(connectionString))
+            {
+               
+                var worksiteNamesString = connection.QuerySingleOrDefault<string>(query, new { UserId });
+
+                if (string.IsNullOrEmpty(worksiteNamesString))
+                {
+                    ViewBag.PolyData = new List<object>();
+                    return View();
+                }
+
+                
+                var worksiteNames = worksiteNamesString.Split(',').Select(w => w.Trim()).ToList();
+
+               
+                var formattedWorksites = worksiteNames
+                    .Select(name => $"'{name.Replace("'", "''")}'") 
+                    .ToList();
+
+                string s = string.Join(",", formattedWorksites);
+
+                string query2 = @$"SELECT Longitude, Latitude, Range FROM TSUISLRFIDDB.DBO.App_LocationMaster 
+                           WHERE ID IN ({s})";
+
+                var locations = connection.Query(query2).Select(loc => new
+                {
+                    Latitude = (double)loc.Latitude,
+                    Longitude = (double)loc.Longitude,
+                    Range = loc.Range
+                }).ToList();
+
+                ViewBag.PolyData = locations;
+                return View();
+            }
+        }
+
+
+        [HttpPost]
+        public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+        {
+            try
+            {
+                var UserId = HttpContext.Request.Cookies["Session"];
+                var UserName = HttpContext.Request.Cookies["UserName"];
+                if (string.IsNullOrEmpty(UserId))
+                    return Json(new { success = false, message = "User session not found!" });
+
+                string Pno = UserId;
+                string Name = UserName;
+
+                string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+                string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+
+                //string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"151514-Shashi Kumar.jpg");
+                //string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"151514-Shashi Kumar.jpg");
+
+                if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+                {
+                    return Json(new { success = false, message = "No reference image found to verify face!" });
+                }
+
+                string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+                //string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"stored.jpg");
+                SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+                bool isFaceMatched = false;
+
+                using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+                {
+                    if (System.IO.File.Exists(storedImagePath))
+                    {
+                        using (Bitmap stored = new Bitmap(storedImagePath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, stored);
+                        }
+                    }
+
+                    if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+                    {
+                        using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                        {
+                            isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                        }
+                    }
+                }
+
+                System.IO.File.Delete(tempCapturedPath);
+
+                string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+                string currentTime = DateTime.Now.ToString("HH:mm");
+
+
+                DateTime today = DateTime.Today;
+
+                var record = context.AppFaceVerificationDetails
+                    .FirstOrDefault(x => x.Pno == Pno && x.DateAndTime.Value.Date == today);
+
+                if (record == null)
+                {
+                    record = new AppFaceVerificationDetail
+                    {
+                        Pno = Pno,
+                        PunchInFailedCount = 0,
+                        PunchOutFailedCount = 0,
+                        PunchInSuccess = false,
+                        PunchOutSuccess = false
+                    };
+                    context.AppFaceVerificationDetails.Add(record);
+                }
+
+                if (isFaceMatched)
+                {
+                    if (model.Type == "Punch In")
+                    {
+                        string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                        SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                        StoreData(currentDate, currentTime, null, Pno);
+
+                        record.PunchInSuccess = true;
+                    }
+                    else
+                    {
+                        StoreData(currentDate, null, currentTime, Pno);
+
+                        record.PunchOutSuccess = true;
+                    }
+
+                    context.SaveChanges();
+                    return Json(new { success = true, message = "Attendance recorded successfully." });
+                }
+                else
+                {
+                    if (model.Type == "Punch In")
+                        record.PunchInFailedCount = (record.PunchInFailedCount ?? 0) + 1;
+                    else
+                        record.PunchOutFailedCount = (record.PunchOutFailedCount ?? 0) + 1;
+
+                    context.SaveChanges();
+                    return Json(new { success = false, message = "Face does not match!" });
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+
+
+
+        private bool VerifyFace(Bitmap captured, Bitmap stored)
+        {
+            try
+            {
+                Mat matCaptured = BitmapToMat(captured);
+                Mat matStored = BitmapToMat(stored);
+
+
+                CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+
+                string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+                if (!System.IO.File.Exists(cascadePath))
+                {
+                    Console.WriteLine("Error: Haarcascade file not found!");
+                    return false;
+                }
+
+                CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+                Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+                Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+
+                if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+                {
+                    Console.WriteLine("No face detected in one or both images.");
+                    return false;
+                }
+
+
+
+
+                Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+                Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+
+                CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+                CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+
+                using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 99))
+                {
+                    CvInvoke.EqualizeHist(capturedFace, capturedFace);
+                    CvInvoke.EqualizeHist(storedFace, storedFace);
+
+                    VectorOfMat trainingImages = new VectorOfMat();
+                    trainingImages.Push(storedFace);
+                    VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+                    faceRecognizer.Train(trainingImages, labels);
+                    var result = faceRecognizer.Predict(capturedFace);
+
+                    Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+                    return result.Label == 1 && result.Distance <= 99;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in face verification: " + ex.Message);
+                return false;
+            }
+        }
+
+
+
+
+
+        private Mat BitmapToMat(Bitmap bitmap)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+                byte[] imageData = ms.ToArray();
+
+                Mat mat = new Mat();
+                CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
+
+                if (mat.IsEmpty)
+                {
+                    Console.WriteLine("Error: Image conversion failed!");
+                }
+
+                return mat;
+            }
+        }
+        private void SaveBase64ImageToFile(string base64String, string filePath)
+        {
+            try
+            {
+                byte[] imageBytes = Convert.FromBase64String(base64String.Split(',')[1]);
+                using (MemoryStream ms = new MemoryStream(imageBytes))
+                {
+                    using (Bitmap bmp = new Bitmap(ms))
+                    {
+                        bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
+            }
+        }
+      
+
+        public void StoreData(string ddMMyy, string tmIn, string tmOut, string Pno)
+        {
+            using (var connection = new SqlConnection(configuration.GetConnectionString("RFID")))
+            {
+                connection.Open();
+
+                if (!string.IsNullOrEmpty(tmIn))
+                {
+                    var query = @"
+                INSERT INTO T_TRBDGDAT_EARS(TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER,
+                TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA,TRBDGDA_BD_ENTRYUID, TRBDGDA_BD_PNO) 
+                VALUES 
+                (@TRBDGDA_BD_DATE,
+                @TRBDGDA_BD_TIME, 
+                @TRBDGDA_BD_INOUT,
+                @TRBDGDA_BD_READER, 
+                @TRBDGDA_BD_CHKHS, 
+                @TRBDGDA_BD_SUBAREA, 
+                @TRBDGDA_BD_ENTRYUID, 
+                @TRBDGDA_BD_PNO)";
+
+                    var parameters = new
+                    {
+                        TRBDGDA_BD_DATE = ddMMyy,
+                        TRBDGDA_BD_TIME = ConvertTimeToMinutes(tmIn),
+                        TRBDGDA_BD_INOUT = "I",
+                        TRBDGDA_BD_READER = "2",
+                        TRBDGDA_BD_CHKHS = "2",
+                        TRBDGDA_BD_SUBAREA = "JUSC12",
+                        TRBDGDA_BD_ENTRYUID = "MOBILE",
+                        TRBDGDA_BD_PNO = Pno
+                    };
+
+                    connection.Execute(query, parameters);
+
+                    var Punchquery = @"
+                INSERT INTO T_TRPUNCHDATA_EARS(PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,
+                PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_ENTRYUID,PDE_PSRNO) 
+                VALUES 
+                (@PDE_PUNCHDATE,
+                @PDE_PUNCHTIME, 
+                @PDE_INOUT,
+                @PDE_MACHINEID, 
+                @PDE_READERNO, 
+                @PDE_CHKHS, 
+                @PDE_SUBAREA, 
+                @PDE_ENTRYUID,
+                @PDE_PSRNO)";
+
+                    var parameters2 = new
+                    {
+                        PDE_PUNCHDATE = ddMMyy,
+                        PDE_PUNCHTIME = tmIn,
+                        PDE_INOUT = "I",
+                        PDE_MACHINEID = "2",
+                        PDE_READERNO = "2",
+                        PDE_CHKHS = "2",
+                        PDE_SUBAREA = "JUSC12",
+                        PDE_ENTRYUID = "MOBILE",
+                        PDE_PSRNO = Pno
+                    };
+
+                    connection.Execute(Punchquery, parameters2);
+                }
+
+                if (!string.IsNullOrEmpty(tmOut))
+                {
+                    var queryOut = @"
+                INSERT INTO T_TRBDGDAT_EARS(TRBDGDA_BD_DATE, TRBDGDA_BD_TIME, TRBDGDA_BD_INOUT, TRBDGDA_BD_READER, 
+                 TRBDGDA_BD_CHKHS, TRBDGDA_BD_SUBAREA,TRBDGDA_BD_ENTRYUID, TRBDGDA_BD_PNO) 
+                VALUES 
+                (@TRBDGDA_BD_DATE,
+                @TRBDGDA_BD_TIME, 
+                @TRBDGDA_BD_INOUT, 
+                @TRBDGDA_BD_READER, 
+                @TRBDGDA_BD_CHKHS,
+                @TRBDGDA_BD_SUBAREA,
+                @TRBDGDA_BD_ENTRYUID,
+                @TRBDGDA_BD_PNO)";
+
+                    var parametersOut = new
+                    {
+                        TRBDGDA_BD_DATE = ddMMyy,
+                        TRBDGDA_BD_TIME = ConvertTimeToMinutes(tmOut),
+                        TRBDGDA_BD_INOUT = "O",
+                        TRBDGDA_BD_READER = "2",
+                        TRBDGDA_BD_CHKHS = "2",
+                        TRBDGDA_BD_SUBAREA = "JUSC12",
+                        TRBDGDA_BD_ENTRYUID = "MOBILE",
+                        TRBDGDA_BD_PNO = Pno
+                    };
+
+                    connection.Execute(queryOut, parametersOut);
+
+                    var Punchquery = @"
+                INSERT INTO T_TRPUNCHDATA_EARS(PDE_PUNCHDATE,PDE_PUNCHTIME,PDE_INOUT,PDE_MACHINEID,
+                PDE_READERNO,PDE_CHKHS,PDE_SUBAREA,PDE_ENTRYUID,PDE_PSRNO) 
+                VALUES 
+                (@PDE_PUNCHDATE,
+                @PDE_PUNCHTIME, 
+                @PDE_INOUT,
+                @PDE_MACHINEID, 
+                @PDE_READERNO, 
+                @PDE_CHKHS, 
+                @PDE_SUBAREA,
+                @PDE_ENTRYUID,
+                @PDE_PSRNO)";
+
+                    var parameters2 = new
+                    {
+                        PDE_PUNCHDATE = ddMMyy,
+                        PDE_PUNCHTIME = tmOut,
+                        PDE_INOUT = "O",
+                        PDE_MACHINEID = "2",
+                        PDE_READERNO = "2",
+                        PDE_CHKHS = "2",
+                        PDE_SUBAREA = "JUSC12",
+                        PDE_ENTRYUID = "MOBILE",
+                        PDE_PSRNO = Pno
+                    };
+
+                    connection.Execute(Punchquery, parameters2);
+                }
+
+            }
+        }
+
+
+<style>
+
+   
+    video {
+        transform: scaleX(-1);
+        -webkit-transform: scaleX(-1); 
+        -moz-transform: scaleX(-1);
+    }
+
+</style>
+
+
+<audio id="successSound" src="https://notificationsounds.com/storage/sounds/files/mp3/eventually-590.mp3"></audio>
+<audio id="errorSound" src="https://notificationsounds.com/storage/sounds/files/mp3/glitch-589.mp3"></audio>
+
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <video id="video" width="320" height="240" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+    </div>
+
+    <input type="hidden" name="Type" id="EntryType" />
+
+    <div class="mt-5 form-group">
+        <div class="col d-flex justify-content-center mb-4">
+            @if (ViewBag.InOut == "I")
+            {
+                <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                    Punch In
+                </button>
+            }
+        </div>
+
+        <div class="col d-flex justify-content-center">
+            @if (ViewBag.InOut == "O")
+            {
+                <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                    Punch Out
+                </button>
+            }
+        </div>
+    </div>
+
+  
+</form>
+
+
+
+
+
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const EntryTypeInput = document.getElementById("EntryType");
+    const successSound = document.getElementById("successSound");
+    const errorSound = document.getElementById("errorSound");
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            let video = document.getElementById("video");
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
+
+ 
+    function captureImageAndSubmit(entryType) {
+        EntryTypeInput.value = entryType;
+
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL("image/jpeg"); // Save as JPG
+
+        
+        Swal.fire({
+            title: "Verifying Face...",
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+       
+       
+
+        fetch("/AS/Geo/AttendanceData", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Type: entryType,
+                ImageData: imageData
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    var now = new Date();
+                    var formattedDateTime = now.toLocaleString();
+                    successSound.play();
+                    triggerHapticFeedback("success");
+
+                    Swal.fire({
+                        title: "Face Matched!",
+                        text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
+                        icon: "success",
+                        timer: 3000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload();  
+                    }); 
+
+                } else {
+                    errorSound.play();
+                    triggerHapticFeedback("error");
+                    var now = new Date();
+                    var formattedDateTime = now.toLocaleString();
+                    Swal.fire({
+                        title: "Face Not Recognized.",
+                        text: "Click the button again to retry.\nDate & Time: " + formattedDateTime,
+                        icon: "error",
+                        confirmButtonText: "Retry"
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                triggerHapticFeedback("error");
+
+                Swal.fire({
+                    title: "Error!",
+                    text: "An error occurred while processing your request.",
+                    icon: "error"
+                });
+            });
+            
+    }
+
+    function triggerHapticFeedback(type) {
+        if ("vibrate" in navigator) {
+            if (type === "success") {
+                navigator.vibrate(100); 
+            } else if (type === "error") {
+                navigator.vibrate([200, 100, 200]); 
+            }
+        }
+    }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+
+
+<script>
+    function OnOff() {
+        setTimeout(() => {
+            var punchIn = document.getElementById('PunchIn');
+            var punchOut = document.getElementById('PunchOut');
+
+           
+            if (punchIn) {
+                punchIn.disabled = true;
+                punchIn.classList.add("disabled");
+            }
+            if (punchOut) {
+                punchOut.disabled = true;
+                punchOut.classList.add("disabled");
+            }
+
+            Swal.fire({
+                title: 'Please wait...',
+                text: 'Fetching your current location.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        Swal.close();
+
+                        const lat = roundTo(position.coords.latitude, 6);
+                        const lon = roundTo(position.coords.longitude, 6);
+                        // const lat = 22.79714;
+                        // const lon = 86.183471;
+
+                        const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
+                        
+
+                        let isInsideRadius = false;
+                        let minDistance = Number.MAX_VALUE;
+
+                        locations.forEach((location) => {
+                            const allowedRange = parseFloat(location.range || location.Range);
+                            const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
+                            //console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
+
+                            if (distance <= allowedRange) {
+                                isInsideRadius = true;
+                            } else {
+                                minDistance = Math.min(minDistance, distance);
+                            }
+                        });
+
+                        if (isInsideRadius) {
+                            if (punchIn) {
+                                punchIn.disabled = false;
+                                punchIn.classList.remove("disabled");
+                            }
+                            if (punchOut) {
+                                punchOut.disabled = false;
+                                punchOut.classList.remove("disabled");
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Out of Range",
+                                text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
+                            });
+                        }
+                    },
+                    function (error) {
+                        Swal.close();
+                        Swal.fire({
+                            title: "Error Fetching Location!",
+                            text: "please check your location permission or enable location",
+                            icon: "error",
+                            confirmButtonText: "OK"
+                        });
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                Swal.close();
+                alert("Geolocation is not supported by this browser");
+            }
+        }, 500); 
+    }
+
+   
+    window.onload = OnOff;
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const toRad = angle => (angle * Math.PI) / 180;
+        let dLat = toRad(lat2 - lat1);
+        let dLon = toRad(lon2 - lon1);
+        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    function roundTo(num, places) {
+        return +(Math.round(num + "e" + places) + "e-" + places);
+    }
+
+    window.onload = OnOff;
+</script>
+
+    public class AttendanceRequest
+    {
+        public string? Type { get; set; }
+        public string? ImageData { get; set; }
+    }
+}
+
+        public IActionResult UploadImage()
+        {
+            var pno = HttpContext.Request.Cookies["Session"];
+            var userName = HttpContext.Request.Cookies["UserName"];
+
+            ViewBag.Pno = pno;
+            ViewBag.Name = userName;
+
+            if (string.IsNullOrEmpty(pno) || string.IsNullOrEmpty(userName))
+            {
+                return RedirectToAction("Login","User");
+            }
+
+            var PnoEnameList = context1.AppEmployeeMasters
+                    .Select(x => new
+                    {
+                        Pno = x.Pno,
+                        Ename = x.Ename,
+                    })
+                    .ToList();
+            ViewBag.PnoEnameList = PnoEnameList;
+
+
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadImage(string Pno, string Name, string photoData)
+        {
+            if (!string.IsNullOrEmpty(photoData) && !string.IsNullOrEmpty(Pno) && !string.IsNullOrEmpty(Name))
+            {
+                try
+                {
+                    byte[] imageBytes = Convert.FromBase64String(photoData.Split(',')[1]);
+
+                    string folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images");
+
+                    if (!Directory.Exists(folderPath))
+                    {
+                        Directory.CreateDirectory(folderPath);
+                    }
+
+                    string fileName = $"{Pno}-{Name}.jpg";
+                    string filePath = Path.Combine(folderPath, fileName);
+
+                    System.IO.File.WriteAllBytes(filePath, imageBytes);
+
+                    var existingPerson = await context.AppPeople.FirstOrDefaultAsync(p => p.Pno == Pno);
+
+                    if (existingPerson != null)
+                    {
+                        
+                        existingPerson.Name = Name;
+                        existingPerson.Image = fileName;
+                        context.AppPeople.Update(existingPerson);
+                    }
+                    else
+                    {
+                       
+                        var person = new AppPerson
+                        {
+                            Pno = Pno,
+                            Name = Name,
+                            Image = fileName
+                        };
+                        context.AppPeople.Add(person);
+                    }
+
+                    await context.SaveChangesAsync();
+
+                    return Ok(new { success = true, message = "Image uploaded and data saved successfully." });
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { success = false, message = "Error saving image: " + ex.Message });
+                }
+            }
+
+            return BadRequest(new { success = false, message = "Missing required fields!" });
+        }
+
+
+@model GFAS.Models.AppPerson
+@using Newtonsoft.Json;
+
+@{
+    ViewData["Title"] = "UploadImage";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
+}
+<style>
+    
+
+    video {
+        transform: scaleX(-1);
+        -webkit-transform: scaleX(-1); 
+        -moz-transform: scaleX(-1); 
+    }
+
+</style>
+
+
+<div class="card rounded-9">
+   
+    <div class="card-header text-center" style="background-color: #bbb8bf;color: #000000;font-weight:bold;">
+        Capture Photo
+    </div>
+    <div class="col-md-12">
+        <fieldset style="border:1px solid #bfbebe;padding:5px 20px 5px 20px;border-radius:6px;">
+            <div class="row">
+                <form asp-action="UploadImage" method="post" id="form2">
+                    <div class="form-group row">
+                        <div class="col-sm-1">
+                            <label>Pno</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Pno" name="Pno" class="form-control" type="number" value="@ViewBag.Pno" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" maxlength="6" autocomplete="off" />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Name</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <input id="Name" name="Name" class="form-control" value="@ViewBag.Name" />
+                        </div>
+                        <div class="col-sm-1">
+                            <label>Capture Photo</label>
+                        </div>
+                        <div class="col-sm-3">
+                            <video id="video" width="320" height="240" autoplay playsinline></video>
+                            <canvas id="canvas" style="display:none;"></canvas>
+
+                          
+                            <img id="previewImage" src="" alt="Captured Image" style="width: 200px; display: none; border: 2px solid black; margin-top: 5px;" />
+
+                           
+                            <button type="button" id="captureBtn" class="btn btn-primary">Capture</button>
+                            <button type="button" id="retakeBtn" class="btn btn-danger" style="display: none;">Retake</button>
+                            <a asp-action="GeoFencing" asp-controller="Geo" class="control-label btn btn-warning"><i class="fa fa-arrow-left" aria-hidden="true" style="font-size:16px;"></i>&nbsp;&nbsp;Back</a>
+                           
+                            <input type="hidden" id="photoData" name="photoData" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>Save Details</button>
+                </form>
+                
+            </div>
+        </fieldset>
+       
+    </div>
+</div>
+
+
+
+<script>
+   
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(function (stream) {
+            let video = document.querySelector("video");
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(function (error) {
+            console.error("Error accessing camera: ", error);
+        });
+
+   
+
+
+    document.getElementById("captureBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
+        let canvas = document.getElementById("canvas");
+        let context = canvas.getContext("2d");
+
+       
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+       
+        let imageData = canvas.toDataURL("image/png");
+        document.getElementById("previewImage").src = imageData;
+        document.getElementById("previewImage").style.display = "block";
+        document.getElementById("photoData").value = imageData;
+
+        
+        video.style.display = "none";
+        document.getElementById("captureBtn").style.display = "none";
+        document.getElementById("retakeBtn").style.display = "inline-block";
+        document.getElementById("submitBtn").disabled = false; 
+    });
+
+    
+    document.getElementById("retakeBtn").addEventListener("click", function () {
+        let video = document.getElementById("video");
+
+        
+        video.style.display = "block";
+        document.getElementById("captureBtn").style.display = "inline-block";
+        document.getElementById("retakeBtn").style.display = "none";
+        document.getElementById("previewImage").style.display = "none";
+        document.getElementById("submitBtn").disabled = true; 
+    });
+
+    
+</script>
+
+<script>
+   
+    var pnoEnameList = @Html.Raw(JsonConvert.SerializeObject(ViewBag.PnoEnameList));
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("Pno").addEventListener("input", function () {
+            var pno = this.value;
+
+
+            var user = pnoEnameList.find(u => u.Pno === pno);
+
+            if (user) {
+                document.getElementById("Name").value = user.Ename;
+
+            } else {
+                document.getElementById("Name").value = "";
+
+            }
+
+
+
+        });
+    });
+
+</script>
+
+
+<script>
+    document.getElementById('form2').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        var isValid = true;
+        var form = this;
+        var elements = form.querySelectorAll('input, select, textarea');
+
+        elements.forEach(function (element) {
+            if (['ApprovalFile'].includes(element.id)) {
+                return;
+            }
+
+            if (element.value.trim() === '') {
+                isValid = false;
+                element.classList.add('is-invalid');
+            } else {
+                element.classList.remove('is-invalid');
+            }
+        });
+
+        if (isValid) {
+            // Show loading
+            Swal.fire({
+                title: "Uploading...",
+                text: "Please wait while your image is being uploaded.",
+                didOpen: () => {
+                    Swal.showLoading();
+                },
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            });
+
+            // Prepare form data
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url; // handle redirect if needed
+                    } else if (response.ok) {
+                        Swal.fire({
+                            title: "Success!",
+                            text: "Data Saved Successfully",
+                            icon: "success",
+                            confirmButtonText: "OK"
+                        });
+                    }
+                    
+                    else {
+                        throw new Error("Upload failed.");
+                    }
+                })
+                .catch(error => {
+                    Swal.fire("Error", "There was an error uploading the image: " + error.message, "error");
+                });
+        }
+    });
+</script>
