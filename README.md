@@ -1,3 +1,8 @@
+<!-- Add this in your <head> or before your <script> tag -->
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+
+
 this is my code 
 <script>
     const video = document.getElementById("video");
