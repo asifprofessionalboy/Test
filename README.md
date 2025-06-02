@@ -1,3 +1,12 @@
+<ItemGroup>
+  <Content Include="wwwroot\faceApi\**\*">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
+
+
+
+
 i have this csproj
 
 <Project Sdk="Microsoft.NET.Sdk.Web">
