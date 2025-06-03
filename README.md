@@ -1,3 +1,25 @@
+<div class="form-group text-center">
+    <div id="videoContainer" style="display: inline-block; border: 4px solid transparent; border-radius: 8px; transition: border-color 0.3s ease;">
+        <video id="video" width="320" height="240" autoplay muted playsinline></video>
+    </div>
+    <canvas id="canvas" style="display:none;"></canvas>
+</div>
+
+if (avgEAR < EAR_THRESHOLD && now - lastBlinkTime > BLINK_INTERVAL) {
+    blinked = true;
+    lastBlinkTime = now;
+    console.log("Blink detected!");
+
+    const videoContainer = document.getElementById("videoContainer");
+    videoContainer.style.borderColor = "limegreen";
+
+    setTimeout(() => {
+        videoContainer.style.borderColor = "transparent";
+    }, 1500); // green border lasts 1.5 seconds
+}
+
+
+
 yes now it is working fine but live checkness is very strict i am blink many times but not working i want that if blink happens then outside the div i want green alert like borders and please low strict 
 
 this is video
