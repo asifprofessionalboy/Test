@@ -1,3 +1,34 @@
+function startVideo() {
+    navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+        }
+    })
+    .then(stream => {
+        video.srcObject = stream;
+        video.play();
+
+        video.addEventListener("loadeddata", () => {
+            console.log("Camera video is ready. Starting face detection...");
+
+            const checkReady = setInterval(() => {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    clearInterval(checkReady);
+                    detectBlink();
+                }
+            }, 100);
+        });
+    })
+    .catch(err => {
+        console.error("Camera error:", err);
+    });
+}
+
+
+
+
 <div class="form-group text-center">
     <div id="videoContainer" style="display: inline-block; border: 4px solid transparent; border-radius: 8px; transition: border-color 0.3s ease;">
         <video id="video" width="320" height="240" autoplay muted playsinline></video>
