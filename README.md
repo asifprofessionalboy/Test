@@ -1,9 +1,13 @@
-3 models are loaded correctly in network tab showing but in console i am getting this error
+yes now it is working fine but live checkness is very strict i am blink many times but not working i want that if blink happens then outside the div i want green alert like borders and please low strict 
 
-Failed to load face-api models: SyntaxError: Unexpected token '<', "<!--# SNNs"... is not valid JSON and in console showing red underline under this 
-  console.error("Failed to load face-api models:", e);
+this is video
+ <div class="form-group text-center">
+     <video id="video" width="320" height="240" autoplay muted playsinline></video>
+     <canvas id="canvas" style="display:none;"></canvas>
 
+ </div>
 
+this is my js 
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
@@ -14,8 +18,8 @@ Failed to load face-api models: SyntaxError: Unexpected token '<', "<!--# SNNs".
 
         let blinked = false;
         let lastBlinkTime = 0;
-        const BLINK_INTERVAL = 3000;
-        const EAR_THRESHOLD = 0.23;
+        const BLINK_INTERVAL = 5000;
+        const EAR_THRESHOLD = 0.33;
 
         try {
            
@@ -170,11 +174,3 @@ Failed to load face-api models: SyntaxError: Unexpected token '<', "<!--# SNNs".
         }
     });
 </script>
-
-
-and video is also not visible 
- <div class="form-group text-center">
-     <video id="video" width="480" height="360" autoplay muted></video>
-     <canvas id="canvas" style="display:none;"></canvas>
-
- </div>
