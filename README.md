@@ -1,4 +1,15 @@
+app.UseStaticFiles(new StaticFileOptions
+{
+    ServeUnknownFileTypes = true, // VERY IMPORTANT
+    DefaultContentType = "application/octet-stream"
+});
+
+
+
+
 this is my program.cs
+
+
 using GFAS.Email;
 using GFAS.Models;
 using GFAS.PasswordHasher;
