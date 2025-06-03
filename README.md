@@ -1,97 +1,8 @@
-app.UseStaticFiles(new StaticFileOptions
-{
-    ServeUnknownFileTypes = true, // VERY IMPORTANT
-    DefaultContentType = "application/octet-stream"
-});
+3 models are loaded correctly in network tab showing but in console i am getting this error
 
+Failed to load face-api models: SyntaxError: Unexpected token '<', "<!--# SNNs"... is not valid JSON and in console showing red underline under this 
+  console.error("Failed to load face-api models:", e);
 
-
-
-this is my program.cs
-
-
-using GFAS.Email;
-using GFAS.Models;
-using GFAS.PasswordHasher;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-
-var builder = WebApplication.CreateBuilder(args);
-
-
-builder.Services.AddControllersWithViews();
-var Provider = builder.Services.BuildServiceProvider();
-var Config = Provider.GetRequiredService<IConfiguration>();
-builder.Services.AddDbContext<INNOVATIONDBContext>(item => item.UseSqlServer(Config.GetConnectionString("LoginDB")));
-builder.Services.AddDbContext<UserLoginDBContext>(item => item.UseSqlServer(Config.GetConnectionString("UserLoginDB")));
-builder.Services.AddDbContext<TSUISLRFIDDBContext>(item => item.UseSqlServer(Config.GetConnectionString("RFID")));
-
-builder.Services.AddTransient<Hash_Password>();
-builder.Services.AddTransient<EmailService>();
-builder.Services.AddScoped<IPermissionService, PermissionService>();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddAuthentication("Cookies")
-.AddCookie("Cookies", options =>
-{
-    options.LoginPath = "/User/Login";
-    options.ExpireTimeSpan = TimeSpan.FromDays(365);
-    options.SlidingExpiration = true;
-});
-builder.Services.AddAuthorization();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromDays(365);
-    options.Cookie.HttpOnly = false;
-    options.Cookie.IsEssential = true;
-});
-
-var app = builder.Build();
-
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-   
-    app.UseHsts();
-}
-
-app.Use(async (context, next) =>
-{
-    if (!context.User.Identity.IsAuthenticated)
-    {
-        var userId = context.Request.Cookies["Session"];
-        var UserName = context.Request.Cookies["UserName"];
-        var Pno = context.Request.Cookies["UserSession"];
-        if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(UserName) && !string.IsNullOrEmpty(Pno))
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name,UserName),
-                new Claim("Pno",Pno),
-                new Claim("Session",userId)
-            };
-
-            var identity = new ClaimsIdentity(claims, "Cookies");
-            var principal = new ClaimsPrincipal(identity);
-            context.User = principal;
-
-        }
-    }
-        await next();
-});
-app.UseStaticFiles();
-app.UseHttpsRedirection();
-app.UseSession();
-app.UseRouting();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Geo}/{action=GeoFencing}/{id?}");
-
-app.Run();
-this is my script
 
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
@@ -107,15 +18,14 @@ this is my script
         const EAR_THRESHOLD = 0.23;
 
         try {
+           
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri('/AS/faceApi'),
+                faceapi.nets.faceLandmark68Net.loadFromUri('/AS/faceApi')
+            ]);
+            console.log("FaceAPI models loaded");
 
-            Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri('/faceApi'),
-                faceapi.nets.faceLandmark68Net.loadFromUri('/faceApi')
-            ])
-                .then(startVideo)
-                .catch(error => {
-                    console.error("Failed to load face-api models:", error);
-                });
+            startVideo();
         } catch (e) {
             console.error("Failed to load face-api models:", e);
         }
@@ -261,5 +171,10 @@ this is my script
     });
 </script>
 
-this is path
-bin\Debug\net6.0\wwwroot\faceApi and in this file is already exist with non zero kb
+
+and video is also not visible 
+ <div class="form-group text-center">
+     <video id="video" width="480" height="360" autoplay muted></video>
+     <canvas id="canvas" style="display:none;"></canvas>
+
+ </div>
