@@ -1,3 +1,102 @@
+private bool VerifyFace(Bitmap capturedBmp, Bitmap storedBmp)
+{
+    try
+    {
+        // Load DNN model
+        string protoPath = Path.Combine("wwwroot/Cascades", "deploy.prototxt");
+        string modelPath = Path.Combine("wwwroot/Cascades", "res10_300x300_ssd_iter_140000.caffemodel");
+
+        var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+
+        // Convert to Mat
+        Mat capturedMat = BitmapToMat(capturedBmp);
+        Mat storedMat = BitmapToMat(storedBmp);
+
+        Rectangle? capturedFace = DetectFaceDnn(net, capturedMat);
+        Rectangle? storedFace = DetectFaceDnn(net, storedMat);
+
+        if (capturedFace == null || storedFace == null)
+        {
+            Console.WriteLine("Face not detected in one or both images.");
+            return false;
+        }
+
+        // Crop face regions
+        Mat capturedFaceMat = new Mat(capturedMat, capturedFace.Value);
+        Mat storedFaceMat = new Mat(storedMat, storedFace.Value);
+
+        CvInvoke.Resize(capturedFaceMat, capturedFaceMat, new Size(150, 150));
+        CvInvoke.Resize(storedFaceMat, storedFaceMat, new Size(150, 150));
+
+        // Use histogram comparison or template match (simplified logic)
+        double similarity = CompareImagesHistogram(capturedFaceMat, storedFaceMat);
+
+        Console.WriteLine("Similarity score: " + similarity);
+
+        return similarity >= 0.8; // Adjust threshold as needed
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("DNN face verification error: " + ex.Message);
+        return false;
+    }
+}
+private Rectangle? DetectFaceDnn(Net net, Mat image)
+{
+    Size inputSize = new Size(300, 300);
+    double scaleFactor = 1.0;
+    MCvScalar meanVal = new MCvScalar(104, 177, 123);
+
+    using var blob = DnnInvoke.BlobFromImage(image, scaleFactor, inputSize, meanVal, false, false);
+    net.SetInput(blob);
+    using var detections = net.Forward();
+
+    float[,,,] data = detections.GetData(true) as float[,,,];
+    if (data == null) return null;
+
+    for (int i = 0; i < data.GetLength(2); i++)
+    {
+        float confidence = data[0, 0, i, 2];
+        if (confidence > 0.6f)
+        {
+            int x1 = (int)(data[0, 0, i, 3] * image.Cols);
+            int y1 = (int)(data[0, 0, i, 4] * image.Rows);
+            int x2 = (int)(data[0, 0, i, 5] * image.Cols);
+            int y2 = (int)(data[0, 0, i, 6] * image.Rows);
+
+            return new Rectangle(x1, y1, x2 - x1, y2 - y1);
+        }
+    }
+
+    return null;
+}
+
+private double CompareImagesHistogram(Mat img1, Mat img2)
+{
+    Mat hsv1 = new Mat();
+    Mat hsv2 = new Mat();
+
+    CvInvoke.CvtColor(img1, hsv1, Emgu.CV.CvEnum.ColorConversion.Bgr2Hsv);
+    CvInvoke.CvtColor(img2, hsv2, Emgu.CV.CvEnum.ColorConversion.Bgr2Hsv);
+
+    var histSize = new int[] { 50, 60 };
+    var ranges = new RangeF[] { new RangeF(0, 180), new RangeF(0, 256) };
+    int[] channels = { 0, 1 };
+
+    var hist1 = new Mat();
+    var hist2 = new Mat();
+
+    CvInvoke.CalcHist(new Mat[] { hsv1 }, channels, null, hist1, histSize, ranges, true);
+    CvInvoke.CalcHist(new Mat[] { hsv2 }, channels, null, hist2, histSize, ranges, true);
+
+    CvInvoke.Normalize(hist1, hist1, 0, 1, Emgu.CV.CvEnum.NormType.MinMax);
+    CvInvoke.Normalize(hist2, hist2, 0, 1, Emgu.CV.CvEnum.NormType.MinMax);
+
+    return CvInvoke.CompareHist(hist1, hist2, Emgu.CV.CvEnum.HistogramCompMethod.Correl);
+}
+
+
+
 private bool VerifyFace(Bitmap captured, Bitmap stored)
 {
     try
