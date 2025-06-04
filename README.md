@@ -1,3 +1,95 @@
+private bool VerifyFace(Bitmap captured, Bitmap stored)
+{
+    try
+    {
+        Mat matCaptured = BitmapToMat(captured);
+        Mat matStored = BitmapToMat(stored);
+
+        // Load DNN face detector
+        string protoPath = Path.Combine("wwwroot/Cascades", "deploy.prototxt.txt");
+        string modelPath = Path.Combine("wwwroot/Cascades", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
+
+        var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+
+        Rectangle? capturedFaceRect = DetectFaceWithDnn(net, matCaptured);
+        Rectangle? storedFaceRect = DetectFaceWithDnn(net, matStored);
+
+        if (capturedFaceRect == null || storedFaceRect == null)
+        {
+            Console.WriteLine("No face detected in one or both images.");
+            return false;
+        }
+
+        Mat capturedFace = new Mat(matCaptured, capturedFaceRect.Value);
+        Mat storedFace = new Mat(matStored, storedFaceRect.Value);
+
+        CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+        CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+        using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 100))
+        {
+            CvInvoke.CvtColor(capturedFace, capturedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+            CvInvoke.CvtColor(storedFace, storedFace, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+
+            CvInvoke.EqualizeHist(capturedFace, capturedFace);
+            CvInvoke.EqualizeHist(storedFace, storedFace);
+
+            var trainingImages = new VectorOfMat();
+            trainingImages.Push(storedFace);
+            var labels = new VectorOfInt(new int[] { 1 });
+
+            faceRecognizer.Train(trainingImages, labels);
+
+            var result = faceRecognizer.Predict(capturedFace);
+
+            Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+            return result.Label == 1 && result.Distance <= 98; // You can tune the threshold
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error in DNN-based face verification: " + ex.Message);
+        return false;
+    }
+}
+private Rectangle? DetectFaceWithDnn(Net net, Mat image)
+{
+    try
+    {
+        Size size = new Size(300, 300);
+        Mat blob = DnnInvoke.BlobFromImage(image, 1.0, size, new MCvScalar(104, 177, 123), false, false);
+        net.SetInput(blob);
+        Mat detections = net.Forward();
+
+        float confidenceThreshold = 0.5f;
+
+        for (int i = 0; i < detections.SizeOfDimension[2]; i++)
+        {
+            float confidence = detections.GetData(new int[] { 0, 0, i, 2 }) is float conf ? conf : 0;
+            if (confidence > confidenceThreshold)
+            {
+                int x1 = (int)(detections.GetData(new int[] { 0, 0, i, 3 }) is float fx1 ? fx1 * image.Cols : 0);
+                int y1 = (int)(detections.GetData(new int[] { 0, 0, i, 4 }) is float fy1 ? fy1 * image.Rows : 0);
+                int x2 = (int)(detections.GetData(new int[] { 0, 0, i, 5 }) is float fx2 ? fx2 * image.Cols : 0);
+                int y2 = (int)(detections.GetData(new int[] { 0, 0, i, 6 }) is float fy2 ? fy2 * image.Rows : 0);
+
+                Rectangle faceRect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+                return faceRect;
+            }
+        }
+
+        return null;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("DNN detection error: " + ex.Message);
+        return null;
+    }
+}
+
+
+
 
 this is my current face Recognition logic , but it gets the false cases and when i low the threshold it is not matching with same user and if i increase the threshold it matches with everyone , is there anything better to do in this logic please    
  [HttpPost]
