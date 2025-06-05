@@ -1,3 +1,66 @@
+string Pno = this.Pno.Text.Trim();
+LoadReport(selectedDate, Department, Pno);
+
+private void LoadReport(string date, string department, string pno)
+{
+    DataTable inoData = GetGeoData(date, department, pno);
+
+    ReportViewer1.LocalReport.ReportPath = Server.MapPath("FaceRecognition_Report.rdlc");
+    ReportViewer1.LocalReport.DataSources.Clear();
+    ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
+    ReportViewer1.LocalReport.DataSources.Add(rds);
+    ReportViewer1.LocalReport.Refresh();
+}
+private DataTable GetGeoData(string date, string department, string pno)
+{
+    string query = @"select DE.Pno, Emp.DepartmentName, DE.DateAndTime, 
+                            DE.PunchIn_FailedCount, DE.PunchOut_FailedCount 
+                     from App_FaceVerification_Details As DE 
+                     INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+                     ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT 
+                     where CAST(DateAndTime as Date) = @DateCondition";
+
+    if (!string.IsNullOrEmpty(department))
+    {
+        query += " AND Emp.DepartmentName = @Department";
+    }
+
+    if (!string.IsNullOrEmpty(pno))
+    {
+        query += " AND DE.Pno = @Pno";
+    }
+
+    query += " Order By Emp.DepartmentName";
+
+    DataTable dt = new DataTable();
+    using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
+    {
+        using (SqlCommand cmd = new SqlCommand(query, con))
+        {
+            cmd.Parameters.AddWithValue("@DateCondition", date);
+
+            if (!string.IsNullOrEmpty(department))
+            {
+                cmd.Parameters.AddWithValue("@Department", department);
+            }
+
+            if (!string.IsNullOrEmpty(pno))
+            {
+                cmd.Parameters.AddWithValue("@Pno", pno);
+            }
+
+            using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+            {
+                sda.Fill(dt);
+            }
+        }
+    }
+
+    return dt;
+}
+
+
+
 for filteration i want Pno	
 <div class="form-group col-md-4 mb-1">
                                  <label for="Pno" class="m-0 mr-2 p-0 col-form-label-sm col-sm-1 font-weight-bold fs-6">P.No.:</label>
