@@ -1,86 +1,4 @@
-string Pno = this.Pno.Text.Trim();
-LoadReport(selectedDate, Department, Pno);
-
-private void LoadReport(string date, string department, string pno)
-{
-    DataTable inoData = GetGeoData(date, department, pno);
-
-    ReportViewer1.LocalReport.ReportPath = Server.MapPath("FaceRecognition_Report.rdlc");
-    ReportViewer1.LocalReport.DataSources.Clear();
-    ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
-    ReportViewer1.LocalReport.DataSources.Add(rds);
-    ReportViewer1.LocalReport.Refresh();
-}
-private DataTable GetGeoData(string date, string department, string pno)
-{
-    string query = @"select DE.Pno, Emp.DepartmentName, DE.DateAndTime, 
-                            DE.PunchIn_FailedCount, DE.PunchOut_FailedCount 
-                     from App_FaceVerification_Details As DE 
-                     INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
-                     ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT 
-                     where CAST(DateAndTime as Date) = @DateCondition";
-
-    if (!string.IsNullOrEmpty(department))
-    {
-        query += " AND Emp.DepartmentName = @Department";
-    }
-
-    if (!string.IsNullOrEmpty(pno))
-    {
-        query += " AND DE.Pno = @Pno";
-    }
-
-    query += " Order By Emp.DepartmentName";
-
-    DataTable dt = new DataTable();
-    using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
-    {
-        using (SqlCommand cmd = new SqlCommand(query, con))
-        {
-            cmd.Parameters.AddWithValue("@DateCondition", date);
-
-            if (!string.IsNullOrEmpty(department))
-            {
-                cmd.Parameters.AddWithValue("@Department", department);
-            }
-
-            if (!string.IsNullOrEmpty(pno))
-            {
-                cmd.Parameters.AddWithValue("@Pno", pno);
-            }
-
-            using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
-            {
-                sda.Fill(dt);
-            }
-        }
-    }
-
-    return dt;
-}
-
-
-
-for filteration i want Pno	
-<div class="form-group col-md-4 mb-1">
-                                 <label for="Pno" class="m-0 mr-2 p-0 col-form-label-sm col-sm-1 font-weight-bold fs-6">P.No.:</label>
-                                 <asp:TextBox ID="Pno" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoComplete="off"></asp:TextBox>
-                                   
-                             </div>
-
- private void LoadReport(string date, string Department)
-        {
-            DataTable inoData = GetGeoData(date, Department);
-
-            ReportViewer1.LocalReport.ReportPath = Server.MapPath("FaceRecognition_Report.rdlc");
-            ReportViewer1.LocalReport.DataSources.Clear();
-            ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
-            ReportViewer1.LocalReport.DataSources.Add(rds);
-            ReportViewer1.LocalReport.Refresh();
-        }
-
-
- private DataTable GetGeoData(string condition, string department)
+ private DataTable GetGeoData(string date, string department)
         {
             string query = @"select DE.Pno, Emp.DepartmentName, DE.DateAndTime, 
                             DE.PunchIn_FailedCount, DE.PunchOut_FailedCount 
@@ -94,6 +12,8 @@ for filteration i want Pno
                 query += " AND Emp.DepartmentName = @Department";
             }
 
+           
+
             query += " Order By Emp.DepartmentName";
 
             DataTable dt = new DataTable();
@@ -101,12 +21,14 @@ for filteration i want Pno
             {
                 using (SqlCommand cmd = new SqlCommand(query, con))
                 {
-                    cmd.Parameters.AddWithValue("@DateCondition", condition);
+                    cmd.Parameters.AddWithValue("@DateCondition", date);
 
                     if (!string.IsNullOrEmpty(department))
                     {
                         cmd.Parameters.AddWithValue("@Department", department);
                     }
+
+                  
 
                     using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
                     {
@@ -117,12 +39,11 @@ for filteration i want Pno
 
             return dt;
         }
-
 protected void SubmitBtn_Click(object sender, EventArgs e)
         {
             string selectedDate = Date.Text.Trim();
             string Department = DeptDropdown.Text.Trim();
-
+           
             ReportViewer1.Visible = true;
 
             if (!string.IsNullOrEmpty(selectedDate))
@@ -130,3 +51,87 @@ protected void SubmitBtn_Click(object sender, EventArgs e)
                 LoadReport(selectedDate, Department);
             }
         }
+
+ private void LoadReport(string date, string department)
+        {
+            DataTable inoData = GetGeoData(date, department);
+
+            ReportViewer1.LocalReport.ReportPath = Server.MapPath("FaceRecognition_Report.rdlc");
+            ReportViewer1.LocalReport.DataSources.Clear();
+            ReportDataSource rds = new ReportDataSource("DataSet1", inoData);
+            ReportViewer1.LocalReport.DataSources.Add(rds);
+            ReportViewer1.LocalReport.Refresh();
+        }
+
+this is my aspx 
+ <form id="form1" runat="server">
+        <div class="ml-3 mr-3">
+
+            <fieldset  class="" style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px">
+                 <legend style="width: auto; border: 0; font-size: 14px; margin: 0px 6px 0px 6px; padding: 0px 5px 0px 5px; color: #0000FF"><b>Search</b></legend>
+                         <div class="form-inline row">
+                             <div class="form-group col-md-3 mb-1">
+                                 <label for="From Date" class="m-0 mr-2 p-0 col-form-label-sm col-sm-3 font-weight-bold fs-6">From Date:</label>
+                                 <asp:TextBox ID="fromdate" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoComplete="off" ToolTip="yyyy/MM/dd"></asp:TextBox>
+                                    <ask:CalendarExtender ID="CalendarExtender2" runat="server" Enabled="True"  Format="yyyy/MM/dd" PopupPosition="TopRight" TargetControlID="fromdate" TodaysDateFormat="yyyy/MM/dd" ></ask:CalendarExtender>  
+                             </div>
+
+                             <div class="form-group col-md-3 mb-1">
+                                 <label for="To Date" class="m-0 mr-2 p-0 col-form-label-sm col-sm-3 font-weight-bold fs-6">To Date:</label>
+                                 <asp:TextBox ID="todate" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoComplete="off" ToolTip="yyyy/MM/dd"></asp:TextBox>
+                                    <ask:CalendarExtender ID="CalendarExtender1" runat="server" Enabled="True"  Format="yyyy/MM/dd" PopupPosition="TopRight" TargetControlID="todate" TodaysDateFormat="yyyy/MM/dd" ></ask:CalendarExtender>  
+                             </div>
+                             <div class="form-group col-md-3 mb-1">
+    <label for="Attempt" class="m-0 mr-2 p-0 col-form-label-sm col-sm-3 font-weight-bold fs-6">Attempt:</label>
+    <asp:DropDownList ID="DropDownList2" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoPostBack="false">
+        <asp:ListItem Text="0-1" Value="0-1" />
+        <asp:ListItem Text="2-5" Value="2-5" />
+        <asp:ListItem Text="6-10" Value="6-10" />
+        <asp:ListItem Text="10-above" Value="10-above" />
+    </asp:DropDownList>
+</div>
+                <div class="form-group col-md-3 mb-1">
+    <label for="Type" class="m-0 mr-2 p-0 col-form-label-sm col-sm-3 font-weight-bold fs-6">Type:</label>
+    <asp:DropDownList ID="DropDownList1" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoPostBack="false">
+        <asp:ListItem Text="PUNCH IN" Value="PUNCH IN" />
+        <asp:ListItem Text="PUNCH OUT" Value="PUNCH OUT" />   
+    </asp:DropDownList>
+</div>             
+                                 <div class="form-group col-md-3 mb-1">
+    <label for="Department" class="m-0 mr-2 p-0 col-form-label-sm col-sm-3 font-weight-bold fs-6">Department:</label>
+    <asp:DropDownList ID="DeptDropdown" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoPostBack="false">
+        <asp:ListItem Text="-- Select Department --" Value="" />
+    </asp:DropDownList>
+                                     </div>
+                                     
+
+
+                            
+                 
+                             </div>
+                 <div class="form-group col-md-2 mb-1">
+                                 <asp:Button ID="SubmitBtn" runat="server" Text="Submit" CssClass="btn btn-sm btn-info" OnClick="SubmitBtn_Click" ValidationGroup="search"/>
+                                 </div>
+                   
+                </fieldset>
+
+
+i want filter using these textboxes or dropdown , like from date, to date , Type like PunchIn and PunchOut , attempt . i have these 2 query for punchIn and PunchOut , if punchIn click then show PunchIn_failedCount and if PunchOut click shows based on PunchOut_Failed Count
+select DE.Pno, Emp.DepartmentName, DE.DateAndTime, 
+                            DE.PunchIn_FailedCount
+                     from App_FaceVerification_Details As DE 
+                     INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+                     ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT 
+                     where CAST(DateAndTime as Date) >= '2025-06-04' and CAST(DateAndTime as Date)<='2025-06-06'
+                     and PunchIn_FailedCount>= 1 and PunchIn_FailedCount<= 2
+                     order by DateAndTime
+
+
+                     select DE.Pno, Emp.DepartmentName, DE.DateAndTime, 
+                            DE.PunchOut_FailedCount
+                     from App_FaceVerification_Details As DE 
+                     INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+                     ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT 
+                     where CAST(DateAndTime as Date) >= '2025-06-04' and CAST(DateAndTime as Date)<='2025-06-06'
+                     and PunchIn_FailedCount>= 1 and PunchIn_FailedCount<= 2
+                     order by DateAndTime
