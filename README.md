@@ -1,3 +1,32 @@
+public async Task<string> GetAccess_TokenAsync()
+{
+    using (var client = new HttpClient())
+    {
+        var tokenUrl = "https://servicesdev.juscoltd.com/DBSTS_PI_SERVICE/token";
+        var credentials = new Dictionary<string, string>
+        {
+            { "Username", "159631CC" },
+            { "password", "159631CC@123" }
+        };
+
+        var content = new FormUrlEncodedContent(credentials);
+        var response = await client.PostAsync(tokenUrl, content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception("Token API failed: " + response.StatusCode);
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var tokenJson = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBody);
+
+        return tokenJson["access_token"];
+    }
+}
+
+
+
+
 protected void SubmitBtn_Click(object sender, EventArgs e)
 {
     string from = fromdate.Text.Trim();
