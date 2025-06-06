@@ -1,3 +1,38 @@
+protected void Page_Load(object sender, EventArgs e)
+{
+    if (!IsPostBack)
+    {
+        string today = DateTime.Now.ToString("yyyy/MM/dd");
+        fromdate.Text = today;
+        todate.Text = today;
+        ReportViewer1.Visible = false;
+        BindDepartmentDropdown();
+    }
+    else
+    {
+        string eventTarget = Request.Params["__EVENTTARGET"];
+        
+        // Avoid rebinding if the postback is caused by the ReportViewer itself
+        if (!string.IsNullOrEmpty(eventTarget) && !eventTarget.Contains("ReportViewer1"))
+        {
+            if (ViewState["from"] != null && ViewState["to"] != null)
+            {
+                string from = ViewState["from"].ToString();
+                string to = ViewState["to"].ToString();
+                string dept = ViewState["dept"]?.ToString();
+                string type = ViewState["type"]?.ToString();
+                string attempt = ViewState["attempt"]?.ToString();
+
+                LoadReport(from, to, dept, type, attempt);
+            }
+        }
+    }
+}
+
+       
+       
+       
+       
        protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
