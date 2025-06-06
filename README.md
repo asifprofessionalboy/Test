@@ -1,3 +1,27 @@
+public async Task<bool> IsBillAlreadyExistsAsync(string WoNo, string VendorCode, string Month, string Year)
+{
+    string apiUrl = $"https://servicesdev.juscoltd.com/DBSTS_PI_SERVICE/api/CommonApi/GetBillingData?won={WoNo}&vendorCode={VendorCode}&month={Month}&year={Year}";
+
+    using (var client = new HttpClient())
+    {
+        string token = await GetAccess_TokenAsync();  // ✅ Await here
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        client.DefaultRequestHeaders.Add("API_KEY", "JF3IV4OJAYR92QVZ...");  // Your actual API key
+
+        var result = await client.GetAsync(apiUrl);
+        var jsonResponse = await result.Content.ReadAsStringAsync();
+
+        var billingResponse = JsonConvert.DeserializeObject<BillingApiResponse>(jsonResponse);
+
+        if (billingResponse != null && billingResponse.Data != null && billingResponse.Data.Count > 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 protected void Page_Load(object sender, EventArgs e)
 {
     if (!IsPostBack)
