@@ -1,3 +1,107 @@
+<asp:DropDownList ID="DropDownList1" runat="server" CssClass="form-control form-control-sm col-sm-8" AutoPostBack="false">
+    <asp:ListItem Text="-- Select Type --" Value="" />
+    <asp:ListItem Text="PUNCH IN" Value="PUNCH IN" />
+    <asp:ListItem Text="PUNCH OUT" Value="PUNCH OUT" />   
+</asp:DropDownList>
+
+ private DataTable GetGeoData(string fromDate, string toDate, string department, string type, string attemptRange)
+{
+    bool isPunchIn = type == "PUNCH IN";
+    bool isPunchOut = type == "PUNCH OUT";
+    bool isBoth = string.IsNullOrEmpty(type); // If no type selected
+
+    // Select different columns based on type
+    string selectClause = isBoth
+        ? "DE.Pno, Emp.DepartmentName, DE.DateAndTime, DE.PunchIn_FailedCount, DE.PunchOut_FailedCount"
+        : isPunchIn
+            ? "DE.Pno, Emp.DepartmentName, DE.DateAndTime, DE.PunchIn_FailedCount"
+            : "DE.Pno, Emp.DepartmentName, DE.DateAndTime, DE.PunchOut_FailedCount";
+
+    string query = $@"
+        SELECT {selectClause}
+        FROM App_FaceVerification_Details AS DE
+        INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+            ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
+        WHERE CAST(DE.DateAndTime AS DATE) BETWEEN @FromDate AND @ToDate
+    ";
+
+    if (!string.IsNullOrEmpty(department))
+    {
+        query += " AND Emp.DepartmentName = @Department";
+    }
+
+    // Handle attempt filter
+    int minAttempt = 0, maxAttempt = 0;
+    if (!string.IsNullOrEmpty(attemptRange) && attemptRange.Contains("-"))
+    {
+        var parts = attemptRange.Split('-');
+        minAttempt = int.Parse(parts[0]);
+        maxAttempt = parts[1].ToLower() == "above" ? int.MaxValue : int.Parse(parts[1]);
+
+        if (isPunchIn)
+            query += " AND DE.PunchIn_FailedCount BETWEEN @MinAttempt AND @MaxAttempt";
+        else if (isPunchOut)
+            query += " AND DE.PunchOut_FailedCount BETWEEN @MinAttempt AND @MaxAttempt";
+        else
+            query += " AND (DE.PunchIn_FailedCount BETWEEN @MinAttempt AND @MaxAttempt OR DE.PunchOut_FailedCount BETWEEN @MinAttempt AND @MaxAttempt)";
+    }
+
+    query += " ORDER BY DE.DateAndTime";
+
+    DataTable dt = new DataTable();
+    using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
+    {
+        using (SqlCommand cmd = new SqlCommand(query, con))
+        {
+            cmd.Parameters.AddWithValue("@FromDate", fromDate);
+            cmd.Parameters.AddWithValue("@ToDate", toDate);
+
+            if (!string.IsNullOrEmpty(department))
+                cmd.Parameters.AddWithValue("@Department", department);
+
+            if (maxAttempt > 0)
+            {
+                cmd.Parameters.AddWithValue("@MinAttempt", minAttempt);
+                cmd.Parameters.AddWithValue("@MaxAttempt", maxAttempt);
+            }
+
+            using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
+            {
+                sda.Fill(dt);
+            }
+        }
+    }
+
+    return dt;
+}
+
+
+private void LoadReport(string fromDate, string toDate, string department, string type, string attemptRange)
+{
+    DataTable data = GetGeoData(fromDate, toDate, department, type, attemptRange);
+
+    ReportViewer1.LocalReport.ReportPath = Server.MapPath("FaceRecognition_Report.rdlc");
+    ReportViewer1.LocalReport.DataSources.Clear();
+    ReportDataSource rds = new ReportDataSource("DataSet1", data);
+    ReportViewer1.LocalReport.DataSources.Add(rds);
+    ReportViewer1.LocalReport.Refresh();
+}
+
+ protected void SubmitBtn_Click(object sender, EventArgs e)
+{
+    string from = fromdate.Text.Trim();
+    string to = todate.Text.Trim();
+    string dept = DeptDropdown.SelectedValue;
+    string type = DropDownList1.SelectedValue; // May be empty
+    string attempt = DropDownList2.SelectedValue;
+
+    if (!string.IsNullOrEmpty(from) && !string.IsNullOrEmpty(to))
+    {
+        LoadReport(from, to, dept, type, attempt);
+    }
+}
+
+ 
  private DataTable GetGeoData(string date, string department)
         {
             string query = @"select DE.Pno, Emp.DepartmentName, DE.DateAndTime, 
