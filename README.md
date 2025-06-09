@@ -1,3 +1,40 @@
+if (No_Work == "Permanent")
+{
+    // Parse END_DATE to DateTime
+    DateTime endDate = DateTime.ParseExact(END_DATE, "dd/MM/yyyy", CultureInfo.InvariantCulture);
+
+    // Construct selected month-year as DateTime
+    int selectedMonth = int.Parse(Month);
+    int selectedYear = int.Parse(Year);
+    DateTime selectedDate = new DateTime(selectedYear, selectedMonth, 1);
+
+    bool billFound = false;
+
+    // Loop through each month from selectedDate to endDate
+    while (selectedDate <= endDate)
+    {
+        string loopMonth = selectedDate.Month.ToString();
+        string loopYear = selectedDate.Year.ToString();
+
+        // Call your API for each month
+        billFound = await IsBillAlreadyExistsAsyncPermanent(WoNo, VendorCode, loopMonth, loopYear, END_DATE);
+
+        if (billFound)
+        {
+            btnSave.Enabled = false;
+            MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, 
+                $"Bill already exists for {selectedDate.ToString("MMMM yyyy")} against this Work Order. Can't process Nil Entry!");
+            return;
+        }
+
+        // Move to next month
+        selectedDate = selectedDate.AddMonths(1);
+    }
+}
+
+
+
+
 this is my Endate
 string END_DATE = ds1.Tables[0].Rows[0]["END_DATE"].ToString();      
 
