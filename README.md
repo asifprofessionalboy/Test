@@ -1,82 +1,31 @@
-public async Task<bool> IsBillAlreadyExistsAsync(string WoNo, string VendorCode, string Month, string Year)
-{
-    string apiUrl = $"https://servicesdev.juscoltd.com/DBSTS_PI_SERVICE/api/CommonApi/GetBillingData?won={WoNo}&vendorCode={VendorCode}&month={Month}&year={Year}";
-
-    using (var client = new HttpClient())
-    {
-        string token = await GetAccess_TokenAsync();  // ✅ Await here
-
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        client.DefaultRequestHeaders.Add("API_KEY", "JF3IV4OJAYR92QVZ...");  // Your actual API key
-
-        var result = await client.GetAsync(apiUrl);
-        var jsonResponse = await result.Content.ReadAsStringAsync();
-
-        var billingResponse = JsonConvert.DeserializeObject<BillingApiResponse>(jsonResponse);
-
-        if (billingResponse != null && billingResponse.Data != null && billingResponse.Data.Count > 0)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-protected void Page_Load(object sender, EventArgs e)
-{
-    if (!IsPostBack)
-    {
-        string today = DateTime.Now.ToString("yyyy/MM/dd");
-        fromdate.Text = today;
-        todate.Text = today;
-        ReportViewer1.Visible = false;
-        BindDepartmentDropdown();
-    }
-    else
-    {
-        string eventTarget = Request.Params["__EVENTTARGET"];
-        
-        // Avoid rebinding if the postback is caused by the ReportViewer itself
-        if (!string.IsNullOrEmpty(eventTarget) && !eventTarget.Contains("ReportViewer1"))
-        {
-            if (ViewState["from"] != null && ViewState["to"] != null)
-            {
-                string from = ViewState["from"].ToString();
-                string to = ViewState["to"].ToString();
-                string dept = ViewState["dept"]?.ToString();
-                string type = ViewState["type"]?.ToString();
-                string attempt = ViewState["attempt"]?.ToString();
-
-                LoadReport(from, to, dept, type, attempt);
-            }
-        }
-    }
-}
-
-       
-       
-       
-       
-       protected void Page_Load(object sender, EventArgs e)
+ protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
             {
-                string from = DateTime.Now.ToString("yyyy/MM/dd");
-                fromdate.Text = from;
-                string to = DateTime.Now.ToString("yyyy/MM/dd");
-                todate.Text = to;
+                string today = DateTime.Now.ToString("yyyy/MM/dd");
+                fromdate.Text = today;
+                todate.Text = today;
                 ReportViewer1.Visible = false;
                 BindDepartmentDropdown();
             }
-            else if (ViewState["from"] != null && ViewState["to"] != null)
+            else
             {
-                string from = ViewState["from"].ToString();
-                string to = ViewState["to"].ToString();
-                string dept = ViewState["dept"]?.ToString();
-                string type = ViewState["type"]?.ToString();
-                string attempt = ViewState["attempt"]?.ToString();
+                string eventTarget = Request.Params["__EVENTTARGET"];
 
-                LoadReport(from, to, dept, type, attempt);
+              
+                if (!string.IsNullOrEmpty(eventTarget) && !eventTarget.Contains("ReportViewer1"))
+                {
+                    if (ViewState["from"] != null && ViewState["to"] != null)
+                    {
+                        string from = ViewState["from"].ToString();
+                        string to = ViewState["to"].ToString();
+                        string dept = ViewState["dept"]?.ToString();
+                        string type = ViewState["type"]?.ToString();
+                        string attempt = ViewState["attempt"]?.ToString();
+
+                        LoadReport(from, to, dept, type, attempt);
+                    }
+                }
             }
         }
 
@@ -93,22 +42,7 @@ protected void Page_Load(object sender, EventArgs e)
             ReportViewer1.Visible = true;
         }
 
-
-
-
-        private void BindDepartmentDropdown()
-        {
-            string query = "SELECT DISTINCT DepartmentName FROM UserLoginDB.dbo.App_EmployeeMaster  where DepartmentName is not Null order by DepartmentName";
-            DataTable dt = GetData(query);
-            DeptDropdown.DataSource = dt;
-            DeptDropdown.DataTextField = "DepartmentName";
-            DeptDropdown.DataValueField = "DepartmentName";
-            DeptDropdown.DataBind();
-            DeptDropdown.Items.Insert(0, new ListItem("-- Select Department --", ""));
-        }
-
-
-        private DataTable GetGeoData(string fromDate, string toDate, string department, string type, string attemptRange)
+ private DataTable GetGeoData(string fromDate, string toDate, string department, string type, string attemptRange)
         {
             bool isPunchIn = type == "PUNCH IN";
             bool isPunchOut = type == "PUNCH OUT";
@@ -179,27 +113,7 @@ protected void Page_Load(object sender, EventArgs e)
             return dt;
         }
 
-        private DataTable GetData(string query)
-        {
-
-            using (SqlConnection con = new SqlConnection(System.Configuration.ConfigurationManager.ConnectionStrings["dbcs"].ConnectionString))
-            {
-                using (SqlCommand cmd = new SqlCommand(query))
-                {
-                    using (SqlDataAdapter sda = new SqlDataAdapter(cmd))
-                    {
-                        cmd.Connection = con;
-                        DataTable dt = new DataTable();
-                        sda.Fill(dt);
-                        return dt;
-                    }
-                }
-            }
-        }
-
-
-
-        protected void SubmitBtn_Click(object sender, EventArgs e)
+ protected void SubmitBtn_Click(object sender, EventArgs e)
         {
             string from = fromdate.Text.Trim();
             string to = todate.Text.Trim();
@@ -209,7 +123,7 @@ protected void Page_Load(object sender, EventArgs e)
 
             if (!string.IsNullOrEmpty(from) && !string.IsNullOrEmpty(to))
             {
-                // Store values in ViewState for postback
+               
                 ViewState["from"] = from;
                 ViewState["to"] = to;
                 ViewState["dept"] = dept;
@@ -220,5 +134,19 @@ protected void Page_Load(object sender, EventArgs e)
             }
         }
 
+this is my query 
 
-it reloads again and again , i think it goes to infinite loop or something 
+        SELECT DE.Pno, Emp.DepartmentName, DE.DateAndTime, DE.PunchIn_FailedCount, DE.PunchOut_FailedCount
+        FROM App_FaceVerification_Details AS DE
+        INNER JOIN UserLoginDB.dbo.App_EmployeeMaster AS Emp
+            ON DE.Pno COLLATE DATABASE_DEFAULT = Emp.Pno COLLATE DATABASE_DEFAULT
+        WHERE CAST(DE.DateAndTime AS DATE) BETWEEN '2025-06-08' AND '2025-06-09'
+     AND (DE.PunchIn_FailedCount BETWEEN 0 AND 1) ORDER BY DE.DateAndTime
+it shows me data like this 
+842024	Electrical Project & Construction	2025-06-08 05:41:04.410	0	0
+842133	SK Power Distribution	2025-06-08 05:48:57.787	0	6
+842137	Electrical Protection and Testing	2025-06-08 05:57:47.337	0	0
+842209	SK Power Distribution	2025-06-08 05:58:40.243	0	1
+
+
+i want that it group based on the Date means if the date is selected from 08 to 09 it shows as toggle in report and when i open it shows the records 
