@@ -1,4 +1,18 @@
- protected void Page_Load(object sender, EventArgs e)
+DataTable dt = new DataTable();
+// fill dt as you already do...
+
+// Add a new column for grouping
+dt.Columns.Add("OnlyDate", typeof(DateTime));
+foreach (DataRow row in dt.Rows)
+{
+    row["OnlyDate"] = ((DateTime)row["DateAndTime"]).Date;
+}
+
+ 
+ 
+ 
+ 
+protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
             {
