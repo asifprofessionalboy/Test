@@ -1,3 +1,19 @@
+[HttpGet]
+public IActionResult GraphReport(DateTime? fromDate, DateTime? toDate)
+{
+    if (fromDate == null || toDate == null)
+        return BadRequest("Invalid dates");
+
+    // Prevent SQL overflow
+    if (fromDate < (DateTime)SqlDateTime.MinValue || toDate < (DateTime)SqlDateTime.MinValue)
+        return BadRequest("Date out of range");
+
+    ...
+}
+
+        
+        
+        
         public IActionResult GraphReport()
         {
            
