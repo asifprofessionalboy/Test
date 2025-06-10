@@ -1,3 +1,66 @@
+<form onsubmit="loadChartData(); return false;">
+
+[HttpGet]
+public IActionResult GraphReport(string fromDate, string toDate)
+{
+    var results = new List<dynamic>();
+
+    if (!DateTime.TryParseExact(fromDate, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out DateTime from))
+        return BadRequest("Invalid fromDate");
+    if (!DateTime.TryParseExact(toDate, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out DateTime to))
+        return BadRequest("Invalid toDate");
+
+    using (SqlConnection conn = new SqlConnection(GetRFIDConnectionString()))
+    {
+        conn.Open();
+
+        string query = @"
+            SELECT 
+                CONVERT(date, DateAndTime) AS AttemptDate,
+                CASE 
+                    WHEN PunchIn_FailedCount BETWEEN 0 AND 2 THEN '0-2'
+                    WHEN PunchIn_FailedCount BETWEEN 3 AND 5 THEN '3-5'
+                    WHEN PunchIn_FailedCount BETWEEN 6 AND 10 THEN '6-10'
+                    ELSE '11+'
+                END AS AttemptRange,
+                COUNT(DISTINCT Pno) AS NumberOfUsers
+            FROM App_FaceVerification_Details
+            WHERE CONVERT(date, DateAndTime) BETWEEN @FromDate AND @ToDate
+            GROUP BY 
+                CONVERT(date, DateAndTime),
+                CASE 
+                    WHEN PunchIn_FailedCount BETWEEN 0 AND 2 THEN '0-2'
+                    WHEN PunchIn_FailedCount BETWEEN 3 AND 5 THEN '3-5'
+                    WHEN PunchIn_FailedCount BETWEEN 6 AND 10 THEN '6-10'
+                    ELSE '11+'
+                END
+            ORDER BY AttemptDate";
+
+        using (SqlCommand cmd = new SqlCommand(query, conn))
+        {
+            cmd.Parameters.AddWithValue("@FromDate", from.Date);
+            cmd.Parameters.AddWithValue("@ToDate", to.Date);
+
+            using (SqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    results.Add(new
+                    {
+                        attemptDate = Convert.ToDateTime(reader["AttemptDate"]).ToString("yyyy-MM-dd"),
+                        attemptRange = reader["AttemptRange"].ToString(),
+                        numberOfUsers = Convert.ToInt32(reader["NumberOfUsers"])
+                    });
+                }
+            }
+        }
+    }
+
+    return Ok(results);
+}
+
+
+
 i have this controller code
    public IActionResult GraphReport()
    {
