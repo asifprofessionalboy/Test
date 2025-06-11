@@ -1,3 +1,50 @@
+function loadChartData() {
+    const fromDate = document.getElementById("fromDate").value;
+    let toDate = document.getElementById("toDate").value;
+    const attemptType = document.getElementById("attemptType").value;
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+    if (!fromDate) {
+        alert("Please select at least one date.");
+        return;
+    }
+
+    if (!toDate) {
+        toDate = fromDate; // If ToDate not selected, use FromDate
+    }
+
+    fetch('/Report/GraphReport', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': token
+        },
+        body: `fromDate=${fromDate}&toDate=${toDate}&attemptType=${attemptType}`
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch data");
+        return res.json();
+    })
+    .then(data => {
+        // ... existing chart logic
+    })
+    .catch(error => {
+        console.error("Error fetching data:", error);
+        alert("Failed to load data.");
+    });
+}
+<script>
+    document.getElementById("fromDate").addEventListener("change", function () {
+        const toDate = document.getElementById("toDate");
+        if (!toDate.value) {
+            toDate.value = this.value;
+        }
+    });
+</script>
+
+
+
+
 <div class="col-sm-2">
     <select class="form-control" id="attemptType">
         <option value="PunchIn">PunchIn</option>
