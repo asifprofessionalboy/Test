@@ -1,3 +1,18 @@
+[HttpPost]
+[ValidateAntiForgeryToken]
+public IActionResult GraphReport(DateTime fromDate, DateTime toDate, string attemptType)
+{
+    if (toDate == DateTime.MinValue || toDate == default)
+    {
+        toDate = fromDate; // Default ToDate = FromDate
+    }
+
+    // Proceed with SQL query as before
+}
+
+
+
+
 function loadChartData() {
     const fromDate = document.getElementById("fromDate").value;
     let toDate = document.getElementById("toDate").value;
