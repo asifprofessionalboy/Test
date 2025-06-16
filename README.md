@@ -1,3 +1,159 @@
+<script>
+    async function OnOff() {
+        // Disable buttons initially
+        var punchIn = document.getElementById('PunchIn');
+        var punchOut = document.getElementById('PunchOut');
+
+        if (punchIn) punchIn.disabled = true;
+        if (punchOut) punchOut.disabled = true;
+
+        Swal.fire({
+            title: 'Please wait...',
+            text: 'Fetching your device info and location.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Load FingerprintJS
+        const fpPromise = FingerprintJS.load();
+
+        // Get location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                async function (position) {
+                    const lat = roundTo(position.coords.latitude, 6);
+                    const lon = roundTo(position.coords.longitude, 6);
+                    const accuracy = position.coords.accuracy;
+                    const timestamp = position.timestamp;
+
+                    // Get fingerprint
+                    const fp = await fpPromise;
+                    const result = await fp.get();
+                    const fingerprint = result.visitorId;
+                    const components = result.components;
+
+                    // Build payload
+                    const payload = {
+                        latitude: lat,
+                        longitude: lon,
+                        accuracy: accuracy,
+                        timestamp: timestamp,
+                        fingerprint: fingerprint,
+                        deviceInfo: {
+                            userAgent: navigator.userAgent,
+                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            screen: {
+                                width: screen.width,
+                                height: screen.height,
+                                pixelDepth: screen.pixelDepth
+                            },
+                            components: {
+                                platform: components.platform?.value,
+                                languages: components.languages?.value,
+                                vendor: components.vendor?.value,
+                                osCpu: components.osCpu?.value
+                            }
+                        }
+                    };
+
+                    // Send to server
+                    fetch('/Geo/ValidateLocationWithFingerprint', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                        .then(response => response.json())
+                        .then(result => {
+                            Swal.close();
+                            if (result.success) {
+                                if (punchIn) punchIn.disabled = false;
+                                if (punchOut) punchOut.disabled = false;
+                            } else {
+                                Swal.fire({
+                                    icon: "error",
+                                    title: "Warning",
+                                    text: result.message
+                                });
+                            }
+                        });
+                },
+                function (error) {
+                    Swal.close();
+                    Swal.fire({
+                        icon: "error",
+                        title: "Location Error",
+                        text: "Please allow location access or disable fake location apps"
+                    });
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            Swal.close();
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    function roundTo(num, places) {
+        return +(Math.round(num + "e" + places) + "e-" + places);
+    }
+
+    window.onload = OnOff;
+</script>
+
+[HttpPost]
+[Route("Geo/ValidateLocationWithFingerprint")]
+public IActionResult ValidateLocationWithFingerprint([FromBody] GeoRequestWithFingerprint request)
+{
+    // Example validation logic
+    bool isLocationSpoofed = request.Accuracy > 1000;
+    bool isTimezoneMismatch = request.DeviceInfo.Timezone != "Asia/Kolkata"; // Example only
+
+    // Log for review
+    Console.WriteLine($"User: {request.Fingerprint}");
+    Console.WriteLine($"Lat: {request.Latitude}, Lon: {request.Longitude}, Accuracy: {request.Accuracy}");
+    Console.WriteLine($"TimeZone: {request.DeviceInfo.Timezone}, UserAgent: {request.DeviceInfo.UserAgent}");
+
+    if (isLocationSpoofed || isTimezoneMismatch)
+    {
+        return Json(new { success = false, message = "Suspicious device or location data." });
+    }
+
+    return Json(new { success = true, message = "Device and location OK." });
+}
+
+public class GeoRequestWithFingerprint
+{
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double Accuracy { get; set; }
+    public long Timestamp { get; set; }
+    public string Fingerprint { get; set; }
+    public DeviceInfo DeviceInfo { get; set; }
+}
+
+public class DeviceInfo
+{
+    public string UserAgent { get; set; }
+    public string Timezone { get; set; }
+    public ScreenInfo Screen { get; set; }
+    public Dictionary<string, string> Components { get; set; }
+}
+
+public class ScreenInfo
+{
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int PixelDepth { get; set; }
+}
+
+
+
 i have this js for geolocation
 <script>
     function OnOff() {
