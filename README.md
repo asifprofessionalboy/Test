@@ -1,6 +1,36 @@
 DECLARE @StartDate DATE = '2025-06-01';
 DECLARE @EndDate DATE = '2025-06-30';
 
+-- Recursive CTE to generate dates
+WITH DateList AS (
+    SELECT @StartDate AS TheDate
+    UNION ALL
+    SELECT DATEADD(DAY, 1, TheDate)
+    FROM DateList
+    WHERE TheDate < @EndDate
+)
+SELECT 
+    d.TheDate,
+    (
+        SELECT COUNT(*) 
+        FROM App_Empl_Master em
+        WHERE em.Discharge_Date IS NULL
+        AND em.pno NOT IN (
+            SELECT TRBDGDA_BD_PNO 
+            FROM T_TRBDGDAT_EARS 
+            WHERE TRBDGDA_BD_DATE = d.TheDate
+        )
+    ) AS AbsentCount
+FROM DateList d
+ORDER BY d.TheDate
+OPTION (MAXRECURSION 100);
+
+
+
+
+DECLARE @StartDate DATE = '2025-06-01';
+DECLARE @EndDate DATE = '2025-06-30';
+
 -- Recursive CTE to generate all dates from start to end
 WITH DateList AS (
     SELECT @StartDate AS TheDate
