@@ -1,19 +1,117 @@
+i have this js for geolocation
+<script>
+    function OnOff() {
+        setTimeout(() => {
+            var punchIn = document.getElementById('PunchIn');
+            var punchOut = document.getElementById('PunchOut');
 
-<div class="card rounded-9">
-    <fieldset style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px; margin: 20px; overflow-x: auto;">
-        <div style="min-width: 800px; width: max-content;">
-            <canvas id="attemptChart" height="100"></canvas>
-        </div>
-    </fieldset>
-</div>
+           
+            if (punchIn) {
+                punchIn.disabled = true;
+                punchIn.classList.add("disabled");
+            }
+            if (punchOut) {
+                punchOut.disabled = true;
+                punchOut.classList.add("disabled");
+            }
+
+            Swal.fire({
+                title: 'Please wait...',
+                text: 'Fetching your current location.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        Swal.close();
+
+                        const lat = roundTo(position.coords.latitude, 6);
+                        const lon = roundTo(position.coords.longitude, 6);
+                        // const lat = 22.79714;
+                        // const lon = 86.183471;
+
+                        const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
+                        
+
+                        let isInsideRadius = false;
+                        let minDistance = Number.MAX_VALUE;
+
+                        locations.forEach((location) => {
+                            const allowedRange = parseFloat(location.range || location.Range);
+                            const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
+                            //console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
+
+                            if (distance <= allowedRange) {
+                                isInsideRadius = true;
+                            } else {
+                                minDistance = Math.min(minDistance, distance);
+                            }
+                        });
+
+                        if (isInsideRadius) {
+                            if (punchIn) {
+                                punchIn.disabled = false;
+                                punchIn.classList.remove("disabled");
+                            }
+                            if (punchOut) {
+                                punchOut.disabled = false;
+                                punchOut.classList.remove("disabled");
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Out of Range",
+                                text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
+                            });
+                        }
+                    },
+                    function (error) {
+                        Swal.close();
+                        Swal.fire({
+                            title: "Error Fetching Location!",
+                            text: "please check your location permission or enable location",
+                            icon: "error",
+                            confirmButtonText: "OK"
+                        });
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                Swal.close();
+                alert("Geolocation is not supported by this browser");
+            }
+        }, 500); 
+    }
+
+   
+    window.onload = OnOff;
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const toRad = angle => (angle * Math.PI) / 180;
+        let dLat = toRad(lat2 - lat1);
+        let dLon = toRad(lon2 - lon1);
+        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    function roundTo(num, places) {
+        return +(Math.round(num + "e" + places) + "e-" + places);
+    }
+
+    window.onload = OnOff;
+</script>
 
 
-
-
-now i want graph is slides means if the value bigger and bigger then i want overflow x
-
-<div class="card rounded-9">
-<fieldset class="" style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px;margin:20px;">
-<canvas id="attemptChart" height="100"></canvas>
-</fieldset>
-</div>
+i am having a big issue bug that someone uses fake location app to get the button enable , i am sharing the full process how they do it , firstly they open develepor mode of the android and then install the fake app of location and then it use mack something and after that it gets the fake location , i want to verify this , please do something to resolve this 
