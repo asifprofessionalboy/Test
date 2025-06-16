@@ -1,3 +1,108 @@
+query = @"
+WITH TotalPerDay AS (
+    SELECT 
+        CONVERT(date, DateAndTime) AS AttemptDate,
+        COUNT(DISTINCT Pno) AS TotalUsers
+    FROM App_FaceVerification_Details
+    WHERE CONVERT(date, DateAndTime) BETWEEN @FromDate AND @ToDate
+    GROUP BY CONVERT(date, DateAndTime)
+),
+GroupedCounts AS (
+    SELECT 
+        CONVERT(date, DateAndTime) AS AttemptDate,
+        CASE 
+            WHEN PunchIn_FailedCount BETWEEN 0 AND 2 THEN '0-2'
+            WHEN PunchIn_FailedCount BETWEEN 3 AND 5 THEN '3-5'
+            WHEN PunchIn_FailedCount BETWEEN 6 AND 10 THEN '6-10'
+            ELSE '10+'
+        END AS AttemptRange,
+        COUNT(DISTINCT Pno) AS NumberOfUsers
+    FROM App_FaceVerification_Details
+    WHERE CONVERT(date, DateAndTime) BETWEEN @FromDate AND @ToDate
+    GROUP BY 
+        CONVERT(date, DateAndTime),
+        CASE 
+            WHEN PunchIn_FailedCount BETWEEN 0 AND 2 THEN '0-2'
+            WHEN PunchIn_FailedCount BETWEEN 3 AND 5 THEN '3-5'
+            WHEN PunchIn_FailedCount BETWEEN 6 AND 10 THEN '6-10'
+            ELSE '10+'
+        END
+),
+DateList AS (
+    SELECT @FromDate AS TheDate
+    UNION ALL
+    SELECT DATEADD(DAY, 1, TheDate)
+    FROM DateList
+    WHERE TheDate < @ToDate
+),
+AbsentCounts AS (
+    SELECT 
+        d.TheDate AS AttemptDate,
+        'Absent' AS AttemptRange,
+        COUNT(*) AS NumberOfUsers
+    FROM DateList d
+    JOIN App_Empl_Master em ON em.Discharge_Date IS NULL
+    WHERE em.pno NOT IN (
+        SELECT TRBDGDA_BD_PNO 
+        FROM T_TRBDGDAT_EARS 
+        WHERE TRBDGDA_BD_DATE = d.TheDate
+    )
+    GROUP BY d.TheDate
+)
+SELECT 
+    AttemptDate,
+    AttemptRange,
+    NumberOfUsers,
+    NULL AS TotalUsers,
+    NULL AS Percentage
+FROM AbsentCounts
+
+UNION ALL
+
+SELECT 
+    g.AttemptDate,
+    g.AttemptRange,
+    g.NumberOfUsers,
+    t.TotalUsers,
+    CAST(g.NumberOfUsers * 100.0 / t.TotalUsers AS DECIMAL(5, 2)) AS Percentage
+FROM GroupedCounts g
+JOIN TotalPerDay t ON g.AttemptDate = t.AttemptDate
+
+ORDER BY AttemptDate, AttemptRange
+OPTION (MAXRECURSION 100);
+";
+results.Add(new
+{
+    attemptDate = Convert.ToDateTime(reader["AttemptDate"]).ToString("dd-MM-yyyy"),
+    attemptRange = reader["AttemptRange"].ToString(),
+    numberOfUsers = Convert.ToInt32(reader["NumberOfUsers"]),
+    percentage = reader["Percentage"] == DBNull.Value ? "0" : reader["Percentage"].ToString()
+});
+
+ const ranges = ['0-2', '3-5', '6-10', '10+', 'Absent'];
+const colors = {
+    '0-2': 'blue',
+    '3-5': 'orange',
+    '6-10': 'green',
+    '10+': 'red',
+    'Absent': 'gray'
+};
+tooltip: {
+    callbacks: {
+        label: function (context) {
+            const label = context.dataset.label || '';
+            const value = context.raw.y;
+            const count = context.raw.numberOfUsers;
+            if (label === 'Absent') {
+                return `${count} users absent`;
+            }
+            return `${value}% (${count} users)`;
+        }
+    }
+}
+               
+                
+                
                 if (attemptType == "PunchIn")
                 {
 
