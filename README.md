@@ -1,11 +1,13 @@
-this is my old query to fetch details
+                if (attemptType == "PunchIn")
+                {
 
-WITH TotalPerDay AS (
+                    query = @"
+                 WITH TotalPerDay AS (
     SELECT 
         CONVERT(date, DateAndTime) AS AttemptDate,
         COUNT(DISTINCT Pno) AS TotalUsers
     FROM App_FaceVerification_Details
-    WHERE CONVERT(date, DateAndTime) BETWEEN '2025-06-01' AND '2025-06-30'
+    WHERE CONVERT(date, DateAndTime) BETWEEN @FromDate AND @ToDate
     GROUP BY CONVERT(date, DateAndTime)
 ),
 GroupedCounts AS (
@@ -19,7 +21,7 @@ GroupedCounts AS (
         END AS AttemptRange,
         COUNT(DISTINCT Pno) AS NumberOfUsers
     FROM App_FaceVerification_Details
-    WHERE CONVERT(date, DateAndTime) BETWEEN '2025-06-01' AND '2025-06-30'
+    WHERE CONVERT(date, DateAndTime) BETWEEN @FromDate AND @ToDate
     GROUP BY 
         CONVERT(date, DateAndTime),
         CASE 
@@ -37,33 +39,151 @@ SELECT
     CAST(g.NumberOfUsers * 100.0 / t.TotalUsers AS DECIMAL(5, 2)) AS Percentage
 FROM GroupedCounts g
 JOIN TotalPerDay t ON g.AttemptDate = t.AttemptDate
-ORDER BY g.AttemptDate, g.AttemptRange;
+ORDER BY g.AttemptDate, g.AttemptRange;";
+                }
 
 
-this is my new query to fetch absent user 
-DECLARE @StartDate DATE = '2025-06-01';
-DECLARE @EndDate DATE = '2025-06-30';
+    using (SqlCommand cmd = new SqlCommand(query, conn))
+{
+    cmd.Parameters.AddWithValue("@FromDate", fromDate.Date);
+    cmd.Parameters.AddWithValue("@ToDate", toDate.Date);
 
-WITH DateList AS (
-    SELECT @StartDate AS TheDate
-    UNION ALL
-    SELECT DATEADD(DAY, 1, TheDate)
-    FROM DateList
-    WHERE TheDate < @EndDate
-)
-SELECT d.TheDate,
-    (
-        SELECT COUNT(*) 
-        FROM App_Empl_Master em
-        WHERE em.Discharge_Date IS NULL
-        AND em.pno NOT IN (
-            SELECT TRBDGDA_BD_PNO 
-            FROM T_TRBDGDAT_EARS 
-            WHERE TRBDGDA_BD_DATE = d.TheDate
-        ) 
-    ) AS AbsentCount 
-FROM DateList d
-ORDER BY d.TheDate
-OPTION (MAXRECURSION 31);
+    using (SqlDataReader reader = cmd.ExecuteReader())
+    {
+        while (reader.Read())
+        {
+            results.Add(new
+            {
+                attemptDate = Convert.ToDateTime(reader["AttemptDate"]).ToString("dd-MM-yyyy"),
+                attemptRange = reader["AttemptRange"].ToString(),
+                numberOfUsers = Convert.ToInt32(reader["NumberOfUsers"]),
+                percentage = reader["Percentage"].ToString()
+            });
+        }
+    }
+}
 
-i want to merge this from above query to found out the absent user also
+   function loadChartData() {
+       const fromDate = document.getElementById("fromDate").value;
+       const toDate = document.getElementById("toDate").value;
+       const attemptType = document.getElementById("attemptType").value;
+       const token = document.getElementById("requestVerificationToken").value;
+
+       if (!fromDate && !toDate) {
+           alert("Please select at least one date.");
+           return;
+       }
+
+       fetch('/Report/GraphReport', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/x-www-form-urlencoded',
+               'RequestVerificationToken': token
+           },
+           body: `fromDate=${fromDate}&toDate=${toDate}&attemptType=${attemptType}`
+       })
+           .then(res => {
+               if (!res.ok) {
+                   throw new Error("Failed to fetch data");
+               }
+               return res.json();
+           })
+           .then(data => {
+               if (!data || data.length === 0) {
+                   alert("No data available for the selected date range.");
+                   if (chartInstance) chartInstance.destroy();
+                   return;
+               }
+
+               const labels = [...new Set(data.map(d => d.attemptDate))];
+               const ranges = ['0-2', '3-5', '6-10', '10+'];
+               const colors = {
+                   '0-2': 'blue',
+                   '3-5': 'orange',
+                   '6-10': 'green',
+                   '10+': 'red',
+               };
+
+               const datasets = ranges.map(range => {
+                   return {
+                       label: range,
+                       borderColor: colors[range],
+                       backgroundColor: colors[range],
+                       tension: 0.3,
+                       fill: false,
+                       data: labels.map(date => {
+                           const match = data.find(d => d.attemptDate === date && d.attemptRange === range);
+                           return {
+                               x: date,
+                               y: match ? match.percentage : 0,
+                               numberOfUsers: match ? match.numberOfUsers : 0
+                           };
+                       })
+                   };
+               });
+
+               if (chartInstance) chartInstance.destroy();
+
+               chartInstance = new Chart(document.getElementById('attemptChart'), {
+                   type: 'line',
+                   data: {
+                       labels: labels,
+                       datasets: datasets
+                   },
+                   options: {
+                       responsive: true,
+                       plugins: {
+                           title: {
+                               display: true,
+                               text: `${attemptType} Attempt Distribution by Date`
+                           },
+                           legend: {
+                               position: 'top'
+                           },
+                           tooltip: {
+                               callbacks: {
+                                   label: function (context) {
+                                       const label = context.dataset.label || '';
+                                       const value = context.raw.y;
+                                       const count = context.raw.numberOfUsers;
+                                       return `${value}% (${count} users)`;
+                                   }
+                               }
+                           }
+                       },
+                       scales: {
+                           y: {
+                               beginAtZero: true,
+                               max: 100,
+                               title: {
+                                   display: true,
+                                   text: 'Percentage (%)',
+                                   font: {
+                                       weight: 'bold',
+                                       size: 11
+                                   }
+                               }
+                           },
+                           x: {
+                               title: {
+                                   display: true,
+                                   text: 'Date',
+                                   font: {
+                                       weight: 'bold',
+                                       size: 11
+                                   }
+
+                               }
+                           }
+                       }
+                   }
+               });
+           })
+           .catch(error => {
+               console.error("Error fetching data:", error);
+               alert("Failed to load data.");
+           });
+   }
+
+
+i want to say that in this field i want to add new absent field to show on the line graph that is my query to fetch count of absent employees
