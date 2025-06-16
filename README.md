@@ -1,3 +1,75 @@
+else if (attemptType == "Absent")
+{
+    string query = @"
+    ;WITH DateList AS (
+        SELECT @FromDate AS TheDate
+        UNION ALL
+        SELECT DATEADD(DAY, 1, TheDate)
+        FROM DateList
+        WHERE TheDate < @ToDate
+    )
+    SELECT 
+        d.TheDate AS AttemptDate,
+        'Absent' AS AttemptRange,
+        (
+            SELECT COUNT(*) 
+            FROM App_Empl_Master em
+            WHERE em.Discharge_Date IS NULL
+            AND em.pno NOT IN (
+                SELECT TRBDGDA_BD_PNO 
+                FROM T_TRBDGDAT_EARS 
+                WHERE TRBDGDA_BD_DATE = d.TheDate
+            ) 
+        ) AS NumberOfUsers,
+        0 AS TotalUsers, -- not needed for absent
+        0 AS Percentage
+    FROM DateList d
+    ORDER BY d.TheDate
+    OPTION (MAXRECURSION 100);
+    ";
+
+    using (SqlCommand cmd = new SqlCommand(query, conn))
+    {
+        cmd.Parameters.AddWithValue("@FromDate", fromDate.Date);
+        cmd.Parameters.AddWithValue("@ToDate", toDate.Date);
+
+        using (SqlDataReader reader = cmd.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                results.Add(new
+                {
+                    attemptDate = Convert.ToDateTime(reader["AttemptDate"]).ToString("dd-MM-yyyy"),
+                    attemptRange = reader["AttemptRange"].ToString(), // always "Absent"
+                    numberOfUsers = Convert.ToInt32(reader["NumberOfUsers"]),
+                    percentage = 0 // optional, since this graph is just raw count
+                });
+            }
+        }
+    }
+}
+const ranges = attemptType === 'Absent' 
+    ? ['Absent'] 
+    : ['0-2', '3-5', '6-10', '10+'];
+
+const colors = {
+    '0-2': 'blue',
+    '3-5': 'orange',
+    '6-10': 'green',
+    '10+': 'red',
+    'Absent': 'gray'
+};
+
+label: function (context) {
+    const label = context.dataset.label || '';
+    const value = context.raw.y;
+    const count = context.raw.numberOfUsers;
+    return attemptType === 'Absent'
+        ? `${count} users absent`
+        : `${value}% (${count} users)`;
+}
+
+
 this is my dropdown 
 
  <div class="col-sm-2">
