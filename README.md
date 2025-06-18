@@ -1,3 +1,45 @@
+const datasets = ranges.map(range => {
+    return {
+        label: range,
+        borderColor: colors[range],
+        backgroundColor: colors[range],
+        tension: 0.3,
+        fill: false,
+        data: labels.map(date => {
+            const match = data.find(d => d.attemptDate === date && d.attemptRange === range);
+            return {
+                x: date,
+                y: match ? match.percentage : 0,
+                numberOfUsers: match ? match.numberOfUsers : 0
+            };
+        })
+    };
+});
+
+borderDash: range === 'Absent' ? [5, 5] : undefined,
+
+const datasets = ranges.map(range => {
+    return {
+        label: range,
+        borderColor: colors[range],
+        backgroundColor: colors[range],
+        tension: 0.3,
+        fill: false,
+        borderDash: range === 'Absent' ? [5, 5] : undefined,
+        data: labels.map(date => {
+            const match = data.find(d => d.attemptDate === date && d.attemptRange === range);
+            return {
+                x: date,
+                y: match ? match.percentage : 0,
+                numberOfUsers: match ? match.numberOfUsers : 0
+            };
+        })
+    };
+});
+
+
+
+
 WITH TotalEmployees AS (
     SELECT COUNT(*) AS Total FROM App_Empl_Master WHERE Discharge_Date IS NULL
 ),
