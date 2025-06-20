@@ -1,85 +1,163 @@
-WITH TotalPerDay AS (
-    SELECT 
-        CONVERT(date, DateAndTime) AS AttemptDate,
-        COUNT(DISTINCT Pno) AS TotalUsers
-    FROM App_FaceVerification_Details
-    WHERE CONVERT(date, DateAndTime) BETWEEN @FromDate AND @ToDate
-    GROUP BY CONVERT(date, DateAndTime)
-),
-GroupedCounts AS (
-    SELECT 
-        CONVERT(date, DateAndTime) AS AttemptDate,
-        CASE 
-            WHEN PunchIn_FailedCount BETWEEN 0 AND 2 THEN '0-2'
-            WHEN PunchIn_FailedCount BETWEEN 3 AND 5 THEN '3-5'
-            WHEN PunchIn_FailedCount BETWEEN 6 AND 10 THEN '6-10'
-            ELSE '10+'
-        END AS AttemptRange,
-        COUNT(DISTINCT Pno) AS NumberOfUsers
-    FROM App_FaceVerification_Details
-    WHERE CONVERT(date, DateAndTime) BETWEEN @FromDate AND @ToDate
-    GROUP BY 
-        CONVERT(date, DateAndTime),
-        CASE 
-            WHEN PunchIn_FailedCount BETWEEN 0 AND 2 THEN '0-2'
-            WHEN PunchIn_FailedCount BETWEEN 3 AND 5 THEN '3-5'
-            WHEN PunchIn_FailedCount BETWEEN 6 AND 10 THEN '6-10'
-            ELSE '10+'
-        END
-),
-DateList AS (
-    SELECT @FromDate AS TheDate
-    UNION ALL
-    SELECT DATEADD(DAY, 1, TheDate)
-    FROM DateList
-    WHERE TheDate < @ToDate
-),
-AbsentCounts AS (
-    SELECT 
-        d.TheDate AS AttemptDate,
-        'Absent' AS AttemptRange,
-        COUNT(*) AS NumberOfUsers,
-        (SELECT COUNT(*) FROM App_Empl_Master WHERE Discharge_Date IS NULL) AS TotalUsers,
-        CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM App_Empl_Master WHERE Discharge_Date IS NULL) AS DECIMAL(5,2)) AS Percentage
-    FROM DateList d
-    JOIN App_Empl_Master em ON em.Discharge_Date IS NULL
-    WHERE 
-        -- Employee was NOT present
-        em.pno NOT IN (
-            SELECT TRBDGDA_BD_PNO 
-            FROM T_TRBDGDAT_EARS 
-            WHERE TRBDGDA_BD_DATE = d.TheDate
-        )
-        -- AND it was NOT one of their official OffDays
-        AND DATENAME(WEEKDAY, d.TheDate) NOT IN (em.OffDay1, em.OffDay2)
-    GROUP BY d.TheDate
-)
--- Final union
-SELECT 
-    a.AttemptDate,
-    a.AttemptRange,
-    a.NumberOfUsers,
-    a.TotalUsers,
-    a.Percentage
-FROM AbsentCounts a
+i have this js for geolocation
+<script>
+    function OnOff() {
+        setTimeout(() => {
+            var punchIn = document.getElementById('PunchIn');
+            var punchOut = document.getElementById('PunchOut');
 
-UNION ALL
+           
+            if (punchIn) {
+                punchIn.disabled = true;
+                punchIn.classList.add("disabled");
+            }
+            if (punchOut) {
+                punchOut.disabled = true;
+                punchOut.classList.add("disabled");
+            }
 
-SELECT 
-    g.AttemptDate,
-    g.AttemptRange,
-    g.NumberOfUsers,
-    t.TotalUsers,
-    CAST(g.NumberOfUsers * 100.0 / t.TotalUsers AS DECIMAL(5, 2)) AS Percentage
-FROM GroupedCounts g
-JOIN TotalPerDay t ON g.AttemptDate = t.AttemptDate
+            Swal.fire({
+                title: 'Please wait...',
+                text: 'Fetching your current location.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
 
-ORDER BY AttemptDate, AttemptRange
-OPTION (MAXRECURSION 1000);
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        Swal.close();
+
+                        const lat = roundTo(position.coords.latitude, 6);
+                        const lon = roundTo(position.coords.longitude, 6);
+                        // const lat = 22.79714;
+                        // const lon = 86.183471;
+
+                        const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
+                        
+
+                        let isInsideRadius = false;
+                        let minDistance = Number.MAX_VALUE;
+
+                        locations.forEach((location) => {
+                            const allowedRange = parseFloat(location.range || location.Range);
+                            const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
+                            //console.log(`Distance to location (${location.latitude}, ${location.longitude}): ${Math.round(distance)} meters`);
+
+                            if (distance <= allowedRange) {
+                                isInsideRadius = true;
+                            } else {
+                                minDistance = Math.min(minDistance, distance);
+                            }
+                        });
+
+                        if (isInsideRadius) {
+                            if (punchIn) {
+                                punchIn.disabled = false;
+                                punchIn.classList.remove("disabled");
+                            }
+                            if (punchOut) {
+                                punchOut.disabled = false;
+                                punchOut.classList.remove("disabled");
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Out of Range",
+                                text: `You are ${Math.round(minDistance)} meters away from the allowed location!`
+                            });
+                        }
+                    },
+                    function (error) {
+                        Swal.close();
+                        Swal.fire({
+                            title: "Error Fetching Location!",
+                            text: "please check your location permission or enable location",
+                            icon: "error",
+                            confirmButtonText: "OK"
+                        });
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                Swal.close();
+                alert("Geolocation is not supported by this browser");
+            }
+        }, 500); 
+    }
+
+   
+    window.onload = OnOff;
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const toRad = angle => (angle * Math.PI) / 180;
+        let dLat = toRad(lat2 - lat1);
+        let dLon = toRad(lon2 - lon1);
+        let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    function roundTo(num, places) {
+        return +(Math.round(num + "e" + places) + "e-" + places);
+    }
+
+    window.onload = OnOff;
+</script>
+
+this is my controller code 
+ public IActionResult GetLocations()
+ {
+     var UserId = HttpContext.Request.Cookies["Session"];
+     string connectionString = GetRFIDConnectionString();
+
+     string query = @"SELECT ps.Worksite FROM TSUISLRFIDDB.DBO.App_Position_Worksite AS ps 
+              INNER JOIN TSUISLRFIDDB.DBO.App_Emp_position AS es ON es.position = ps.position 
+              WHERE es.Pno = @UserId";
+
+     using (var connection = new SqlConnection(connectionString))
+     {
+        
+         var worksiteNamesString = connection.QuerySingleOrDefault<string>(query, new { UserId });
+
+         if (string.IsNullOrEmpty(worksiteNamesString))
+         {
+             ViewBag.PolyData = new List<object>();
+             return View();
+         }
+
+         
+         var worksiteNames = worksiteNamesString.Split(',').Select(w => w.Trim()).ToList();
+
+        
+         var formattedWorksites = worksiteNames
+             .Select(name => $"'{name.Replace("'", "''")}'") 
+             .ToList();
+
+         string s = string.Join(",", formattedWorksites);
+
+         string query2 = @$"SELECT Longitude, Latitude, Range FROM TSUISLRFIDDB.DBO.App_LocationMaster 
+                    WHERE ID IN ({s})";
+
+         var locations = connection.Query(query2).Select(loc => new
+         {
+             Latitude = (double)loc.Latitude,
+             Longitude = (double)loc.Longitude,
+             Range = loc.Range
+         }).ToList();
+
+         ViewBag.PolyData = locations;
+         return View();
+     }
+ }
 
 
-
-
-i have this 2 columns for weekend i want to include these also for graph looks same not the upper some Pnos 2 days off and some are one , these 2 are in App_Empl_Master
-OffDay1	        OffDay2
-Saturday	Sunday
+i am having a big issue bug that someone uses fake location app to get the button enable , i am sharing the full process how they do it , firstly they open develepor mode of the android and then install the fake app of location and then it use mack something and after that it gets the fake location , i want to verify this , please do something to resolve this 
