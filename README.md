@@ -1,3 +1,8 @@
+@Html.Raw("<script src=\"https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js\"></script>")
+
+
+
+
 this is my old query to fetch details
 
 WITH TotalPerDay AS (
