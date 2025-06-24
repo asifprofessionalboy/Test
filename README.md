@@ -1,4 +1,40 @@
 [HttpGet("DownloadHandler")]
+public IActionResult DownloadHandler(string file, string folder)
+{
+    // Check session
+    var user = HttpContext.Session.GetString("UserName");
+    if (string.IsNullOrEmpty(user))
+    {
+        return Content("Session expired or user not logged in.");
+    }
+
+    // Validate input
+    if (string.IsNullOrEmpty(file))
+        return Content("File name not specified.");
+
+    var baseUploadPath = configuration["FileUpload:Path"];
+
+    // Sanitize folder input to prevent path traversal attacks
+    folder = string.IsNullOrEmpty(folder) ? "" : folder.Replace("..", "").Replace("/", "").Replace("\\", "");
+
+    var fullPath = string.IsNullOrEmpty(folder)
+        ? Path.Combine(baseUploadPath, file)
+        : Path.Combine(baseUploadPath, folder, file);
+
+    if (!System.IO.File.Exists(fullPath))
+    {
+        return Content("File not found.");
+    }
+
+    var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+    var contentType = GetContentType(fullPath);
+    return File(stream, contentType, Path.GetFileName(fullPath));
+}
+<a href="/DownloadHandler?file=@fileName&folder=@subFolder" target="_blank">@cleanFileName</a>
+
+
+
+[HttpGet("DownloadHandler")]
 public IActionResult DownloadHandler([FromQuery] string file)
 {
     // Check if session is active
