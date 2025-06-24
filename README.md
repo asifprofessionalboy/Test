@@ -1,3 +1,36 @@
+[HttpGet("DownloadHandler")]
+public IActionResult DownloadHandler([FromQuery] string file)
+{
+    // Check if session is active
+    var user = HttpContext.Session.GetString("UserName");
+    if (string.IsNullOrEmpty(user))
+    {
+        return Content("Session expired or user not logged in.");
+    }
+
+    if (string.IsNullOrEmpty(file))
+    {
+        return Content("File name not specified.");
+    }
+
+    var uploadPath = configuration["FileUpload:Path"];
+    var filePath = Path.Combine(uploadPath, file);
+
+    if (!System.IO.File.Exists(filePath))
+    {
+        return Content("File not found.");
+    }
+
+    // Send file to browser
+    var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+    var contentType = GetContentType(filePath);
+    return File(stream, contentType, Path.GetFileName(filePath));
+}
+
+<a href="/DownloadHandler?file=@fileName" target="_blank">@cleanFileName</a>
+
+
+
 <div class="col-sm-3">
     @if (!string.IsNullOrWhiteSpace(Model.Attachment))
     {
