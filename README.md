@@ -1,184 +1,143 @@
-<script>
-    let punchIn = null, punchOut = null;
-    let deviceFingerprint = "";
+i want to change logic of Attachment upload . i have this logic to upload and download from inside application i want to create a folder in my drive and from there i want to upload and 
+download it 
 
-    window.onload = async function () {
-        punchIn = document.getElementById('PunchIn');
-        punchOut = document.getElementById('PunchOut');
+this is my controller logic 
+if (InnViewModel.Attach != null && InnViewModel.Attach.Any())
+{
+				var uploadPath = configuration["FileUpload:Path"];
+				foreach (var file in InnViewModel.Attach)
+				{
+					if (file.Length > 0)
+					{
+						var uniqueId = Guid.NewGuid().ToString();
+						var currentDateTime = DateTime.UtcNow.ToString("dd-MM-yyyy_HH-mm-ss");
+						var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+						var fileExtension = Path.GetExtension(file.FileName);
+						var formattedFileName = $"{uniqueId}_{currentDateTime}_{originalFileName}{fileExtension}";
+						var fullPath = Path.Combine(uploadPath, formattedFileName);
 
-        // FingerprintJS init
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        deviceFingerprint = result.visitorId;
+						using (var stream = new FileStream(fullPath, FileMode.Create))
+						{
+							await file.CopyToAsync(stream);
+						}
 
-        disableButtons();
-        getLocationAndVerify();
+						InnViewModel.Attachment += $"{formattedFileName},";
+					}
+				}
+
+				if (!string.IsNullOrEmpty(InnViewModel.Attachment))
+				{
+					InnViewModel.Attachment = InnViewModel.Attachment.TrimEnd(',');
+				}
+}
+
+this is my download logic 
+
+		public IActionResult DownloadFile(string fileName)
+		{
+			var uploadPath = configuration["FileUpload:Path"];
+			var filePath = Path.Combine(uploadPath, fileName);
+
+			if (!System.IO.File.Exists(filePath))
+			{
+				return NotFound();
+			}
+
+			var memory = new MemoryStream();
+			using (var stream = new FileStream(filePath, FileMode.Open))
+			{
+				stream.CopyTo(memory);
+			}
+			memory.Position = 0;
+
+			return File(memory, GetContentType(filePath), Path.GetFileName(filePath));
+		}
+
+		private string GetContentType(string path)
+		{
+			var types = GetMimeTypes();
+			var ext = Path.GetExtension(path).ToLowerInvariant();
+			return types[ext];
+		}
+
+		private Dictionary<string, string> GetMimeTypes()
+		{
+			return new Dictionary<string, string>
+	{
+		{ ".txt", "text/plain" },
+		{ ".pdf", "application/pdf" },
+		{ ".doc", "application/vnd.ms-word" },
+		{ ".docx", "application/vnd.ms-word" },
+		{ ".xls", "application/vnd.ms-excel" },
+		{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+		{ ".png", "image/png" },
+		{ ".jpg", "image/jpeg" },
+		{ ".jpeg", "image/jpeg" },
+		{ ".gif", "image/gif" },
+		{ ".mp4", "video/mp4" },
+		{ ".mpkg", "application/vnd.apple.installer+xml" },
+		{ ".mov", "video/quicktime" },
+		{ ".bmp", "image/x-MS-bmp" },
+		{ ".csv", "text/csv" },
+		{ ".ppt", "application/vnd.ms-powerpoint" }, 
+        { ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation" } 
     };
+		}
 
-    function disableButtons() {
-        if (punchIn) {
-            punchIn.disabled = true;
-            punchIn.classList.add("disabled");
-            punchIn.style.display = "none";
+
+i want like this handler
+ 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.SessionState;
+
+
+public class FileDownloadHandler : IHttpHandler, IRequiresSessionState
+{
+    public void ProcessRequest(HttpContext context)
+    {
+        string fileName = context.Request.QueryString["file"];
+
+
+        object sessionUser = context.Session["UserName"];
+        if (sessionUser == null )
+        {
+            context.Response.Write("Session expired or user not logged in.");
+            return;
         }
-        if (punchOut) {
-            punchOut.disabled = true;
-            punchOut.classList.add("disabled");
-            punchOut.style.display = "none";
-        }
-    }
+        else
+        {
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                string filePath = @"D:/Cybersoft_Doc/Innovation/Attachments/" + fileName;
+                
+                //string filePath = context.Server.MapPath(virtualPath); // Converts to physical path
 
-    function enableButtons() {
-        if (punchIn) {
-            punchIn.disabled = false;
-            punchIn.classList.remove("disabled");
-            punchIn.style.display = "inline-block";
-        }
-        if (punchOut) {
-            punchOut.disabled = false;
-            punchOut.classList.remove("disabled");
-            punchOut.style.display = "inline-block";
-        }
-    }
+                if (System.IO.File.Exists(filePath))
+                {
 
-    async function getLocationAndVerify() {
-        Swal.fire({
-            title: 'Please wait...',
-            text: 'Fetching your current location...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
+                    context.Response.Clear();
+                    context.Response.ContentType = "application/octet-stream";
+                    context.Response.AppendHeader("Content-Disposition", "attachment; filename=" + fileName);
+                    context.Response.TransmitFile(filePath);
+                    context.Response.Flush(); //  Flush the response
+                    context.ApplicationInstance.CompleteRequest(); //  Avoid ThreadAbortException
+                    context.Response.Close();
+                    context.Response.End();
 
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async function (position) {
-                Swal.close();
-
-                const lat = roundTo(position.coords.latitude, 6);
-                const lon = roundTo(position.coords.longitude, 6);
-                const accuracy = position.coords.accuracy;
-
-                const deviceInfo = {
-                    userAgent: navigator.userAgent,
-                    platform: navigator.platform,
-                    language: navigator.language,
-                    timestamp: new Date().toISOString()
-                };
-
-                const ipRes = await fetch("https://ipapi.co/json");
-                const ipData = await ipRes.json();
-
-                const ipLat = ipData.latitude;
-                const ipLon = ipData.longitude;
-
-                const ipDistance = calculateDistance(lat, lon, ipLat, ipLon);
-                const isIPMismatch = ipDistance > 10000; // 10km mismatch = suspicious
-
-                const motionStatus = await detectMotion();
-                const suspiciousMotion = motionStatus === false;
-
-                // Send all data to your backend
-                const response = await fetch('/TSUISLARS/Geo/VerifyLocation', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        latitude: lat,
-                        longitude: lon,
-                        accuracy: accuracy,
-                        device: deviceInfo,
-                        fingerprint: deviceFingerprint,
-                        ipLatitude: ipLat,
-                        ipLongitude: ipLon,
-                        ipDistance: ipDistance,
-                        motionDetected: motionStatus
-                    })
-                });
-
-                const result = await response.json();
-
-                if (!result.isValid) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Location Spoofing Detected!',
-                        text: result.message
-                    });
-                    disableButtons();
-                    return;
                 }
-
-                // Your existing allowed-range check
-                const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
-                let isInsideRadius = false;
-                let minDistance = Number.MAX_VALUE;
-
-                locations.forEach((location) => {
-                    const allowedRange = parseFloat(location.range || location.Range);
-                    const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
-                    if (distance <= allowedRange) isInsideRadius = true;
-                    else minDistance = Math.min(minDistance, distance);
-                });
-
-                if (isInsideRadius) {
-                    enableButtons();
-                } else {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Out of Range",
-                        text: `You are ${Math.round(minDistance)} meters away from allowed location!`
-                    });
+                else
+                {
+                    context.Response.Write("File not found.");
                 }
-
-            }, function () {
-                Swal.close();
-                Swal.fire({
-                    title: "Location Error",
-                    text: "Enable location services and permissions.",
-                    icon: "error"
-                });
-            }, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            });
-        } else {
-            Swal.close();
-            alert("Geolocation is not supported by your browser.");
-        }
-    }
-
-    function roundTo(num, places) {
-        return +(Math.round(num + "e" + places) + "e-" + places);
-    }
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000;
-        const toRad = angle => (angle * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    function detectMotion() {
-        return new Promise(resolve => {
-            let hasMoved = false;
-            function motionListener(e) {
-                const acc = e.acceleration || e.accelerationIncludingGravity;
-                if (acc && (acc.x !== null || acc.y !== null || acc.z !== null)) {
-                    hasMoved = true;
-                }
-                window.removeEventListener("devicemotion", motionListener);
-                resolve(hasMoved);
             }
-            window.addEventListener("devicemotion", motionListener);
-            setTimeout(() => {
-                window.removeEventListener("devicemotion", motionListener);
-                resolve(hasMoved);
-            }, 3000); 
-        });
-    }
-</script>
+        }
 
-this is also not working when using fake location app it is not working it fetches the location and make button visible
+
+       
+    }
+
+    public bool IsReusable => false;
+}
