@@ -1,3 +1,6 @@
+javascript:__doPostBack('ctl00$MainContent$LblMV_ATTACH','')
+
+
 public class FileDownloadHandler : IHttpHandler, IRequiresSessionState
 {
     public void ProcessRequest(HttpContext context)
