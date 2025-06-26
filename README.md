@@ -1,427 +1,242 @@
-<script>
-    let punchIn = null, punchOut = null;
-    let deviceFingerprint = "";
+getting this error and m files are in wwwroot folder inside that there is faceApi folder then the files are there
 
-    window.onload = async function () {
-        punchIn = document.getElementById('PunchIn');
-        punchOut = document.getElementById('PunchOut');
+GeoFencing:145 Uncaught (in promise) ReferenceError: faceapi is not defined
+    at GeoFencing:145:33
 
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        deviceFingerprint = result.visitorId;
-
-        disableButtons();
-        getLocationAndVerify();
-    };
-
-    function disableButtons() {
-        if (punchIn) {
-            punchIn.disabled = true;
-            punchIn.classList.add("disabled");
-            punchIn.style.display = "none";
-        }
-        if (punchOut) {
-            punchOut.disabled = true;
-            punchOut.classList.add("disabled");
-            punchOut.style.display = "none";
-        }
-    }
-
-    function enableButtons() {
-        if (punchIn) {
-            punchIn.disabled = false;
-            punchIn.classList.remove("disabled");
-            punchIn.style.display = "inline-block";
-        }
-        if (punchOut) {
-            punchOut.disabled = false;
-            punchOut.classList.remove("disabled");
-            punchOut.style.display = "inline-block";
-        }
-    }
-
-    async function getLocationAndVerify() {
-        Swal.fire({
-            title: 'Please wait...',
-            text: 'Fetching your current location...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async function (position) {
-                Swal.close();
-
-                const lat = roundTo(position.coords.latitude, 6);
-                const lon = roundTo(position.coords.longitude, 6);
-                const accuracy = position.coords.accuracy;
-
-                const deviceInfo = {
-                    userAgent: navigator.userAgent,
-                    platform: navigator.platform,
-                    language: navigator.language,
-                    timestamp: new Date().toISOString()
-                };
-
-                const ipRes = await fetch("https://ipapi.co/json");
-                const ipData = await ipRes.json();
-
-                const ipLat = ipData.latitude;
-                const ipLon = ipData.longitude;
-
-                const ipDistance = calculateDistance(lat, lon, ipLat, ipLon);
-
-                const response = await fetch('/TSUISLARS/Geo/VerifyLocation', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        latitude: lat,
-                        longitude: lon,
-                        accuracy: accuracy,
-                        device: deviceInfo,
-                        fingerprint: deviceFingerprint,
-                        ipLatitude: ipLat,
-                        ipLongitude: ipLon,
-                        ipDistance: ipDistance
-                    })
-                });
-
-                const result = await response.json();
-
-                if (!result.isValid) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Location Spoofing Detected!',
-                        text: result.message
-                    });
-                    disableButtons();
-                    return;
-                }
-
-                const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
-                let isInsideRadius = false;
-                let minDistance = Number.MAX_VALUE;
-
-                locations.forEach((location) => {
-                    const allowedRange = parseFloat(location.range || location.Range);
-                    const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
-                    if (distance <= allowedRange) isInsideRadius = true;
-                    else minDistance = Math.min(minDistance, distance);
-                });
-
-                if (isInsideRadius) {
-                    enableButtons();
-                } else {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Out of Range",
-                        text: `You are ${Math.round(minDistance)} meters away from allowed location!`
-                    });
-                }
-
-            }, function () {
-                Swal.close();
-                Swal.fire({
-                    title: "Location Error",
-                    text: "Enable location services and permissions.",
-                    icon: "error"
-                });
-            }, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            });
-        } else {
-            Swal.close();
-            alert("Geolocation is not supported by your browser.");
-        }
-    }
-
-    function roundTo(num, places) {
-        return +(Math.round(num + "e" + places) + "e-" + places);
-    }
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000;
-        const toRad = angle => (angle * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-</script>
-
-[HttpPost]
-public IActionResult VerifyLocation([FromBody] ExtendedLocationRequest model)
-{
-    var suspicious = false;
-    var reasons = new List<string>();
-
-    if (model.Accuracy > 30)
-    {
-        suspicious = true;
-        reasons.Add("Low GPS accuracy (>30m).");
-    }
-
-    if (model.IpDistance > 10000)
-    {
-        suspicious = true;
-        reasons.Add("GPS location does not match IP-based location.");
-    }
-
-    if (model.Device.UserAgent.ToLower().Contains("emulator") ||
-        model.Device.UserAgent.ToLower().Contains("mock") ||
-        model.Device.UserAgent.ToLower().Contains("sdk"))
-    {
-        suspicious = true;
-        reasons.Add("Emulator or spoofing app detected.");
-    }
-
-    if (suspicious)
-    {
-        return BadRequest(new
-        {
-            isValid = false,
-            message = string.Join(" ", reasons)
-        });
-    }
-
-    return Ok(new { isValid = true });
-}
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="form-group text-center">
+        <div id="videoContainer" style="display: inline-block; border: 4px solid transparent; border-radius: 8px; transition: border-color 0.3s ease;">
+            <video id="video" width="320" height="240" autoplay muted playsinline></video>
+        </div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <p id="statusText" style="font-weight: bold; margin-top: 10px; color: #444;"></p>
+    </div>
 
 
 
-i dont motion detection 
+    <input type="hidden" name="Type" id="EntryType" />
 
-<script>
-    let punchIn = null, punchOut = null;
-    let deviceFingerprint = "";
-
-    window.onload = async function () {
-        punchIn = document.getElementById('PunchIn');
-        punchOut = document.getElementById('PunchOut');
-
-        // FingerprintJS init
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        deviceFingerprint = result.visitorId;
-
-        disableButtons();
-        getLocationAndVerify();
-    };
-
-    function disableButtons() {
-        if (punchIn) {
-            punchIn.disabled = true;
-            punchIn.classList.add("disabled");
-            punchIn.style.display = "none";
-        }
-        if (punchOut) {
-            punchOut.disabled = true;
-            punchOut.classList.add("disabled");
-            punchOut.style.display = "none";
-        }
-    }
-
-    function enableButtons() {
-        if (punchIn) {
-            punchIn.disabled = false;
-            punchIn.classList.remove("disabled");
-            punchIn.style.display = "inline-block";
-        }
-        if (punchOut) {
-            punchOut.disabled = false;
-            punchOut.classList.remove("disabled");
-            punchOut.style.display = "inline-block";
-        }
-    }
-
-    async function getLocationAndVerify() {
-        Swal.fire({
-            title: 'Please wait...',
-            text: 'Fetching your current location...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async function (position) {
-                Swal.close();
-
-                const lat = roundTo(position.coords.latitude, 6);
-                const lon = roundTo(position.coords.longitude, 6);
-                const accuracy = position.coords.accuracy;
-
-                const deviceInfo = {
-                    userAgent: navigator.userAgent,
-                    platform: navigator.platform,
-                    language: navigator.language,
-                    timestamp: new Date().toISOString()
-                };
-
-                const ipRes = await fetch("https://ipapi.co/json");
-                const ipData = await ipRes.json();
-
-                const ipLat = ipData.latitude;
-                const ipLon = ipData.longitude;
-
-                const ipDistance = calculateDistance(lat, lon, ipLat, ipLon);
-                const isIPMismatch = ipDistance > 10000; // 10km mismatch = suspicious
-
-                const motionStatus = await detectMotion();
-                const suspiciousMotion = motionStatus === false;
-
-                // Send all data to your backend
-                const response = await fetch('/TSUISLARS/Geo/VerifyLocation', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        latitude: lat,
-                        longitude: lon,
-                        accuracy: accuracy,
-                        device: deviceInfo,
-                        fingerprint: deviceFingerprint,
-                        ipLatitude: ipLat,
-                        ipLongitude: ipLon,
-                        ipDistance: ipDistance,
-                        motionDetected: motionStatus
-                    })
-                });
-
-                const result = await response.json();
-
-                if (!result.isValid) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Location Spoofing Detected!',
-                        text: result.message
-                    });
-                    disableButtons();
-                    return;
-                }
-
-                // Your existing allowed-range check
-                const locations = @Html.Raw(Json.Serialize(ViewBag.PolyData));
-                let isInsideRadius = false;
-                let minDistance = Number.MAX_VALUE;
-
-                locations.forEach((location) => {
-                    const allowedRange = parseFloat(location.range || location.Range);
-                    const distance = calculateDistance(lat, lon, location.latitude || location.Latitude, location.longitude || location.Longitude);
-                    if (distance <= allowedRange) isInsideRadius = true;
-                    else minDistance = Math.min(minDistance, distance);
-                });
-
-                if (isInsideRadius) {
-                    enableButtons();
-                } else {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Out of Range",
-                        text: `You are ${Math.round(minDistance)} meters away from allowed location!`
-                    });
-                }
-
-            }, function () {
-                Swal.close();
-                Swal.fire({
-                    title: "Location Error",
-                    text: "Enable location services and permissions.",
-                    icon: "error"
-                });
-            }, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            });
-        } else {
-            Swal.close();
-            alert("Geolocation is not supported by your browser.");
-        }
-    }
-
-    function roundTo(num, places) {
-        return +(Math.round(num + "e" + places) + "e-" + places);
-    }
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000;
-        const toRad = angle => (angle * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
-    function detectMotion() {
-        return new Promise(resolve => {
-            let hasMoved = false;
-            function motionListener(e) {
-                const acc = e.acceleration || e.accelerationIncludingGravity;
-                if (acc && (acc.x !== null || acc.y !== null || acc.z !== null)) {
-                    hasMoved = true;
-                }
-                window.removeEventListener("devicemotion", motionListener);
-                resolve(hasMoved);
+    <div class="mt-5 form-group">
+        <div class="col d-flex justify-content-center mb-4">
+            @if (ViewBag.InOut == "I")
+            {
+                <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">
+                    Punch In
+                </button>
             }
-            window.addEventListener("devicemotion", motionListener);
-            setTimeout(() => {
-                window.removeEventListener("devicemotion", motionListener);
-                resolve(hasMoved);
-            }, 3000); 
-        });
-    }
+        </div>
+
+        <div class="col d-flex justify-content-center">
+            @if (ViewBag.InOut == "O")
+            {
+                <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">
+                    Punch Out
+                </button>
+            }
+        </div>
+    </div>
+
+
+</form>
+
+<script>
+    window.addEventListener("DOMContentLoaded", async () => {
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const EntryTypeInput = document.getElementById("EntryType");
+        const successSound = document.getElementById("successSound");
+        const errorSound = document.getElementById("errorSound");
+        const statusText = document.getElementById("statusText");
+        const videoContainer = document.getElementById("videoContainer");
+
+        let blinked = false;
+        let lastBlinkTime = 0;
+        const BLINK_INTERVAL = 3000;
+        const EAR_THRESHOLD = 0.26;
+        const detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+
+        try {
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri('/faceApi'),
+                faceapi.nets.faceLandmark68Net.loadFromUri('/faceApi')
+            ]);
+            console.log("FaceAPI models loaded");
+            startVideo();
+        } catch (e) {
+            console.error("Failed to load face-api models:", e);
+        }
+
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "user",
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.play();
+
+                    video.addEventListener("loadeddata", () => {
+                        console.log("Camera video is ready. Starting face detection...");
+
+                        const checkReady = setInterval(() => {
+                            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                                clearInterval(checkReady);
+                                detectBlink();
+                            }
+                        }, 100);
+                    });
+                })
+                .catch(err => {
+                    console.error("Camera error:", err);
+                });
+        }
+
+        function getEAR(eye) {
+            const a = distance(eye[1], eye[5]);
+            const b = distance(eye[2], eye[4]);
+            const c = distance(eye[0], eye[3]);
+            return (a + b) / (2.0 * c);
+        }
+
+        function distance(p1, p2) {
+            return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        }
+
+        async function detectBlink() {
+            const detection = await faceapi
+                .detectSingleFace(video, detectorOptions)
+                .withFaceLandmarks();
+
+            if (detection) {
+                const box = detection.detection.box;
+                const faceWidth = box.width;
+
+                if (faceWidth < 90) {
+                    statusText.textContent = "Move closer to the camera";
+                    videoContainer.style.borderColor = "orange";
+                    blinked = false;
+                } else {
+                    const leftEye = detection.landmarks.getLeftEye();
+                    const rightEye = detection.landmarks.getRightEye();
+                    const leftEAR = getEAR(leftEye);
+                    const rightEAR = getEAR(rightEye);
+                    const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+                    if (avgEAR < EAR_THRESHOLD && Date.now() - lastBlinkTime > BLINK_INTERVAL) {
+                        blinked = true;
+                        lastBlinkTime = Date.now();
+                        console.log("Blink detected");
+
+                        videoContainer.style.borderColor = "limegreen";
+                        statusText.textContent = "Blink detected! You can now proceed.";
+                        setTimeout(() => videoContainer.style.borderColor = "transparent", 1500);
+                    } else if (!blinked) {
+                        statusText.textContent = "Please blink to verify liveness";
+                        videoContainer.style.borderColor = "red";
+                    }
+                }
+            } else {
+                statusText.textContent = "No face detected";
+                videoContainer.style.borderColor = "gray";
+                blinked = false;
+            }
+
+            requestAnimationFrame(detectBlink);
+        }
+
+        window.captureImageAndSubmit = function (entryType) {
+            if (!blinked) {
+                videoContainer.style.borderColor = "red";
+                statusText.textContent = "Blink required before submitting";
+                Swal.fire({
+                    title: "Liveness Check Failed",
+                    text: "Please blink to verify you're not using a static image.",
+                    icon: "warning"
+                });
+                return;
+            }
+
+            blinked = false; // Reset after submission
+            statusText.textContent = "";
+
+            EntryTypeInput.value = entryType;
+
+            const context = canvas.getContext("2d");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvas.toDataURL("image/jpeg");
+
+            Swal.fire({
+                title: "Verifying Face...",
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch("/AS/Geo/AttendanceData", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    Type: entryType,
+                    ImageData: imageData
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const now = new Date();
+                    const formattedDateTime = now.toLocaleString();
+
+                    if (data.success) {
+                        successSound.play();
+                        triggerHapticFeedback("success");
+                        Swal.fire({
+                            title: "Face Matched!",
+                            text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
+                            icon: "success",
+                            timer: 3000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        errorSound.play();
+                        triggerHapticFeedback("error");
+                        Swal.fire({
+                            title: "Face Not Recognized.",
+                            text: "Click the button again to retry.\nDate & Time: " + formattedDateTime,
+                            icon: "error",
+                            confirmButtonText: "Retry"
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    triggerHapticFeedback("error");
+                    Swal.fire({
+                        title: "Error!",
+                        text: "An error occurred while processing your request.",
+                        icon: "error"
+                    });
+                });
+        };
+
+        function triggerHapticFeedback(type) {
+            if ("vibrate" in navigator) {
+                if (type === "success") {
+                    navigator.vibrate(100);
+                } else if (type === "error") {
+                    navigator.vibrate([200, 100, 200]);
+                }
+            }
+        }
+    });
 </script>
-
-
- [HttpPost]
- public IActionResult VerifyLocation([FromBody] ExtendedLocationRequest model)
- {
-     var suspicious = false;
-     var reasons = new List<string>();
-
-     if (model.Accuracy > 30)
-     {
-         suspicious = true;
-         reasons.Add("Low GPS accuracy (>50m).");
-     }
-
-     if (model.IpDistance > 10000)
-     {
-         suspicious = true;
-         reasons.Add("GPS location does not match IP-based location.");
-     }
-
-     if (!model.MotionDetected)
-     {
-         suspicious = true;
-         reasons.Add("No device motion detected. Possibly spoofed.");
-     }
-
-     if (model.Device.UserAgent.ToLower().Contains("emulator") ||
-         model.Device.UserAgent.ToLower().Contains("mock") ||
-         model.Device.UserAgent.ToLower().Contains("sdk"))
-     {
-         suspicious = true;
-         reasons.Add("Emulator or spoofing app detected.");
-     }
-
-     if (suspicious)
-     {
-
-
-         return BadRequest(new
-         {
-             isValid = false,
-             message = string.Join(" ", reasons)
-         });
-     }
-
-     return Ok(new { isValid = true });
- } 
