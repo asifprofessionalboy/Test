@@ -1,0 +1,971 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using BusinessLayer;
+using System.Data;
+using System.Data.OleDb;
+using System.Text;
+using System.IO;
+using System.Data.SqlClient;
+using System.Text.RegularExpressions;
+using System.Net.Mail;
+using System.Configuration;
+using System.Web.UI.HtmlControls;
+
+namespace CLMS.App.Input
+{
+    public partial class WageCompliance_Old : Classes.basePage
+    {
+
+        App_Wage_Summary dsRecords = new App_Wage_Summary();
+        App_Wage_Summary dsRecord = new App_Wage_Summary();
+
+       
+
+        DataSet dsDDL = new DataSet();
+
+        protected override void SetBaseControls()
+        {
+            base.SetBaseControls();
+            PageRecordDataSet = dsRecord;
+            PageRecordsDataSet = dsRecords;
+
+            
+            BLObject = new BL_WageCompliance_Old();
+        }
+
+        private StringDictionary GetFilterCondition()
+        {
+            StringDictionary d = null;
+            d = new StringDictionary();
+
+            if (V_CODE.Text != "")
+            {
+                d.Add("V_CODE", Session["UserName"].ToString());
+                d.Add("STATUS", "Approved");
+            }
+
+            if (PROC_MONTH.Text != "")
+            {
+                DateTime Toate  = DateTime.ParseExact(Convert.ToString(PROC_MONTH.Text), "yyyy-MM", null).AddMonths(-1).AddDays(29);
+                DateTime FromDate = DateTime.ParseExact(Convert.ToString(PROC_MONTH.Text), "yyyy-MM", null).AddMonths(1).AddDays(-1);
+
+                string FrmDate = FromDate.ToString("yyyy-MM-dd");
+                string ToDate = Toate.ToString("yyyy-MM-dd");
+
+                d.Add("FROM_DATE", FrmDate);
+                d.Add("TO_DATE", ToDate);
+
+
+            }
+            return d;
+
+        }
+        protected void Page_Load(object sender, EventArgs e)
+        {
+           
+
+            Work_Order_Details.DataSource = PageRecordsDataSet;
+            CategoryWise_Details.DataSource = PageRecordDataSet;
+           
+
+
+            if (!IsPostBack)
+            {
+                CategoryWise_Details.Visible = false;
+               
+                V_CODE.Text= Session["UserName"].ToString();
+                V_NAME.Text= Session["EName"].ToString();
+                //btnProceedFor_PaymentDetail.Visible = false;
+
+                
+
+                CategoryWise_Details.Visible = false;
+                CategoryWise_Details_Grid.Visible = false;
+            }
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+           
+            GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+            Work_Order_Details.BindData();
+            
+            try
+            {
+                string MonthWage = Convert.ToInt32((PROC_MONTH.Text).Substring(5, 2)).ToString();
+                string YearWage = (PROC_MONTH.Text).Substring(0, 4);
+                string month = MonthWage;
+
+                if (Convert.ToInt32(YearWage) > 2023 || ((Convert.ToInt32(YearWage) == 2023) && Convert.ToInt32(MonthWage) >= 8))
+                {
+                    MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Month must be before August-2023. !");
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Month must be before August-2023. !");
+                return;
+            }
+
+
+        }
+
+        protected void Work_Order_Details_PageIndexChanging(object sender, GridViewPageEventArgs e)
+        {
+
+        }
+
+        protected void Work_Order_Details_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            GetRecord(Work_Order_Details.SelectedDataKey.Value.ToString());
+            CategoryWise_Details.BindData();
+
+            hdn_SelectedWorkOrderNo.Value = Convert.ToString(Work_Order_Details.SelectedDataKey.Value.ToString());
+
+
+
+
+            //btnProceedFor_PaymentDetail.Visible = true;
+            CategoryWise_Details.Visible = true;
+
+            CategoryWise_Details.Visible = true;
+            CategoryWise_Details_Grid.Visible = true;
+
+            CategoryWise_Details.DataSource = null;
+            CategoryWise_Details.DataBind();
+
+            BL_WageCompliance_Old blobj1 = new BL_WageCompliance_Old();
+            DataSet ds = new DataSet();
+
+            GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+            Work_Order_Details.BindData();
+
+            ////string MASTER_ID_SUMMARY = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["ID"].ToString();
+            ////string WORKORDER = PageRecordsDataSet.Tables["App_WorkOrder_Reg"].Rows[0]["WO_NO"].ToString();
+
+            //////string MASTER_ID_SUMMARY = "4700021537";
+            //////string WORKORDER = PageRecordsDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["WORKORDER"].ToString();
+
+            ////ds = blobj1.Chk_WoNO(MASTER_ID_SUMMARY, WORKORDER);
+            ////if (ds.Tables[0].Rows.Count > 0)
+            ////{
+
+
+            ////}
+
+            if (CategoryWise_Details.Rows.Count==0)
+            {
+                for (int i = 1; i <= 5; i++)
+                {
+                    CategoryWise_Details.AddDataRow();
+                }
+            }
+
+
+        }
+
+        protected void LblMV_ATTACH_Click(object sender, EventArgs e)
+        {
+
+        }
+
+
+        //protected void btnProceedFor_PaymentDetail_Click(object sender, EventArgs e)
+        //{
+        //    if (CategoryWise_Details.Rows.Count > 0)
+        //    {
+        //        //WO_PaymentDetails_Record.Visible = true;
+        //        //WO_PaymentDetails_Record.DataBind();
+        //        //WO_PaymentDetails_Record.NewRecord();
+        //        //btnWO_PaymentDetails.Visible = true;
+        //        //decimal number;
+
+
+        //        //for (int i = 0; i < CategoryWise_Details.Rows.Count; i++)
+        //        //{
+
+        //        //    if (((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).HasFile)
+        //        //    {
+        //        //        string getFileName = "";
+        //        //        List<string> FileList = new List<string>();
+        //        //        foreach (HttpPostedFile htfiles in ((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).PostedFiles)
+        //        //        {
+        //        //            getFileName = PageRecordDataSet.Tables["App_Wage_Category"].Rows[i]["ID"].ToString() + "_" + System.DateTime.Now.ToString("dd-MM-yyyy") + "_" + System.DateTime.Now.ToString("HH-mm-ss") + "_" + Path.GetFileName(htfiles.FileName);
+        //        //            getFileName = Regex.Replace(getFileName, @"[,+*/?|><&=\#%:;@[^$?:'()!~}{`]", "");
+        //        //            htfiles.SaveAs((@"D:/Cybersoft_Doc/CLMS/Attachments/" + getFileName));
+
+        //        //            FileList.Add(getFileName);
+        //        //            getFileName = "";
+        //        //        }
+
+        //        //        PageRecordDataSet.Tables["App_Wage_Category"].Rows[i]["ATTACHMENT"] = string.Join(",", FileList);
+        //        //    }
+
+
+
+        //        //    TextBox MALE_WORKER = ((TextBox)CategoryWise_Details.Rows[i].FindControl("MALE_WORKER"));
+        //        //    TextBox FEMALE_WORKER = ((TextBox)CategoryWise_Details.Rows[i].FindControl("FEMALE_WORKER"));
+        //        //    TextBox TOTAL_WORKER = ((TextBox)CategoryWise_Details.Rows[i].FindControl("TOTAL_WORKER"));
+        //        //    TextBox MALE_MANDAYS = ((TextBox)CategoryWise_Details.Rows[i].FindControl("MALE_MANDAYS"));
+        //        //    TextBox FEMALE_MANDAYS = ((TextBox)CategoryWise_Details.Rows[i].FindControl("FEMALE_MANDAYS"));
+        //        //    TextBox TOTAL_MANDAYS = ((TextBox)CategoryWise_Details.Rows[i].FindControl("TOTAL_MANDAYS"));
+
+        //        //    TextBox NO_VALID_GATEPASS = ((TextBox)CategoryWise_Details.Rows[i].FindControl("NO_VALID_GATEPASS"));
+        //        //    TextBox BASIC_DA = ((TextBox)CategoryWise_Details.Rows[i].FindControl("BASIC_DA"));
+        //        //    TextBox OTHER = ((TextBox)CategoryWise_Details.Rows[i].FindControl("OTHER"));
+
+        //        //    TextBox WAGE_RATE = ((TextBox)CategoryWise_Details.Rows[i].FindControl("WAGE_RATE"));
+        //        //    TextBox GROSS_WAGE = ((TextBox)CategoryWise_Details.Rows[i].FindControl("GROSS_WAGE"));
+
+        //        //    if (!Regex.IsMatch(Convert.ToString(MALE_WORKER.Text), @"^\d+$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter numeric values only. !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("MALE_WORKER")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Regex.IsMatch(Convert.ToString(FEMALE_WORKER.Text), @"^\d+$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter numeric values only. !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("FEMALE_WORKER")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Regex.IsMatch(Convert.ToString(TOTAL_WORKER.Text), @"^\d+$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter numeric values only. !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("TOTAL_WORKER")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Decimal.TryParse(Convert.ToString(MALE_MANDAYS.Text), out number) || !Regex.IsMatch(Convert.ToString(MALE_MANDAYS.Text), @"^\d+(\.\d{1,2})?$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter a valid number !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("MALE_MANDAYS")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Decimal.TryParse(Convert.ToString(FEMALE_MANDAYS.Text), out number) || !Regex.IsMatch(Convert.ToString(FEMALE_MANDAYS.Text), @"^\d+(\.\d{1,2})?$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter a valid number !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("FEMALE_MANDAYS")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Decimal.TryParse(Convert.ToString(TOTAL_MANDAYS.Text), out number) || !Regex.IsMatch(Convert.ToString(TOTAL_MANDAYS.Text), @"^\d+(\.\d{1,2})?$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter a valid number !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("TOTAL_MANDAYS")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Regex.IsMatch(Convert.ToString(NO_VALID_GATEPASS.Text), @"^\d+$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter numeric values only. !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("NO_VALID_GATEPASS")).Text = "0";
+        //        //        return;
+        //        //    }
+
+
+        //        //    if (!Decimal.TryParse(Convert.ToString(BASIC_DA.Text), out number) || !Regex.IsMatch(Convert.ToString(BASIC_DA.Text), @"^\d+(\.\d{1,2})?$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter a valid number !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("BASIC_DA")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Decimal.TryParse(Convert.ToString(OTHER.Text), out number) || !Regex.IsMatch(Convert.ToString(OTHER.Text), @"^\d+(\.\d{1,2})?$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter a valid number !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("OTHER")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Decimal.TryParse(Convert.ToString(WAGE_RATE.Text), out number) || !Regex.IsMatch(Convert.ToString(WAGE_RATE.Text), @"^\d+(\.\d{1,2})?$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter a valid number !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("WAGE_RATE")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    if (!Decimal.TryParse(Convert.ToString(GROSS_WAGE.Text), out number) || !Regex.IsMatch(Convert.ToString(GROSS_WAGE.Text), @"^\d+(\.\d{1,2})?$"))
+        //        //    {
+        //        //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Category Wise Details >> Please enter a valid number !");
+        //        //        ((TextBox)CategoryWise_Details.Rows[i].FindControl("GROSS_WAGE")).Text = "0";
+        //        //        return;
+        //        //    }
+
+        //        //    CategoryWise_Details.UnbindData();
+        //        //    CategoryWise_Details.DataBind();
+
+
+
+        //        //    //object total_workerValue= PageRecordDataSet.Tables["App_Wage_Category"].Compute("SUM(TOTAL_WORKER)", "");
+        //        //    //double totalworkerValue = Convert.ToDouble(total_workerValue);
+
+
+
+
+
+        //        //    if (CategoryWise_Details.Rows.Count > 0)
+        //        //    {
+        //        //        btnWO_PaymentDetails.Visible = true;
+        //        //        //string total_worker = ((TextBox)CategoryWise_Details.Rows[0].FindControl("TOTAL_WORKER")).Text;
+        //        //        string basic = ((TextBox)CategoryWise_Details.Rows[0].FindControl("BASIC_DA")).Text;
+        //        //        string DA = ((TextBox)CategoryWise_Details.Rows[0].FindControl("BASIC_DA")).Text;
+        //        //        string gross = ((TextBox)CategoryWise_Details.Rows[0].FindControl("GROSS_WAGE")).Text;
+
+        //        //        if (PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Count > 0)
+        //        //        {
+
+        //        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NO_OF_WORKERS_PAID"] = total_Worker;
+        //        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["PF_AMT_12"] = basic + DA;
+        //        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["ESI_AMT_075"] = gross;
+        //        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NET_AMOUNT_PAID"] = PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["PF_AMT_12"]+ gross;
+
+        //        //            WO_PaymentDetails_Record.DataBind();
+
+
+        //        //            //int Total_NoOf_WorkerPaid = 0;
+        //        //            //double Total_PF_AMT_12 = 0;
+        //        //            //double Total_PF_AMT_12 = 0;
+        //        //        }
+        //        //    }
+
+
+        //        //}
+
+        //        try
+        //        {
+        //            CategoryWise_Details.UnbindData();
+        //            CategoryWise_Details.DataBind();
+        //            object malesum = PageRecordDataSet.Tables["App_Wage_Category"].Compute("SUM(MALE_WORKER)", "");
+        //            double maleSum = Convert.ToDouble(malesum);
+
+        //            object femalesum = PageRecordDataSet.Tables["App_Wage_Category"].Compute("SUM(FEMALE_WORKER)", "");
+        //            double femaleSum = Convert.ToDouble(femalesum);
+
+        //            //object Total_Worker = PageRecordDataSet.Tables["App_Wage_Category"].Compute("SUM(TOTAL_WORKER)", "");
+        //            //double TotalWorker = Convert.ToDouble(Total_Worker);
+
+        //            object Basic_DA = PageRecordDataSet.Tables["App_Wage_Category"].Compute("SUM(BASIC_DA)", "");
+        //            double BasicDA = Convert.ToDouble(Basic_DA);
+
+        //            object OtherObj = PageRecordDataSet.Tables["App_Wage_Category"].Compute("SUM(OTHER)", "");
+        //            double OtherVal = Convert.ToDouble(OtherObj);
+
+        //            //object Gross_Wage = PageRecordDataSet.Tables["App_Wage_Category"].Compute("SUM(GROSS_WAGE)", "");
+        //            //double GrossWage = Convert.ToDouble(Gross_Wage);
+
+        //            int total_Worker = Convert.ToInt32(maleSum) + Convert.ToInt32(femaleSum);
+        //            double total_Gross = Convert.ToInt32(BasicDA) + Convert.ToInt32(OtherVal);
+        //            double total_PF = ((total_Gross * 12) / 100);
+        //            double total_ESI = ((total_Gross*0.75)/100);
+        //            double total_NetAmount = total_Gross+ total_PF + total_ESI;
+
+        //            if (PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Count > 0)
+        //            {
+
+        //                PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NO_OF_WORKERS_PAID"] = total_Worker;
+        //                PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["PF_AMT_12"] = total_PF;
+        //                PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["ESI_AMT_075"] = total_ESI;
+        //                PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["TOTAL_GROSS"] = total_Gross;
+        //                PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NET_AMOUNT_PAID"] = total_NetAmount;
+
+
+        //                GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+        //                Work_Order_Details.BindData();
+
+        //                if (Convert.ToString(hdn_SelectedWorkOrderNo.Value) !="")
+        //                {
+        //                    string IDValue = Convert.ToString(hdn_SelectedWorkOrderNo.Value);
+        //                    DataRow[] dr = PageRecordsDataSet.Tables["App_WorkOrder_Reg"].Select("ID = '" + IDValue + "'");hdn_SelectedWorkOrderNo.Value
+        //                    if(dr.Length > 0)
+        //                    {
+        //                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER"] = dr[0]["WO_NO"].ToString();
+        //                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER_FROM_DATE"] = dr[0]["FROM_DATE"].ToString();
+        //                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER_TO_DATE"] = dr[0]["TO_DATE"].ToString();
+        //                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["DEPARTMENT"] = dr[0]["DEPT_CODE"].ToString();
+        //                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["LOCATION"] = dr[0]["LOC_CODE"].ToString();
+        //                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NATURE_OF_JOB"] = dr[0]["NATURE_OF_WORK"].ToString();
+
+        //                    }
+        //                }
+
+
+
+
+
+        //                //WO_PaymentDetails_Record.DataBind();
+
+
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            string Error = ex.Message.ToString();
+        //        }
+
+
+
+
+
+        //    }
+        //}
+
+
+
+
+        protected void CategoryWise_Details_RowDataBound(object sender, GridViewRowEventArgs e)
+        {
+            if (CategoryWise_Details.Rows.Count > 4)
+            {
+                ((Label)CategoryWise_Details.Rows[0].FindControl("CATEGORY")).Text = "Unskilled";
+                ((Label)CategoryWise_Details.Rows[1].FindControl("CATEGORY")).Text = "Semi Skilled";
+                ((Label)CategoryWise_Details.Rows[2].FindControl("CATEGORY")).Text = "Skilled";
+                ((Label)CategoryWise_Details.Rows[3].FindControl("CATEGORY")).Text = "Highly Skilled";
+                ((Label)CategoryWise_Details.Rows[4].FindControl("CATEGORY")).Text = "Other";
+            }
+        }
+
+        protected void CategoryWise_Details_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //string x = CategoryWise_Details.SelectedDataKey.Value.ToString();
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("MALE_WORKER")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("FEMALE_WORKER")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("TOTAL_WORKER")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("MALE_MANDAYS")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("FEMALE_MANDAYS")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("TOTAL_MANDAYS")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("NO_VALID_GATEPASS")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("BASIC_DA")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("OTHER")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("WAGE_RATE")).Text = "0";
+            ////((TextBox)CategoryWise_Details.Rows[CategoryWise_Details.SelectedIndex].FindControl("GROSS_WAGE")).Text = "0";
+        }
+
+        //protected void SummaryDetails_Record_NewRowCreatingEvent(DataRow oRow, ref bool cancel)
+        //{
+        //    oRow["ID"] = Guid.NewGuid();
+        //    oRow["CREATEDBY"] = Session["UserName"].ToString();
+        //    oRow["CREATEDON"] = System.DateTime.Now;
+        //    oRow["PAYMENT_DATE"] = System.DateTime.Now;
+        //}
+
+        //protected void WO_PaymentDetails_Record_NewRowCreatingEvent(DataRow oRow, ref bool cancel)
+        //{
+        //    oRow["ID"] = Guid.NewGuid();
+        //    oRow["MASTER_ID_SUMMARY"] = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["ID"].ToString();
+           
+        //}
+
+        protected void CategoryWise_Details_DataRowAddingEvent(DataRow oRow, ref bool cancel)
+        {
+            oRow["ID"] = Guid.NewGuid();
+            oRow["MASTER_ID_SUMMARY"] = Guid.NewGuid(); 
+            oRow["MASTER_ID_WO"] = Guid.NewGuid();
+            //oRow["CATEGORY"] = "Skilled";
+
+        }
+
+        protected void WO_PaymentDetails_Record_PreRender(object sender, EventArgs e)
+        {
+            
+            //if (CategoryWise_Details.Rows.Count > 0)
+            //{
+            //    btnWO_PaymentDetails.Visible = true;
+            //    string total_worker = ((TextBox)CategoryWise_Details.Rows[0].FindControl("TOTAL_WORKER")).Text;
+            //    string basic = ((TextBox)CategoryWise_Details.Rows[0].FindControl("BASIC_DA")).Text;
+            //    string DA = ((TextBox)CategoryWise_Details.Rows[0].FindControl("BASIC_DA")).Text;
+
+            //    if (PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Count > 0)
+            //    {
+
+            //        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NO_OF_WORKERS_PAID"] = 0;
+
+
+
+            //        WO_PaymentDetails_Record.DataBind();
+            //    }
+            //}
+        }
+
+        protected void btnWO_PaymentDetails_Click(object sender, EventArgs e) // final save
+        {
+
+            //SummaryDetails_Record.Visible = true;
+            //WO_PaymentDetails_Record.UnbindData();
+            //WO_PaymentDetails_Record.BindData();
+
+        //    PageRecordDataSet.Tables.Remove("APP_WAGE_SUMMARY");
+        //    PageRecordDataSet.Tables.Remove("App_Wage_Wo_Details");
+        //    PageRecordDataSet.Tables.Remove("App_WorkOrder_Reg");
+
+            //    CategoryWise_Details.UnbindData();
+
+
+
+            //    for (int i = 0; i < CategoryWise_Details.Rows.Count; i++)
+            //    {
+
+            //        if (((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).HasFile)
+            //        {
+            //            string getFileName = "";
+            //            List<string> FileList = new List<string>();
+            //            foreach (HttpPostedFile htfiles in ((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).PostedFiles)
+            //            {
+            //                getFileName = PageRecordDataSet.Tables["App_Wage_Category"].Rows[i]["ID"].ToString() + "_" + System.DateTime.Now.ToString("dd-MM-yyyy") + "_" + System.DateTime.Now.ToString("HH-mm-ss") + "_" + Path.GetFileName(htfiles.FileName);
+            //                getFileName = Regex.Replace(getFileName, @"[,+*/?|><&=\#%:;@[^$?:'()!~}{`]", "");
+            //                htfiles.SaveAs((@"D:/Cybersoft_Doc/CLMS/Attachments/" + getFileName));
+
+            //                FileList.Add(getFileName);
+            //                getFileName = "";
+            //            }
+
+            //            PageRecordDataSet.Tables["App_Wage_Category"].Rows[i]["ATTACHMENT"] = string.Join(",", FileList);
+            //        }
+
+
+
+
+
+            //    }
+
+            //    bool result = Save();
+            //    if (result)
+            //    {
+            //        GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+            //        Work_Order_Details.BindData();
+            //        PageRecordDataSet.Clear();
+            //        //((TextBox)Employee_Surrender_Record.Rows[0].FindControl("Adhar_No")).Text = "";
+
+            //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Success, "Record saved successfully !");
+            //        //Employee_Surrender_Record.Visible = false;
+            //        //BtnSave.Visible = false;
+            //    }
+            //    else
+            //    {
+
+            //        MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Error while saving !");
+            //    }
+
+        }
+
+        protected void btnSave_As_Draft_Click(object sender, EventArgs e)
+        {
+            //PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["STATUS"] = "Save As Draft";
+
+        }
+
+        //protected void Btn_ProceedFor_Next_Section_Click(object sender, EventArgs e)
+        //{
+        //    CategoryWise_Details.UnbindData();
+
+        //    for (int i = 0; i < CategoryWise_Details.Rows.Count; i++)
+        //    {
+
+        //        if (((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).HasFile)
+        //        {
+        //            string getFileName = "";
+        //            List<string> FileList = new List<string>();
+        //            foreach (HttpPostedFile htfiles in ((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).PostedFiles)
+        //            {
+        //                getFileName = PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["ID"].ToString() + "_" + System.DateTime.Now.ToString("dd-MM-yyyy") + "_" + System.DateTime.Now.ToString("HH-mm-ss") + "_" + Path.GetFileName(htfiles.FileName);
+        //                getFileName = Regex.Replace(getFileName, @"[,+*/?|><&=\#%:;@[^$?:'()!~}{`]", "");
+        //                htfiles.SaveAs((@"D:/Cybersoft_Doc/CLMS/Attachments/" + getFileName));
+
+        //                FileList.Add(getFileName);
+        //                getFileName = "";
+        //            }
+
+        //            PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["ATTACHMENT"] = string.Join(",", FileList);
+        //        }
+
+
+
+        //    }
+
+        //    object WONo = "";
+        //    object SummaryID = "";
+        //    if (PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count == 0)
+        //    {
+        //        DataRow dr = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].NewRow();
+        //        dr["ID"] = Guid.NewGuid();
+        //        SummaryID = dr["ID"];
+        //        PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Add(dr);
+        //    }
+
+        //    if (PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Count == 0)
+        //    {
+        //        DataRow dr = PageRecordDataSet.Tables["App_Wage_Wo_Details"].NewRow();
+        //        dr["ID"] = Guid.NewGuid();
+        //        WONo = dr["ID"];
+        //        dr["MASTER_ID_SUMMARY"] = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["ID"];
+        //        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Add(dr);
+        //    }
+
+        //    string IDValue = Convert.ToString(hdn_SelectedWorkOrderNo.Value);
+        //    DataRow[] dr_1 = PageRecordsDataSet.Tables["App_Wage_Wo_Details"].Select("ID = '" + IDValue + "'"); 
+
+        //    if (dr_1.Length > 0)
+        //    {
+        //        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER"] = dr_1[0]["WO_NO"].ToString();
+        //    }
+
+        //    GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+        //    Work_Order_Details.BindData();
+
+        //    if (Convert.ToString(hdn_SelectedWorkOrderNo.Value) != "")
+        //    {
+        //        DataRow[] dr = PageRecordsDataSet.Tables["App_WorkOrder_Reg"].Select("ID = '" + IDValue + "'"); 
+        //        if (dr.Length > 0)
+        //        {
+        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["MASTER_ID_SUMMARY"] = SummaryID.ToString();
+        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER"] = dr[0]["WO_NO"].ToString();
+        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER_FROM_DATE"] = dr[0]["FROM_DATE"].ToString();
+        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER_TO_DATE"] = dr[0]["TO_DATE"].ToString();
+        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["DEPARTMENT"] = dr[0]["DEPT_CODE"].ToString();
+        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["LOCATION"] = dr[0]["LOC_CODE"].ToString();
+        //            PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NATURE_OF_JOB"] = dr[0]["NATURE_OF_WORK"].ToString();
+
+        //        }
+        //    }
+
+        //    for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows.Count; i++)
+        //    {
+        //        PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["MASTER_ID_SUMMARY"] = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["ID"];
+        //        PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["MASTER_ID_WO"] = WONo;
+        //    }
+
+        //    if (PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows.Count > 0)
+        //    {
+        //        foreach (DataRow drow in PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows)
+        //        {
+        //            PageRecordDataSet.Tables["App_Wage_Category"].ImportRow(drow);
+        //        }
+
+        //        //PageRecordDataSet.Tables["App_Wage_Category_Temp"].Clear();
+        //    }
+
+        //    for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows.Count; i++)
+        //    {
+        //        PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i].AcceptChanges();
+        //        PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i].SetAdded();
+        //    }
+
+        //    //for (int i = 0; i < PageRecordDataSet.Tables["App_WorkOrder_Reg"].Rows.Count; i++)
+        //    //{
+        //    //    PageRecordDataSet.Tables["App_WorkOrder_Reg"].Rows[i].AcceptChanges();
+        //    //    PageRecordDataSet.Tables["App_WorkOrder_Reg"].Rows[i].SetAdded();
+        //    //}
+        //    //for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Category"].Rows.Count; i++)
+        //    //{
+        //    //    PageRecordDataSet.Tables["App_Wage_Category"].Rows[i].AcceptChanges();
+        //    //    PageRecordDataSet.Tables["App_Wage_Category"].Rows[i].SetAdded();
+        //    //}
+
+
+        //    //PageRecordDataSet.Tables.Remove("APP_WAGE_SUMMARY");
+        //    //PageRecordDataSet.Tables.Remove("App_Wage_Wo_Details");
+        //    //PageRecordDataSet.Tables.Remove("App_Wage_Category_Temp"); == it should be removed from the dataset when saving the data 
+        //    //PageRecordDataSet.Tables.Remove("App_WorkOrder_Reg");
+        //   // PageRecordDataSet.Tables.Remove("App_Wage_Category");
+
+
+
+        //    //for (int i = 0; i < PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count; i++)
+        //    //{
+        //    //    PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].SetAdded();
+        //    //    PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].AcceptChanges();
+        //    //}
+        //    //for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Count; i++)
+        //    //{
+        //    //    PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[i].SetAdded();
+        //    //    PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[i].AcceptChanges();
+        //    //}
+
+
+
+        //    //    //    //PageRecordDataSet.Tables["App_Online_Wages_Details"].Rows[i].AcceptChanges();
+        //    //    //    //PageRecordDataSet.Tables["App_Online_Wages_Details"].Rows[i].SetModified();
+
+        //    //PageRecordDataSet.Tables.Remove("App_Wage_Category_Temp");
+
+        //    //PageRecordDataSet.Tables.Remove("APP_WAGE_SUMMARY");
+        //    //PageRecordDataSet.Tables.Remove("App_Wage_Wo_Details");
+        //    //PageRecordDataSet.Tables.Remove("App_WorkOrder_Reg");
+        //    //PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["STATUS"] = "Pending For Section 2";
+
+
+        //    //bool result = Save();
+        //    //if (result)
+        //    //{
+        //    //    GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+        //    //    Work_Order_Details.BindData();
+        //    //    PageRecordDataSet.Clear();
+        //    //    MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Success, "Record saved successfully !");
+
+                
+        //    //}
+        //    //else
+        //    //{
+
+        //    //    MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Error while saving !");
+        //    //}
+        //}
+
+        protected void btnProceedFor_NextSection_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void Btn_Save_and_Proceed_For_WO_Click(object sender, EventArgs e)
+        {
+            CategoryWise_Details.UnbindData();
+
+            for (int i = 0; i < CategoryWise_Details.Rows.Count; i++)
+            {
+
+                if (((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).HasFile)
+                {
+                    string getFileName = "";
+                    List<string> FileList = new List<string>();
+                    foreach (HttpPostedFile htfiles in ((FileUpload)CategoryWise_Details.Rows[i].FindControl("ATTACHMENT")).PostedFiles)
+                    {
+                        getFileName = PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["ID"].ToString() + "_" + System.DateTime.Now.ToString("dd-MM-yyyy") + "_" + System.DateTime.Now.ToString("HH-mm-ss") + "_" + Path.GetFileName(htfiles.FileName);
+                        getFileName = Regex.Replace(getFileName, @"[,+*/?|><&=\#%:;@[^$?:'()!~}{`]", "");
+                        htfiles.SaveAs((@"D:/Cybersoft_Doc/CLMS/Attachments/" + getFileName));
+
+                        FileList.Add(getFileName);
+                        getFileName = "";
+                    }
+
+                    PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["ATTACHMENT"] = string.Join(",", FileList);
+                }
+
+
+
+            }
+
+            object WONo = "";
+            object SummaryID = "";
+            string StatusUpdate = "";
+            if (Session["PageRecordDataSet"] == null)
+            {
+                StatusUpdate = "New";
+                if (PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count == 0)
+                {
+                    DataRow dr = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].NewRow();
+                    dr["ID"] = Guid.NewGuid();
+                    SummaryID = dr["ID"];
+                    hdn_SummaryId.Value =Convert.ToString(SummaryID);
+                    PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Add(dr);
+                }
+            }
+            else
+            {
+                DataTable TempCategory = PageRecordDataSet.Tables["App_Wage_Category_Temp"];
+                PageRecordDataSet =(DataSet)Session["PageRecordDataSet"];
+                Session["PageRecordDataSet"] = null;
+            }
+            //else if (Session["PageRecordDataSet"] != "")
+            //{
+            //    StatusUpdate = "Update";
+            //    if (PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count == 0)
+            //    {
+            //        DataRow dr = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].NewRow();
+            //        dr["ID"] = Convert.ToString(hdn_SummaryId.Value);
+            //        SummaryID = dr["ID"];
+            //        PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Add(dr);
+            //    }
+            //}
+
+
+
+            //==========Temp
+            //SummaryID = "52B1B421-F1FE-4D88-ADE6-08D29BE35C85";
+            //hdn_SummaryId.Value = SummaryID;
+            //==========Temp
+
+
+            string IDValue = Convert.ToString(hdn_SelectedWorkOrderNo.Value);
+
+            if (PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count > 0)
+            {
+                DataRow dr = PageRecordDataSet.Tables["App_Wage_Wo_Details"].NewRow();
+                dr["ID"] = Guid.NewGuid();
+                WONo = dr["ID"];
+                dr["MASTER_ID_SUMMARY"] = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["ID"];
+                PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Add(dr);
+
+                
+                DataRow[] dr_1 = PageRecordsDataSet.Tables["App_Wage_Wo_Details"].Select("ID = '" + IDValue + "'");
+
+                if (dr_1.Length > 0)
+                {
+                    PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER"] = dr_1[0]["WO_NO"].ToString();
+                }
+                if (Convert.ToString(hdn_SelectedWorkOrderNo.Value) != "")
+                {
+                    DataRow[] dr_2 = PageRecordsDataSet.Tables["App_WorkOrder_Reg"].Select("ID = '" + IDValue + "'");
+                    if (dr_2.Length > 0)
+                    {
+                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["MASTER_ID_SUMMARY"] = SummaryID.ToString();
+                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER"] = dr_2[0]["WO_NO"].ToString();
+                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER_FROM_DATE"] = dr_2[0]["FROM_DATE"].ToString();
+                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["WORKORDER_TO_DATE"] = dr_2[0]["TO_DATE"].ToString();
+                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["DEPARTMENT"] = dr_2[0]["DEPT_CODE"].ToString();
+                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["LOCATION"] = dr_2[0]["LOC_CODE"].ToString();
+                        PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[0]["NATURE_OF_JOB"] = dr_2[0]["NATURE_OF_WORK"].ToString();
+
+                    }
+                }
+            }
+
+            
+
+            GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+            Work_Order_Details.BindData();
+
+           
+
+            for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows.Count; i++)
+            {
+                PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["MASTER_ID_SUMMARY"] = PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["ID"];
+                PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i]["MASTER_ID_WO"] = WONo;
+            }
+
+            if (PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows.Count > 0)
+            {
+                foreach (DataRow drow in PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows)
+                {
+                    PageRecordDataSet.Tables["App_Wage_Category"].ImportRow(drow);
+                }
+
+                //PageRecordDataSet.Tables["App_Wage_Category_Temp"].Clear();
+            }
+
+            //for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows.Count; i++)
+            //{
+            //    PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i].AcceptChanges();
+            //    PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows[i].SetAdded();
+            //}
+
+            //if(Convert.ToString(StatusUpdate)== "Update")
+            //{
+            //    for (int i = 0; i < PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count; i++)
+            //    {
+            //        PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].AcceptChanges();
+            //        PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].SetAdded();
+            //    }
+            //}
+            //else
+            //{
+            //    for (int i = 0; i < PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count; i++)
+            //    {
+            //        PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].SetModified();
+            //        PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].AcceptChanges();
+            //    }
+            //}
+            //for (int i = 0; i < PageRecordDataSet.Tables["App_WorkOrder_Reg"].Rows.Count; i++)
+            //{
+            //    PageRecordDataSet.Tables["App_WorkOrder_Reg"].Rows[i].AcceptChanges();
+            //    PageRecordDataSet.Tables["App_WorkOrder_Reg"].Rows[i].SetAdded();
+            //}
+            //for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Category"].Rows.Count; i++)
+            //{
+            //    PageRecordDataSet.Tables["App_Wage_Category"].Rows[i].AcceptChanges();
+            //    PageRecordDataSet.Tables["App_Wage_Category"].Rows[i].SetAdded();
+            //}
+
+
+            //PageRecordDataSet.Tables.Remove("APP_WAGE_SUMMARY");
+            //PageRecordDataSet.Tables.Remove("App_Wage_Wo_Details");
+            //DataTable Category_Temp = new DataTable();
+            //foreach (DataColumn col in PageRecordDataSet.Tables["App_Wage_Category_Temp"].Columns)
+            //{
+            //    if(!Category_Temp.Columns.Contains(col.ColumnName))
+            //    Category_Temp.Columns.Add(col.ColumnName);
+            //}
+            //if (PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows.Count > 0)
+            //{
+            //    foreach (DataRow drow in PageRecordDataSet.Tables["App_Wage_Category_Temp"].Rows)
+            //    {
+            //        Category_Temp.ImportRow(drow);
+            //    }
+            //}
+
+
+            Session["PageRecordDataSet"] = PageRecordDataSet;
+
+            //PageRecordDataSet.Tables.Remove("App_Wage_Category_Temp"); //== it should be removed from the dataset when saving the data 
+            //PageRecordDataSet.Tables.Remove("App_WorkOrder_Reg");
+            // PageRecordDataSet.Tables.Remove("App_Wage_Category");
+
+
+
+            //for (int i = 0; i < PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows.Count; i++)
+            //{
+            //    PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].SetAdded();
+            //    PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[i].AcceptChanges();
+            //}
+            //for (int i = 0; i < PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows.Count; i++)
+            //{
+            //    PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[i].SetAdded();
+            //    PageRecordDataSet.Tables["App_Wage_Wo_Details"].Rows[i].AcceptChanges();
+            //}
+
+
+
+            //    //    //PageRecordDataSet.Tables["App_Online_Wages_Details"].Rows[i].AcceptChanges();
+            //    //    //PageRecordDataSet.Tables["App_Online_Wages_Details"].Rows[i].SetModified();
+
+            //PageRecordDataSet.Tables.Remove("App_Wage_Category_Temp");
+
+            //PageRecordDataSet.Tables.Remove("APP_WAGE_SUMMARY");
+            //PageRecordDataSet.Tables.Remove("App_Wage_Wo_Details");
+            //PageRecordDataSet.Tables.Remove("App_WorkOrder_Reg");
+            //PageRecordDataSet.Tables["APP_WAGE_SUMMARY"].Rows[0]["STATUS"] = "Pending For Section 2";
+
+
+
+            ////bool result = Save();
+            ////if (result)
+            ////{
+            ////    GetRecords(GetFilterCondition(), Work_Order_Details.PageSize, 10, "");
+            ////    Work_Order_Details.BindData();
+
+
+            ////    PageRecordDataSet.Tables.Add("App_Wage_Category_Temp");
+            ////    foreach (DataColumn col in Category_Temp.Columns)
+            ////    {
+            ////        PageRecordDataSet.Tables["App_Wage_Category_Temp"].Columns.Add(col.ColumnName);
+            ////    }
+            ////    PageRecordDataSet.Tables["App_Wage_Category_Temp"].PrimaryKey = new DataColumn[] { PageRecordDataSet.Tables["App_Wage_Category_Temp"].Columns["ID"] };
+
+            ////    if (Category_Temp.Rows.Count > 0)
+            ////    {
+            ////        foreach (DataRow drow in Category_Temp.Rows)
+            ////        {
+            ////            PageRecordDataSet.Tables["App_Wage_Category_Temp"].ImportRow(drow);
+            ////        }
+            ////    }
+
+            ////    //PageRecordDataSet.Clear();
+            ////    MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Success, "Record saved successfully !");
+
+            ////}
+            ////else
+            ////{
+
+            ////    MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, "Error while saving !");
+            ////}
+        }
+    }
+}

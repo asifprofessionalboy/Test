@@ -1,0 +1,102 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Data;
+using BusinessData;
+
+
+namespace BusinessLayer
+{
+   public class BL_WageCompliance_Old:IBLDataProvider
+    {
+        public DataSet GetRecords(System.Collections.Specialized.StringDictionary FilterConditions, int totalPagesize, string sortExpression)
+        {
+
+            string strSQL = " SELECT ID,WO_NO,CONVERT(DATE,FROM_DATE,105) FROM_DATE,CONVERT(DATE,TO_DATE,105) TO_DATE,DEPT_CODE,LOC_CODE,LOC_DESC,NATURE_OF_WORK FROM App_WorkOrder_Reg ";
+            //string strSQL = " SELECT TOP 10 WO_NO,CONVERT(DATE,FROM_DATE,105),CONVERT(DATE,TO_DATE,105),DEPT_CODE,LOC_CODE,LOC_DESC,NATURE_OF_WORK FROM App_WorkOrder_Reg WHERE [STATUS]='Approved' ";
+            //strSQL += " FROM_DATE <= '2025-06-30 00:00:00.000'  and TO_DATE > '2025-05-31 00:00:00.000' AND V_CODE = '10511' ";
+            DataHelper dh = new DataHelper();
+            Dictionary<string, object> objParam = null;
+            if (FilterConditions != null && FilterConditions.Count > 0)
+            {
+                strSQL += " WHERE ";
+                objParam = new Dictionary<string, object>();
+                int cnt = FilterConditions.Count;
+                foreach (string dickey in FilterConditions.Keys)
+                {
+                    if (Convert.ToString(dickey) == "v_code")
+                    {
+                        objParam.Add(dickey, FilterConditions[dickey]);
+                        strSQL += " " + dickey + "=@" + dickey;
+                    }
+                    else if (Convert.ToString(dickey)== "from_date")
+                    {
+                        objParam.Add(dickey, FilterConditions[dickey]);
+                        strSQL += " AND from_date <=@" + dickey; //'2025-06-30 00:00:00.000'
+                    }
+                    else if (Convert.ToString(dickey) == "to_date")
+                      {
+                        objParam.Add(dickey, FilterConditions[dickey]);
+                        strSQL += " AND to_date >=@" + dickey; //'2025-06-30 00:00:00.000'
+                    }
+                    else if (Convert.ToString(dickey) == "status")
+                    {
+                        objParam.Add(dickey, FilterConditions[dickey]);
+                        strSQL += " AND " + dickey + "=@" + dickey;
+                    }
+                    else
+                    {
+                        objParam.Add(dickey, FilterConditions[dickey] + '%');
+                        if (cnt > 0 && cnt != FilterConditions.Count)
+                            strSQL += " and " + dickey + " >" + dickey;
+                        else
+                            strSQL += dickey + " like @" + dickey;
+                    }
+                   
+                    cnt--;
+                }
+            }
+            //strSQL += " order by LocationCode desc";
+            return dh.GetDataset(strSQL, "App_WorkOrder_Reg", objParam);
+
+            //throw new NotImplementedException();
+
+        }
+
+        public DataSet GetDropdowns(string DropdownNames, Dictionary<string, object> ddlParam)
+        {
+            return DropDownHelper.GetDropDownsDataset(DropdownNames, ddlParam, true);
+        }
+
+        DataSet IBLDataProvider.GetRecord(string recordId)
+        {
+            //string strSQL = "select newid() as ID,EMP_TYPE from EMP_CATEGORY";
+            //Dictionary<string, object> objParam = new Dictionary<string, object>();
+            //objParam.Add("ID", recordId);
+            //DataHelper dh = new DataHelper();
+            DataSet ds = new DataSet();
+            //ds = dh.GetDataset(strSQL, "App_Wage_Category_Temp", objParam);
+
+            return ds;
+
+            //throw new NotImplementedException();
+        }
+
+        public bool SaveRecord(ref DataSet recordDataset)
+        {
+            DataHelper dh = new DataHelper();
+            bool result = dh.SaveData(recordDataset);
+            return result;
+        }
+
+        public DataSet Chk_WoNO(string MASTER_ID_SUMMARY, string WORKORDER)
+        {
+            string StrSQL = " select * from App_Wage_Wo_Details where MASTER_ID_SUMMARY='"+ MASTER_ID_SUMMARY + "' and WORKORDER='"+ WORKORDER + "' ";
+            Dictionary<string, object> objParam = new Dictionary<string, object>();
+            DataHelper dh = new DataHelper();
+            return dh.GetDataset(StrSQL, "App_Wage_Wo_Details", objParam);
+        }
+
+    }
+}

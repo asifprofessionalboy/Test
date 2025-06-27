@@ -1,0 +1,93 @@
+CREATE TABLE [dbo].[App_Wage_Category] (
+    [ID]                UNIQUEIDENTIFIER NOT NULL,
+    [MASTER_ID_SUMMARY] UNIQUEIDENTIFIER NOT NULL,
+    [MASTER_ID_WO]      UNIQUEIDENTIFIER NOT NULL,
+    [CATEGORY]          VARCHAR (15)     NULL,
+    [MALE_WORKER]       INT              NULL,
+    [FEMALE_WORKER]     INT              NULL,
+    [TOTAL_WORKER]      INT              NULL,
+    [MALE_MANDAYS]      DECIMAL (18, 2)  NULL,
+    [FEMALE_MANDAYS]    DECIMAL (18, 2)  NULL,
+    [TOTAL_MANDAYS]     DECIMAL (18, 2)  NULL,
+    [NO_VALID_GATEPASS] INT              NULL,
+    [BASIC_DA]          DECIMAL (18, 2)  NULL,
+    [OTHER]             DECIMAL (18, 2)  NULL,
+    [WAGE_RATE]         DECIMAL (18, 2)  NULL,
+    [GROSS_WAGE]        DECIMAL (18, 2)  NULL,
+    [ATTACHMENT]        VARCHAR (MAX)    NULL,
+    CONSTRAINT [PK_App_Wage_Category] PRIMARY KEY CLUSTERED ([ID] ASC),
+    CONSTRAINT [FK_WO_CAT_DETAILS] FOREIGN KEY ([MASTER_ID_WO]) REFERENCES [dbo].[App_Wage_Wo_Details] ([ID]),
+    CONSTRAINT [FK_WO_SUMMARY] FOREIGN KEY ([MASTER_ID_SUMMARY]) REFERENCES [dbo].[APP_WAGE_SUMMARY] ([ID])
+);
+
+
+
+
+
+CREATE TABLE [dbo].[APP_WAGE_SUMMARY] (
+    [ID]                    UNIQUEIDENTIFIER NOT NULL,
+    [REFNO]                 VARCHAR (20)     NULL,
+    [V_CODE]                VARCHAR (20)     NULL,
+    [V_NAME]                VARCHAR (MAX)    NULL,
+    [PROC_MONTH]            VARCHAR (6)      NULL,
+    [MONTHWAGE]             VARCHAR (2)      NULL,
+    [YEARWAGE]              VARCHAR (4)      NULL,
+    [CREATEDBY]             VARCHAR (6)      NULL,
+    [CREATEDON]             DATETIME         NULL,
+    [RESUBMITEDON]          DATETIME         NULL,
+    [STATUS]                VARCHAR (50)     NULL,
+    [REMARKS]               VARCHAR (MAX)    NULL,
+    [L1_CREATEDBY]          VARCHAR (6)      NULL,
+    [L1_CREATEDON]          DATETIME         NULL,
+    [L1_ATTACHMENT]         VARCHAR (MAX)    NULL,
+    [L2_CREATEDBY]          VARCHAR (6)      NULL,
+    [L2_CREATEDON]          DATETIME         NULL,
+    [L2_ATTACHMENT]         VARCHAR (MAX)    NULL,
+    [PAYMENT_DATE]          DATETIME         NULL,
+    [AMOUNT_PAID_BANK]      DECIMAL (18, 2)  NULL,
+    [AMOUNT_PAID_CHEQUE]    DECIMAL (18, 2)  NULL,
+    [AMOUNT_PAID_CASH]      DECIMAL (18, 2)  NULL,
+    [TOTAL_GROSS]           DECIMAL (18, 2)  NULL,
+    [TOTAL_PF_DEDUCTION]    DECIMAL (18, 2)  NULL,
+    [TOTAL_ESI_DEDUCTION]   DECIMAL (18, 2)  NULL,
+    [TOTAL_OTHER_DEDUCTION] DECIMAL (18, 2)  NULL,
+    [NET_WAGE]              DECIMAL (18, 2)  NULL,
+    [TOTAL_WORKER]          INT              NULL,
+    [TOTAL_MANDAYS]         DECIMAL (18, 2)  NULL,
+    [TOTAL_VALID_GATEPASS]  INT              NULL,
+    [WAGE_REGISTER_PDF]     VARCHAR (MAX)    NULL,
+    [WAGE_REGISTER_EXCEL]   VARCHAR (MAX)    NULL,
+    [BANK_PAYMENT]          VARCHAR (MAX)    NULL,
+    [VERIFICATION_FILE]     VARCHAR (MAX)    NULL,
+    [GATEPASS_DECLARTION]   VARCHAR (MAX)    NULL,
+    [ATTANDANCE_REGISTER]   VARCHAR (MAX)    NULL,
+    [SEAL_SIGNATURE]        VARCHAR (MAX)    NULL,
+    PRIMARY KEY CLUSTERED ([ID] ASC)
+);
+
+
+
+
+CREATE TABLE [dbo].[App_Wage_Wo_Details] (
+    [ID]                   UNIQUEIDENTIFIER NOT NULL,
+    [MASTER_ID_SUMMARY]    UNIQUEIDENTIFIER NOT NULL,
+    [WORKORDER]            VARCHAR (20)     NULL,
+    [WORKORDER_FROM_DATE]  DATETIME         NULL,
+    [WORKORDER_TO_DATE]    DATETIME         NULL,
+    [DEPARTMENT]           VARCHAR (100)    NULL,
+    [LOCATION]             VARCHAR (100)    NULL,
+    [NATURE_OF_JOB]        VARCHAR (MAX)    NULL,
+    [NO_OF_WORKERS_PAID]   INT              NULL,
+    [NO_OF_WORKERS_UNPAID] INT              NULL,
+    [PF_AMT_12]            DECIMAL (18, 2)  NULL,
+    [ESI_AMT_075]          DECIMAL (18, 2)  NULL,
+    [TOTAL_GROSS]          DECIMAL (18, 2)  NULL,
+    [NET_AMOUNT_PAID]      DECIMAL (18, 2)  NULL,
+    [NET_AMOUNT_UNPAID]    DECIMAL (18, 2)  NULL,
+    [AMOUNT_PAID_BANK]     DECIMAL (18, 2)  NULL,
+    [AMOUNT_PAID_CHEQUE]   DECIMAL (18, 2)  NULL,
+    [AMOUNT_PAID_CASH]     DECIMAL (18, 2)  NULL,
+    PRIMARY KEY CLUSTERED ([ID] ASC),
+    CONSTRAINT [FK_WO_DETAILS_TO_SUMMARY] FOREIGN KEY ([MASTER_ID_SUMMARY]) REFERENCES [dbo].[APP_WAGE_SUMMARY] ([ID])
+);
+

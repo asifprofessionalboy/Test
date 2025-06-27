@@ -1,0 +1,838 @@
+<%@ Page Title="" Language="C#" MasterPageFile="~/Main.Master" AutoEventWireup="true" CodeBehind="WageCompliance_Old.aspx.cs" Inherits="CLMS.App.Input.WageCompliance_Old" MaintainScrollPositionOnPostback="true" %>
+
+<%@ Register Assembly="CustomControls" Namespace="GridViewasContainer" TagPrefix="cc1" %>
+<%@ Register Src="~/Control/MyMsgBox.ascx" TagName="MyMsgBox" TagPrefix="uc1" %>
+<%@ Register Assembly="AjaxControlToolkit" Namespace="AjaxControlToolkit" TagPrefix="ask" %>
+<asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
+    <script type="text/javascript">
+        function isNumberKey(evt) {
+            var charCode = (evt.which) ? evt.which : evt.keyCode;
+            // Allow only digits (0–9)
+            if (charCode < 48 || charCode > 57) {
+                return false;
+            }
+            return true;
+        }
+
+        function isDecimalKey(evt, element) {
+            var charCode = (evt.which) ? evt.which : evt.keyCode;
+
+            // Allow backspace and delete
+            if (charCode === 8 || charCode === 46) {
+                return true;
+            }
+
+            // Allow only one decimal point
+            if (charCode === 46) {
+                if (element.value.indexOf('.') !== -1) {
+                    return false;
+                }
+                return true;
+            }
+
+            // Allow digits only
+            if (charCode < 48 || charCode > 57) {
+                return false;
+            }
+
+            // Allow only two digits after decimal
+            var value = element.value;
+            var dotIndex = value.indexOf('.');
+            if (dotIndex !== -1 && value.length - dotIndex > 2) {
+                return false;
+            }
+
+            return true;
+        }
+
+
+        function isNumberKey(evt) {
+            var charCode = (evt.which) ? evt.which : evt.keyCode;
+            // Allow only digits (0–9)
+            if (charCode < 48 || charCode > 57) {
+                return false;
+            }
+            return true;
+        }
+
+        //function chkdate()
+        //{
+        //    alert("ok");
+        //    var d = document.getElementById("PROC_MONTH").value;
+        //    alert(d);
+        //    let parts = d.split("/");
+        //    let date = new Date(parts[2], parts[1] - 1, parts[0]);
+        //    if (date > new Date(2023, 7, 31)) {
+        //        alert(" test");
+        //        return false;
+        //    }
+        //    return true;
+        //}
+
+        function checkAge1(fld) {
+
+            alert("ok");
+
+
+        }
+
+
+
+
+    </script>
+
+    <script type="text/javascript">
+        function calculateTotal(textbox) {
+            var fullId = textbox.id;
+            var parts = fullId.split('_');
+            var rowIndex = parts[parts.length - 1];
+            var index = parseInt(rowIndex);
+
+            var MALE_WORKER = document.getElementById("MainContent_CategoryWise_Details_MALE_WORKER_" + index + "").value;
+            var FEMALE_WORKER = document.getElementById("MainContent_CategoryWise_Details_FEMALE_WORKER_" + index + "").value;
+
+            var Total_value = 0
+
+            if ((MALE_WORKER != "" && MALE_WORKER != null) && (FEMALE_WORKER == "" || FEMALE_WORKER == null))
+                Total_value = MALE_WORKER
+
+            if ((FEMALE_WORKER != "" && FEMALE_WORKER != null) && (MALE_WORKER == "" || MALE_WORKER == null))
+                Total_value = FEMALE_WORKER
+
+            if ((MALE_WORKER != "" && MALE_WORKER != null) && (FEMALE_WORKER != "" && FEMALE_WORKER != null)) {
+                Total_value = (parseInt(MALE_WORKER) + parseInt(FEMALE_WORKER));
+            }
+
+            // Set total value
+            document.getElementById("MainContent_CategoryWise_Details_TOTAL_WORKER_" + index + "").value = Total_value;
+        }
+
+        function calculateMandaysTotal(textbox) {
+            var fullId = textbox.id;
+            var parts = fullId.split('_');
+            var rowIndex = parts[parts.length - 1];
+            var index = parseInt(rowIndex);
+
+            var MALE_MANDAYS = document.getElementById("MainContent_CategoryWise_Details_MALE_MANDAYS_" + index + "").value;
+            var FEMALE_MANDAYS = document.getElementById("MainContent_CategoryWise_Details_FEMALE_MANDAYS_" + index + "").value;
+
+            var Total_value = 0
+
+            if ((MALE_MANDAYS != "" && MALE_MANDAYS != null) && (FEMALE_MANDAYS == "" || FEMALE_MANDAYS == null))
+                Total_value = MALE_MANDAYS
+
+            if ((FEMALE_MANDAYS != "" && FEMALE_MANDAYS != null) && (MALE_MANDAYS == "" || MALE_MANDAYS == null))
+                Total_value = FEMALE_MANDAYS
+
+            if ((MALE_MANDAYS != "" && MALE_MANDAYS != null) && (FEMALE_MANDAYS != "" && FEMALE_MANDAYS != null)) {
+                Total_value = (parseInt(MALE_MANDAYS) + parseInt(FEMALE_MANDAYS));
+            }
+
+            // Set total value
+            document.getElementById("MainContent_CategoryWise_Details_TOTAL_MANDAYS_" + index + "").value = Total_value;
+        }
+
+
+
+        function calculateGrossTotal(textbox) {
+            var fullId = textbox.id;
+            var parts = fullId.split('_');
+            var rowIndex = parts[parts.length - 1];
+            var index = parseInt(rowIndex);
+            var BASIC_DA = document.getElementById("MainContent_CategoryWise_Details_BASIC_DA_" + index + "").value;
+            var OTHER = document.getElementById("MainContent_CategoryWise_Details_OTHER_" + index + "").value;
+
+            var Total_value = 0
+
+            if ((BASIC_DA != "" && BASIC_DA != null) && (OTHER == "" || OTHER == null))
+                Total_value = BASIC_DA
+
+            if ((OTHER != "" && OTHER != null) && (BASIC_DA == "" || BASIC_DA == null))
+                Total_value = OTHER
+
+            if ((BASIC_DA != "" && BASIC_DA != null) && (OTHER != "" && OTHER != null)) {
+                Total_value = (parseInt(BASIC_DA) + parseInt(OTHER));
+            }
+
+            // Set total value
+            document.getElementById("MainContent_CategoryWise_Details_GROSS_WAGE_" + index + "").value = Total_value;
+        }
+
+
+        function ClickToFillZero(Linkbutton) {
+            var fullId = Linkbutton.id;
+            var parts = fullId.split('_');
+            var rowIndex = parts[parts.length - 1];
+            var index = parseInt(rowIndex);
+
+            document.getElementById("MainContent_CategoryWise_Details_MALE_WORKER_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_FEMALE_WORKER_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_TOTAL_WORKER_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_MALE_MANDAYS_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_FEMALE_MANDAYS_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_TOTAL_MANDAYS_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_NO_VALID_GATEPASS_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_BASIC_DA_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_OTHER_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_WAGE_RATE_" + index + "").value = "0";
+            document.getElementById("MainContent_CategoryWise_Details_GROSS_WAGE_" + index + "").value = "0";
+        }
+</script>
+
+
+    <script type="text/javascript">
+
+        function validate() {
+
+
+            for (var i = 0; i <= 4; i++) {
+
+                var MALE_WORKER = document.getElementById("MainContent_CategoryWise_Details_MALE_WORKER_" + i + "").value;
+                //alert(MALE_WORKER);
+
+                var FEMALE_WORKER = document.getElementById("MainContent_CategoryWise_Details_FEMALE_WORKER_" + i + "").value;
+                var TOTAL_WORKER = document.getElementById("MainContent_CategoryWise_Details_TOTAL_WORKER_" + i + "").value;
+                var MALE_MANDAYS = document.getElementById("MainContent_CategoryWise_Details_MALE_MANDAYS_" + i + "").value;
+                var FEMALE_MANDAYS = document.getElementById("MainContent_CategoryWise_Details_FEMALE_MANDAYS_" + i + "").value;
+
+                var VALID_GATEPASS = document.getElementById("MainContent_CategoryWise_Details_NO_VALID_GATEPASS_" + i + "").value;
+                var TOTAL_MANDAYS = document.getElementById("MainContent_CategoryWise_Details_TOTAL_MANDAYS_" + i + "").value;
+                var BASIC_DA = document.getElementById("MainContent_CategoryWise_Details_BASIC_DA_" + i + "").value;
+                var OTHER = document.getElementById("MainContent_CategoryWise_Details_OTHER_" + i + "").value;
+                var WAGE_RATE = document.getElementById("MainContent_CategoryWise_Details_WAGE_RATE_" + i + "").value;
+                var GROSS_WAGE = document.getElementById("MainContent_CategoryWise_Details_GROSS_WAGE_" + i + "").value;
+
+
+                if (MALE_WORKER == "" || MALE_WORKER == null) {
+                    alert("Please Provide Male Worker !!!");
+                    return false;
+                }
+                if (FEMALE_WORKER == "" || FEMALE_WORKER == null) {
+                    alert("Please Provide Female Worker !!!");
+                    return false;
+                }
+
+
+                if (TOTAL_WORKER == "" || TOTAL_WORKER == null) {
+                    alert("Please Provide Total Worker !!!");
+                    return false;
+                }
+                if (MALE_MANDAYS == "" || MALE_MANDAYS == null) {
+                    alert("Please Provide male mandays !!!");
+                    return false;
+                }
+                if (FEMALE_MANDAYS == "" || FEMALE_MANDAYS == null) {
+                    alert("Please Provide female mandays !!!");
+                    return false;
+                }
+
+                if (VALID_GATEPASS == "" || VALID_GATEPASS == null) {
+                    alert("Please Provide number of valid gatepass !!!");
+                    return false;
+                }
+
+                if (TOTAL_MANDAYS == "" || TOTAL_MANDAYS == null) {
+                    alert("Please Provide total mandays !!!");
+                    return false;
+                }
+                if (BASIC_DA == "" || BASIC_DA == null) {
+                    alert("Please Provide Basic DA !!!");
+                    return false;
+                }
+
+                if (OTHER == "" || OTHER == null) {
+                    alert("Please Provide Other !!!");
+                    return false;
+                }
+
+                if (WAGE_RATE == "" || WAGE_RATE == null) {
+                    alert("Please Provide wage rate!!!");
+                    return false;
+                }
+
+                if (GROSS_WAGE == "" || GROSS_WAGE == null) {
+                    alert("Please Provide gross wage!!!");
+                    return false;
+                }
+
+            }
+        }
+
+
+
+
+
+
+    </script>
+
+</asp:Content>
+<asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
+    <div class="card m-2 shadow-lg">
+        <div>
+            <uc1:MyMsgBox ID="MyMsgBox" runat="server" />
+        </div>
+        <div class="card-header bg-info text-light">
+            <h6 class="m-0">Wage Complience < 2023-Aug</h6>
+        </div>
+        <div class="card-body pt-1">
+
+            <fieldset class="" style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px; position: center">
+                <legend style="width: auto; border: 0; font-size: 14px; margin: 0px 6px 0px 6px; padding: 0px 5px 0px 5px; color: #0000FF"><b>Vendor Details </b></legend>
+                <div class="row">
+                    <div class="col-lg-4 mb-1 form-row">
+                        <div class="col-lg-5">
+                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Vendor Code:</label>
+                        </div>
+                        <div class="col-lg-7">
+                            <asp:TextBox ID="V_CODE" runat="server" CssClass="form-control form-control-sm textboxstyle" Enabled="false" />
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4 mb-1 form-row">
+                        <div class="col-lg-5">
+                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Vendor Name:</label>
+                        </div>
+                        <div class="col-lg-7">
+                            <asp:TextBox ID="V_NAME" runat="server" CssClass="form-control form-control-sm textboxstyle" Enabled="false" />
+                        </div>
+                    </div>
+                </div>
+
+            </fieldset>
+            <fieldset class="" style="border: 1px solid #bfbebe; padding: 5px 5px 5px 5px; border-radius: 6px">
+                <legend style="width: auto; border: 0; font-size: 14px; margin: 0px 6px 0px 6px; padding: 0px 5px 0px 5px; color: #0000FF"><b>Select Month & Year</b></legend>
+                <div class="form-inline row">
+                    <div class="form-group col-md-6 mb-1">
+                        <label for="PROC_MONTH" class="m-0 mr-2 p-0 col-form-label-sm col-sm-3 font-weight-bold fs-6">Process Month:</label>
+                        <asp:TextBox ID="PROC_MONTH" runat="server" CssClass="form-control form-control-sm col-sm-5" AutoComplete="off" ClientIDMode="Static" TextMode="Month"></asp:TextBox>
+                        <%--                        <ask:CalendarExtender ID="CalendarExtender1" runat="server" Enabled="True"  Format="dd/MM/yyyy" TargetControlID="PROC_MONTH" TodaysDateFormat="dd/MM/yyyy" EndDate="<%# DateTime.Now %>"></ask:CalendarExtender>--%>
+
+                        <asp:CustomValidator ID="CustomValidator1" runat="server" ClientValidationFunction="Validate" ValidationGroup="search" ControlToValidate="PROC_MONTH" ValidateEmptyText="true"></asp:CustomValidator>
+                    </div>
+                    <div class="form-group col-md-3 mb-1">
+                        <asp:Button ID="btnSearch" runat="server" Text="Search" OnClick="btnSearch_Click" CssClass="btn btn-sm btn-info" ValidationGroup="search" />
+                    </div>
+                </div>
+            </fieldset>
+            <fieldset class="" style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px">
+
+                <legend style="width: auto; border: 0; font-size: 14px; margin: 0px 6px 0px 6px; padding: 0px 5px 0px 5px; color: #0000FF"><b>Work Order Details</b></legend>
+                <cc1:DetailsContainer ID="Work_Order_Details" runat="server" AutoGenerateColumns="False"
+                    AllowPaging="false" CellPadding="4" GridLines="None" Width="100%" DataMember="App_WorkOrder_Reg"
+                    DataKeyNames="ID" DataSource="<%# PageRecordsDataSet %>"
+                    ForeColor="#333333" ShowHeaderWhenEmpty="True" OnPageIndexChanging="Work_Order_Details_PageIndexChanging"
+                    OnSelectedIndexChanged="Work_Order_Details_SelectedIndexChanged"
+                    PageSize="10" PagerSettings-Visible="True" PagerStyle-HorizontalAlign="Center"
+                    PagerStyle-Wrap="False" HeaderStyle-Font-Size="Smaller" RowStyle-Font-Size="Smaller">
+                    <AlternatingRowStyle BackColor="White" ForeColor="#284775" />
+                    <Columns>
+                        <asp:TemplateField HeaderText="ID" SortExpression="ID" Visible="False">
+                            <ItemTemplate>
+                                <asp:Label ID="ID" runat="server"></asp:Label>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="WORK ORDER NUMBER" SortExpression="WO_NO">
+                            <ItemTemplate>
+                                <b>
+                                    <asp:LinkButton ID="LinkButton1" runat="server" CommandName="select" Text='<%# Bind("WO_NO") %>'></asp:LinkButton>
+                                </b>
+                            </ItemTemplate>
+                            <HeaderStyle HorizontalAlign="Left" />
+                        </asp:TemplateField>
+                        <asp:TemplateField HeaderText="WO FROM DATE" HeaderStyle-HorizontalAlign="Left" ItemStyle-HorizontalAlign="Left">
+                            <ItemTemplate>
+                                <asp:Label ID="FROM_DATE" runat="server" Text='<%# Bind("FROM_DATE") %>'></asp:Label>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+
+                        <asp:TemplateField HeaderText="WO TO DATE" HeaderStyle-HorizontalAlign="Left" ItemStyle-HorizontalAlign="Left">
+                            <ItemTemplate>
+                                <asp:Label ID="TO_DATE" runat="server" Text='<%# Bind("TO_DATE") %>'></asp:Label>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+
+                        <asp:BoundField DataField="DEPT_CODE" HeaderText="DEPARTMENT" SortExpression="DEPT_CODE" HeaderStyle-HorizontalAlign="Left"
+                            ItemStyle-HorizontalAlign="Left">
+                            <HeaderStyle HorizontalAlign="Left" />
+                            <ItemStyle HorizontalAlign="Left" />
+                        </asp:BoundField>
+                        <asp:BoundField DataField="LOC_CODE" HeaderText="LOCATION" SortExpression="LOC_CODE" HeaderStyle-HorizontalAlign="Left"
+                            ItemStyle-HorizontalAlign="Left">
+                            <HeaderStyle HorizontalAlign="Left" />
+                            <ItemStyle HorizontalAlign="Left" />
+                        </asp:BoundField>
+                        <asp:BoundField DataField="NATURE_OF_WORK" HeaderText="NATURE OF JOB" SortExpression="NATURE_OF_WORK" HeaderStyle-HorizontalAlign="Left"
+                            ItemStyle-HorizontalAlign="Left">
+                            <HeaderStyle HorizontalAlign="Left" />
+                            <ItemStyle HorizontalAlign="Left" />
+                        </asp:BoundField>
+
+
+                    </Columns>
+                    <EditRowStyle BackColor="#999999" />
+                    <FooterStyle BackColor="#5D7B9D" ForeColor="White" Font-Bold="True" />
+                    <HeaderStyle BackColor="#5D7B9D" Font-Bold="True" ForeColor="White" />
+                    <PagerSettings Mode="Numeric" />
+                    <PagerStyle BackColor="#284775" ForeColor="White" HorizontalAlign="Center" Font-Bold="True" CssClass="pager1" />
+                    <PagerStyle BackColor="#284775" ForeColor="White" HorizontalAlign="Center" />
+                    <RowStyle BackColor="#F7F6F3" ForeColor="#333333" />
+                    <SelectedRowStyle BackColor="#E2DED6" Font-Bold="False" ForeColor="#333333" />
+                    <SortedAscendingCellStyle BackColor="#E9E7E2" />
+                    <SortedAscendingHeaderStyle BackColor="#506C8C" />
+                    <SortedDescendingCellStyle BackColor="#FFFDF8" />
+                    <SortedDescendingHeaderStyle BackColor="#6F8DAE" />
+                </cc1:DetailsContainer>
+                <asp:HiddenField ID="hdn_SelectedWorkOrderNo" runat="server" />
+                <asp:HiddenField ID="hdn_SummaryId" Value="52B1B421-F1FE-4D88-ADE6-08D29BE35C85" runat="server" />
+            </fieldset>
+
+            <%--OnRowDataBound="NOPR_Details_RowDataBound" 
+                OnDataRowAddingEvent="NOPR_Details_DataRowAddingEvent"--%>
+
+            <fieldset class="" style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px">
+                <legend style="width: auto; border: 0; font-size: 14px; margin: 0px 6px 0px 6px; padding: 0px 5px 0px 5px; color: #0000FF"><b>Category Wise Details</b></legend>
+                <div style="overflow: scroll; height: 350px" id="CategoryWise_Details_Grid" runat="server">
+                    <asp:UpdatePanel ID="UpdatePanel2" runat="server">
+                        <ContentTemplate>
+                            <cc1:DetailsContainer ID="CategoryWise_Details" runat="server" AutoGenerateColumns="False" overflow="auto"
+                                AllowPaging="true" CellPadding="4" GridLines="None" Width="100%" DataMember="App_Wage_Category_Temp"
+                                DataKeyNames="ID" DataSource="<%# PageRecordDataSet %>" ForeColor="#333333" ShowHeaderWhenEmpty="True"
+                                PageSize="10" PagerSettings-Visible="True" OnDataRowAddingEvent="CategoryWise_Details_DataRowAddingEvent"
+                                OnRowDataBound="CategoryWise_Details_RowDataBound"
+                                PagerStyle-HorizontalAlign="Center" PagerStyle-Wrap="False" HeaderStyle-Font-Size="Smaller" RowStyle-Font-Size="Smaller">
+                                <AlternatingRowStyle BackColor="White" ForeColor="#284775" />
+                                <Columns>
+                                    <asp:TemplateField HeaderText="ID" SortExpression="ID" Visible="False">
+                                        <ItemTemplate>
+                                            <asp:Label ID="ID" runat="server"></asp:Label>
+                                            <%--<asp:Label ID="MASTER_ID_SUMMARY" runat="server"></asp:Label>
+                                <asp:Label ID="MASTER_ID_WO" runat="server"></asp:Label>--%>
+                                        </ItemTemplate>
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Category" HeaderStyle-Width="7%">
+                                        <ItemTemplate>
+                                            <asp:Label ID="CATEGORY" runat="server" Font-Bold="true"></asp:Label>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+
+                                    <asp:TemplateField HeaderStyle-Width="7%">
+                                        <ItemTemplate>
+                                            <asp:LinkButton class="button" ID="LinkButton1" runat="server" CommandName="select" Style="color: blue; font-weight: 700" Text='Click to fill with 0' OnClientClick="ClickToFillZero(this)"></asp:LinkButton>
+                                        </ItemTemplate>
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Male Worker" HeaderStyle-Width="7%" HeaderStyle-Wrap="true">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="MALE_WORKER" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isNumberKey(event);" onkeyup="calculateTotal(this)" onMaxLength="20" />
+                                            <%--<asp:CustomValidator ID="CustomValidator1" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="MALE_WORKER" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Female Worker" HeaderStyle-Width="7%" HeaderStyle-Wrap="true">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="FEMALE_WORKER" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isNumberKey(event);" onkeyup="calculateTotal(this)" MaxLength="20" />
+                                            <%--<asp:CustomValidator ID="CustomValidator2" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="FEMALE_WORKER" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Total Worker" HeaderStyle-Width="7%" HeaderStyle-Wrap="true">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="TOTAL_WORKER" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isNumberKey(event);"  MaxLength="20" />
+                                            <%--                                <asp:CustomValidator ID="CustomValidator3" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="TOTAL_WORKER" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Male Mandays" HeaderStyle-Width="7%" HeaderStyle-Wrap="true">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="MALE_MANDAYS" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isDecimalKey(event, this);" onkeyup="calculateMandaysTotal(this)" MaxLength="20" />
+                                            <%--                                <asp:CustomValidator ID="CustomValidator42" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="MALE_MANDAYS" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Female Mandays" HeaderStyle-Width="7%" HeaderStyle-Wrap="true">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="FEMALE_MANDAYS" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isDecimalKey(event, this);" onkeyup="calculateMandaysTotal(this)" MaxLength="20" />
+                                            <%--                                 <asp:CustomValidator ID="CustomValidator422" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="FEMALE_MANDAYS" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Total Mandays" HeaderStyle-Width="7%">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="TOTAL_MANDAYS" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isDecimalKey(event, this);"  MaxLength="20" />
+                                            <%--                           <asp:CustomValidator ID="CustomValidator4222" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="TOTAL_MANDAYS" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Number of valid gatepass" HeaderStyle-Width="7%">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="NO_VALID_GATEPASS" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isNumberKey(event);" MaxLength="20" />
+                                            <%--                            <asp:CustomValidator ID="CustomValidator5" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="NO_VALID_GATEPASS" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Basic + Da" HeaderStyle-Width="7%">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="BASIC_DA" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isDecimalKey(event, this);" onkeyup="calculateGrossTotal(this)" MaxLength="20" />
+                                            <%--                           <asp:CustomValidator ID="CustomValidator6" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="BASIC_DA" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Other" HeaderStyle-Width="7%">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="OTHER" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isDecimalKey(event, this);" onkeyup="calculateGrossTotal(this)" MaxLength="20" />
+                                            <%--                                <asp:CustomValidator ID="CustomValidator7" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="OTHER" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Wage Rate" HeaderStyle-Width="7%">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="WAGE_RATE" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                            <%--                                <asp:CustomValidator ID="CustomValidator8" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="WAGE_RATE" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Gross Wage (Basic + Da + Other)" HeaderStyle-Width="7%" HeaderStyle-Wrap="true">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="GROSS_WAGE" runat="server" CssClass="form-control form-control-sm col-sm-12" autocomplete="off" onkeypress="return isDecimalKey(event, this);"  MaxLength="20" />
+                                            <%--                                <asp:CustomValidator ID="CustomValidator9" runat="server" ClientValidationFunction="Validate" ValidationGroup="btn_PaymentDetail" ControlToValidate="GROSS_WAGE" ValidateEmptyText="true"></asp:CustomValidator>--%>
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                    <asp:TemplateField HeaderText="Attachment" HeaderStyle-Width="200px">
+                                        <ItemTemplate>
+                                            <asp:FileUpload ID="ATTACHMENT" runat="server" CssClass="form-control form-control-sm" Width="200px" AllowMultiple="true" />
+                                        </ItemTemplate>
+                                        <HeaderStyle HorizontalAlign="Left" />
+                                    </asp:TemplateField>
+                                </Columns>
+                                <EditRowStyle BackColor="#999999" />
+                                <FooterStyle BackColor="green" ForeColor="White" Font-Bold="True" />
+                                <HeaderStyle BackColor="#00b074" Font-Bold="True" ForeColor="White" />
+                                <PagerSettings Mode="Numeric" />
+                                <PagerStyle BackColor="#00b074" ForeColor="White" HorizontalAlign="Center" Font-Bold="True" CssClass="pager1" />
+                                <PagerStyle BackColor="#00b074" ForeColor="White" HorizontalAlign="Center" />
+                                <RowStyle BackColor="#F7F6F3" ForeColor="#333333" />
+                                <SelectedRowStyle BackColor="#E2DED6" Font-Bold="False" ForeColor="#333333" />
+                                <SortedAscendingCellStyle BackColor="#E9E7E2" />
+                                <SortedAscendingHeaderStyle BackColor="#506C8C" />
+                                <SortedDescendingCellStyle BackColor="#FFFDF8" />
+                                <SortedDescendingHeaderStyle BackColor="#6F8DAE" />
+                            </cc1:DetailsContainer>
+                        </ContentTemplate>
+                    </asp:UpdatePanel>
+                </div>
+                <br />
+                <div class="row no-gutters justify-content-center mt-2">
+<%--                    <asp:Button ID="btnProceedFor_PaymentDetail" runat="server" ValidationGroup="btn_PaymentDetail" Text="Proceed For Payment Details" OnClick="btnProceedFor_PaymentDetail_Click" OnClientClick="return validate();" CssClass="btn btn-sm btn-info" />--%>
+                       <asp:Button ID="btnSave_As_Draft" runat="server" ValidationGroup="btn_PaymentDetail" Text="Save As Draft" OnClick="btnSave_As_Draft_Click" OnClientClick="return validate();" CssClass="btn btn-sm btn-info" /> &nbsp&nbsp&nbsp  
+                       <asp:Button ID="Btn_Save_and_Proceed_For_WO" runat="server" ValidationGroup="btn_PaymentDetail" Text="Save and Proceed For WO" OnClick="Btn_Save_and_Proceed_For_WO_Click" OnClientClick="return validate();" CssClass="btn btn-sm btn-primary" />  &nbsp&nbsp&nbsp  
+                       <asp:Button ID="btnProceedFor_NextSection" runat="server" ValidationGroup="btn_PaymentDetails" Text="Proceed For Next Section" OnClick="btnProceedFor_NextSection_Click" OnClientClick="return validate();" CssClass="col-sm-2 btn btn-sm btn-warning btn-block"  />
+                </div>
+            </fieldset>
+
+                <%--<fieldset id="wo_f1" class="" style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px;">
+                <legend style="width: auto; border: 0; font-size: 14px; margin: 0px 6px 0px 6px; padding: 0px 5px 0px 5px; color: #0000FF"><b>Work Order Payment Details</b></legend>--%>
+                <%--<cc1:FormCointainer ID="WO_PaymentDetails_Record" runat="server" AllowPaging="True" AutoGenerateColumns="False"
+                    PageSize="1" ShowHeader="False" Width="100%" DataSource="<%# PageRecordDataSet %>" DataKeyNames="ID" DataMember="App_Wage_Wo_Details" OnNewRowCreatingEvent="WO_PaymentDetails_Record_NewRowCreatingEvent" OnPreRender="WO_PaymentDetails_Record_PreRender"
+                    BindingErrorMessage="aaaaaaaa" GridLines="None" BorderStyle="Solid" BorderWidth="1px" BorderColor="#bfbebe">
+                    <Columns>
+                        <asp:TemplateField SortExpression="ID" Visible="False">
+                            <ItemTemplate>
+                                <asp:Label ID="ID" runat="server"></asp:Label>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField>
+                            <ItemTemplate>
+                                <div class="row">
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">No. of Workers Paid:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="NO_OF_WORKERS_PAID" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isNumberKey(event);" Enabled="false" MaxLength="20" />
+                                            <asp:CustomValidator ID="cv_NO_OF_WORKERS_PAID" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="NO_OF_WORKERS_PAID" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">No. of Workers Unpaid:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="NO_OF_WORKERS_UNPAID" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isNumberKey(event);" MaxLength="20" />
+                                            <asp:CustomValidator ID="cv_NO_OF_WORKERS_UNPAID" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="NO_OF_WORKERS_UNPAID" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">PF Amt Deducted @12%:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="PF_AMT_12" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" Enabled="false"  />
+                                            <asp:CustomValidator ID="cv_PF_AMT_12" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="PF_AMT_12" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">ESI Amt Deducted @0.75%:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="ESI_AMT_075" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" Enabled="false" MaxLength="20"  />
+                                            <asp:CustomValidator ID="cv_ESI_AMT_075" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="ESI_AMT_075" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total Gross:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_GROSS" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);"  Enabled="false" MaxLength="20"  />
+                                            <asp:CustomValidator ID="cv_TOTAL_GROSS" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="TOTAL_GROSS" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Net Amount Paid:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="NET_AMOUNT_PAID" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" Enabled="false" MaxLength="20"  />
+                                            <asp:CustomValidator ID="cv_NET_AMOUNT_PAID" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="NET_AMOUNT_PAID" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Net Amount Unpaid:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="NET_AMOUNT_UNPAID" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                            <asp:CustomValidator ID="cv_NET_AMOUNT_UNPAID" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="NET_AMOUNT_UNPAID" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Amount Paid by Bank:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="AMOUNT_PAID_BANK" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                            <asp:CustomValidator ID="cv_AMOUNT_PAID_BANK" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="AMOUNT_PAID_BANK" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Amount Paid by Cheque:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="AMOUNT_PAID_CHEQUE" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                            <asp:CustomValidator ID="cv_AMOUNT_PAID_CHEQUE" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="AMOUNT_PAID_CHEQUE" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Amount Paid by Cash:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="AMOUNT_PAID_CASH" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                            <asp:CustomValidator ID="cv_AMOUNT_PAID_CASH" runat="server" ClientValidationFunction="Validate" ValidationGroup="Save" ControlToValidate="AMOUNT_PAID_CASH" ValidateEmptyText="true"></asp:CustomValidator>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                    </Columns>
+                    <PagerSettings Visible="False" />
+                </cc1:FormCointainer>--%>
+                <%--<div class="form-group col-md-12 col-margin" style="text-align: right;">
+                    <asp:Button ID="btnWO_PaymentDetails" runat="server" Text="Calculated Details Save" OnClick="btnWO_PaymentDetails_Click" CssClass="btn btn-sm btn-info" ValidationGroup="Save" />
+                </div>
+            </fieldset>--%>
+
+            <%--<fieldset id="wo_f2" class="" style="border: 1px solid #bfbebe; padding: 5px 20px 5px 20px; border-radius: 6px;">
+                <legend style="width: auto; border: 0; font-size: 14px; margin: 0px 6px 0px 6px; padding: 0px 5px 0px 5px; color: #0000FF"><b>Summary Details</b></legend>
+                <cc1:FormCointainer ID="SummaryDetails_Record" runat="server" AllowPaging="True" AutoGenerateColumns="False"
+                    PageSize="1" ShowHeader="False" Width="100%" DataMember="APP_WAGE_SUMMARY" OnNewRowCreatingEvent="SummaryDetails_Record_NewRowCreatingEvent"
+                    BindingErrorMessage="aaaaaaaa" GridLines="None" BorderStyle="Solid" BorderWidth="1px" BorderColor="#bfbebe">
+                    <Columns>
+                        <asp:TemplateField SortExpression="ID" Visible="False">
+                            <ItemTemplate>
+                                <asp:Label ID="ID" runat="server"></asp:Label>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+                        <asp:TemplateField>
+                            <ItemTemplate>
+                                <div class="row">
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Payment Date:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="PAYMENT_DATE" runat="server" TextMode="Date" CssClass="form-control form-control-sm textboxstyle" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Amount Paid by Bank:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="AMOUNT_PAID_BANK" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Amount Paid by Cheque:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="AMOUNT_PAID_CHEQUE" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Amount Paid by Cash:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="AMOUNT_PAID_CASH" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total Gross:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_GROSS" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total PF Deduction:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_PF_DEDUCTION" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total ESI Deduction:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_ESI_DEDUCTION" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total Other Deduction:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_OTHER_DEDUCTION" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Net Wage:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="NET_WAGE" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total Workers:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_WORKER" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isNumberKey(event);" MaxLength="20" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total Mandays:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_MANDAYS" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isDecimalKey(event, this);" MaxLength="20" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Total Valid Gatepass:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:TextBox ID="TOTAL_VALID_GATEPASS" runat="server" CssClass="form-control form-control-sm textboxstyle" onkeypress="return isNumberKey(event);" MaxLength="20" />
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Wage Register (PDF):</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:FileUpload ID="WAGE_REGISTER_PDF" runat="server" CssClass="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Bank Payment:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:FileUpload ID="BANK_PAYMENT" runat="server" CssClass="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Verification File:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:FileUpload ID="VERIFICATION_FILE" runat="server" CssClass="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Gatepass Declaration:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:FileUpload ID="GATEPASS_DECLARTION" runat="server" CssClass="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Wages Register (Excel):</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:FileUpload ID="WAGE_REGISTER_EXCEL" runat="server" CssClass="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Attendance Register:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:FileUpload ID="ATTANDANCE_REGISTER" runat="server" CssClass="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4 mb-1 form-row">
+                                        <div class="col-lg-5">
+                                            <label class="m-0 mr-2 p-0 col-form-label-sm font-weight-bold fs-6">Seal & Signature:</label>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <asp:FileUpload ID="SEAL_SIGNATURE" runat="server" CssClass="form-control form-control-sm" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </ItemTemplate>
+                        </asp:TemplateField>
+
+                    </Columns>
+                    <PagerSettings Visible="False" />
+                </cc1:FormCointainer>
+            </fieldset>--%>
+        </div>
+    </div>
+</asp:Content>
