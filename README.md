@@ -1,3 +1,278 @@
+<!-- Load face-api.js -->
+<script defer src="/faceApi/face-api.min.js"></script>
+
+<style>
+    .countdown-ring {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 60px;
+        height: 60px;
+        z-index: 10;
+    }
+
+    .countdown-ring svg {
+        transform: rotate(-90deg);
+    }
+
+    .countdown-ring circle {
+        fill: none;
+        stroke-width: 6;
+    }
+
+    .countdown-bg {
+        stroke: #ccc;
+    }
+
+    .countdown-progress {
+        stroke: limegreen;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1s linear;
+    }
+
+    #videoContainer {
+        position: relative;
+    }
+</style>
+
+<div id="videoContainer" style="display: inline-block; border: 4px solid transparent; border-radius: 8px; transition: border-color 0.3s ease;">
+    <video id="video" width="320" height="240" autoplay muted playsinline></video>
+
+    <!-- Countdown Ring -->
+    <div class="countdown-ring" id="countdownRing" style="display: none;">
+        <svg width="60" height="60">
+            <circle class="countdown-bg" r="26" cx="30" cy="30"></circle>
+            <circle class="countdown-progress" r="26" cx="30" cy="30"></circle>
+        </svg>
+    </div>
+</div>
+
+<p id="statusText" style="font-weight: bold; margin-top: 10px; color: #444;"></p>
+<canvas id="canvas" style="display:none;"></canvas>
+<input type="hidden" name="Type" id="EntryType" />
+
+<button type="button" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">Punch In</button>
+<button type="button" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">Punch Out</button>
+
+<!-- JS starts here -->
+<script>
+    window.addEventListener("DOMContentLoaded", async () => {
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const EntryTypeInput = document.getElementById("EntryType");
+        const statusText = document.getElementById("statusText");
+        const videoContainer = document.getElementById("videoContainer");
+        const countdownRing = document.getElementById("countdownRing");
+        const progressCircle = countdownRing.querySelector(".countdown-progress");
+
+        let blinked = false;
+        let blinkFrameCount = 0;
+        let lastBlinkTime = 0;
+
+        const EAR_THRESHOLD = 0.25;
+        const BLINK_MIN_FRAMES = 1;
+        const BLINK_MAX_FRAMES = 5;
+        const BLINK_INTERVAL = 800;
+        const MIN_FACE_WIDTH = 80;
+
+        const detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+
+        try {
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri('/faceApi'),
+                faceapi.nets.faceLandmark68Net.loadFromUri('/faceApi')
+            ]);
+            console.log("FaceAPI models loaded");
+            startVideo();
+        } catch (e) {
+            console.error("Failed to load face-api models:", e);
+        }
+
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+            })
+            .then(stream => {
+                video.srcObject = stream;
+                video.play();
+                video.addEventListener("loadeddata", () => {
+                    const checkReady = setInterval(() => {
+                        if (video.videoWidth > 0 && video.videoHeight > 0) {
+                            clearInterval(checkReady);
+                            detectBlink();
+                        }
+                    }, 100);
+                });
+            })
+            .catch(err => console.error("Camera error:", err));
+        }
+
+        function distance(p1, p2) {
+            return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        }
+
+        function getEAR(eye) {
+            const a = distance(eye[1], eye[5]);
+            const b = distance(eye[2], eye[4]);
+            const c = distance(eye[0], eye[3]);
+            return (a + b) / (2.0 * c);
+        }
+
+        async function detectBlink() {
+            const detection = await faceapi
+                .detectSingleFace(video, detectorOptions)
+                .withFaceLandmarks();
+
+            if (detection) {
+                const box = detection.detection.box;
+                const faceWidth = box.width;
+
+                if (faceWidth < MIN_FACE_WIDTH) {
+                    statusText.textContent = "Move closer to the camera";
+                    videoContainer.style.borderColor = "orange";
+                    blinked = false;
+                    blinkFrameCount = 0;
+                } else {
+                    const leftEye = detection.landmarks.getLeftEye();
+                    const rightEye = detection.landmarks.getRightEye();
+                    const leftEAR = getEAR(leftEye);
+                    const rightEAR = getEAR(rightEye);
+                    const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+                    if (avgEAR < EAR_THRESHOLD) {
+                        blinkFrameCount++;
+                    } else {
+                        if (
+                            blinkFrameCount >= BLINK_MIN_FRAMES &&
+                            blinkFrameCount <= BLINK_MAX_FRAMES &&
+                            Date.now() - lastBlinkTime > BLINK_INTERVAL
+                        ) {
+                            blinked = true;
+                            lastBlinkTime = Date.now();
+                            console.log("Blink detected");
+
+                            // Show green border and ring
+                            videoContainer.style.borderColor = "limegreen";
+                            countdownRing.style.display = "block";
+
+                            let countdown = 5;
+                            const radius = 26;
+                            const circumference = 2 * Math.PI * radius;
+                            progressCircle.style.strokeDasharray = circumference;
+                            progressCircle.style.strokeDashoffset = 0;
+                            statusText.textContent = `You may proceed in: ${countdown}`;
+
+                            let secondsLeft = countdown;
+                            const interval = setInterval(() => {
+                                secondsLeft--;
+                                if (secondsLeft > 0) {
+                                    statusText.textContent = `You may proceed in: ${secondsLeft}`;
+                                    progressCircle.style.strokeDashoffset = ((countdown - secondsLeft) / countdown) * circumference;
+                                } else {
+                                    clearInterval(interval);
+                                    blinked = false;
+                                    videoContainer.style.borderColor = "red";
+                                    statusText.textContent = "Blink again to proceed";
+                                    countdownRing.style.display = "none";
+                                }
+                            }, 1000);
+                        }
+                        blinkFrameCount = 0;
+                    }
+
+                    if (!blinked) {
+                        statusText.textContent = "Please blink to verify liveness";
+                        videoContainer.style.borderColor = "red";
+                    }
+                }
+            } else {
+                statusText.textContent = "No face detected";
+                videoContainer.style.borderColor = "gray";
+                blinked = false;
+                blinkFrameCount = 0;
+            }
+
+            requestAnimationFrame(detectBlink);
+        }
+
+        window.captureImageAndSubmit = function (entryType) {
+            if (!blinked) {
+                videoContainer.style.borderColor = "red";
+                statusText.textContent = "Blink required before submitting";
+                Swal.fire({
+                    title: "Liveness Check Failed",
+                    text: "Please blink to verify you're not using a static image.",
+                    icon: "warning"
+                });
+                return;
+            }
+
+            blinked = false;
+            statusText.textContent = "";
+
+            EntryTypeInput.value = entryType;
+
+            const context = canvas.getContext("2d");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvas.toDataURL("image/jpeg");
+
+            Swal.fire({
+                title: "Verifying Face...",
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch("/AS/Geo/AttendanceData", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    Type: entryType,
+                    ImageData: imageData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const now = new Date();
+                const formattedDateTime = now.toLocaleString();
+
+                if (data.success) {
+                    Swal.fire({
+                        title: "Face Matched!",
+                        text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
+                        icon: "success",
+                        timer: 3000,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire({
+                        title: "Face Not Recognized.",
+                        text: "Click the button again to retry.\nDate & Time: " + formattedDateTime,
+                        icon: "error",
+                        confirmButtonText: "Retry"
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                Swal.fire({
+                    title: "Error!",
+                    text: "An error occurred while processing your request.",
+                    icon: "error"
+                });
+            });
+        };
+    });
+</script>
+
+
+
+
 window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
         const canvas = document.getElementById("canvas");
