@@ -1,3 +1,245 @@
+<script>
+    window.addEventListener("DOMContentLoaded", async () => {
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const EntryTypeInput = document.getElementById("EntryType");
+        const successSound = document.getElementById("successSound");
+        const errorSound = document.getElementById("errorSound");
+        const statusText = document.getElementById("statusText");
+        const videoContainer = document.getElementById("videoContainer");
+
+        let blinkCount = 0;
+        let blinkFrameCount = 0;
+        let isBlinking = false;
+        let challengeStarted = false;
+        let allowSubmit = false;
+        let timer;
+
+        const EAR_THRESHOLD = 0.27;
+        const BLINK_MIN_FRAMES = 2;
+        const BLINK_MAX_FRAMES = 6;
+        const CHALLENGE_DURATION = 8000; // 8 seconds
+        const MIN_FACE_WIDTH = 100;
+
+        const detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+
+        try {
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri('/AS/faceApi'),
+                faceapi.nets.faceLandmark68Net.loadFromUri('/AS/faceApi')
+            ]);
+            console.log("FaceAPI models loaded");
+            startVideo();
+        } catch (e) {
+            console.error("Failed to load face-api models", e);
+        }
+
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "user",
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.play();
+                    video.addEventListener("loadeddata", () => {
+                        console.log("Camera video is ready.");
+                        detectBlink();
+                    });
+                })
+                .catch(err => {
+                    console.error("Camera error:", err);
+                });
+        }
+
+        function distance(p1, p2) {
+            return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        }
+
+        function getEAR(eye) {
+            const a = distance(eye[1], eye[5]);
+            const b = distance(eye[2], eye[4]);
+            const c = distance(eye[0], eye[3]);
+            return (a + b) / (2.0 * c);
+        }
+
+        function startBlinkChallenge() {
+            if (challengeStarted) return;
+
+            challengeStarted = true;
+            blinkCount = 0;
+            allowSubmit = false;
+            statusText.textContent = "Please blink twice to verify liveness";
+            videoContainer.style.borderColor = "red";
+
+            timer = setTimeout(() => {
+                if (blinkCount < 2) {
+                    statusText.textContent = "Blink challenge failed. Try again.";
+                    videoContainer.style.borderColor = "gray";
+                    challengeStarted = false;
+                    blinkCount = 0;
+                }
+            }, CHALLENGE_DURATION);
+        }
+
+        async function detectBlink() {
+            const detection = await faceapi
+                .detectSingleFace(video, detectorOptions)
+                .withFaceLandmarks();
+
+            if (detection) {
+                const box = detection.detection.box;
+                const faceWidth = box.width;
+
+                if (faceWidth < MIN_FACE_WIDTH) {
+                    statusText.textContent = "Move closer to the camera";
+                    videoContainer.style.borderColor = "orange";
+                    blinkCount = 0;
+                    challengeStarted = false;
+                    allowSubmit = false;
+                } else {
+                    const leftEye = detection.landmarks.getLeftEye();
+                    const rightEye = detection.landmarks.getRightEye();
+                    const leftEAR = getEAR(leftEye);
+                    const rightEAR = getEAR(rightEye);
+                    const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+                    if (avgEAR < EAR_THRESHOLD) {
+                        blinkFrameCount++;
+                        isBlinking = true;
+                    } else {
+                        if (isBlinking && blinkFrameCount >= BLINK_MIN_FRAMES && blinkFrameCount <= BLINK_MAX_FRAMES) {
+                            blinkCount++;
+                            console.log("Blink detected:", blinkCount);
+
+                            if (!challengeStarted) startBlinkChallenge();
+
+                            if (blinkCount >= 2) {
+                                clearTimeout(timer);
+                                allowSubmit = true;
+                                videoContainer.style.borderColor = "limegreen";
+                                statusText.textContent = "Liveness verified! You can now proceed.";
+                                setTimeout(() => {
+                                    allowSubmit = false;
+                                    challengeStarted = false;
+                                    blinkCount = 0;
+                                    statusText.textContent = "Please blink again to proceed";
+                                    videoContainer.style.borderColor = "red";
+                                }, 5000);
+                            }
+                        }
+
+                        blinkFrameCount = 0;
+                        isBlinking = false;
+                    }
+                }
+            } else {
+                statusText.textContent = "No face detected";
+                videoContainer.style.borderColor = "gray";
+                blinkCount = 0;
+                challengeStarted = false;
+                allowSubmit = false;
+            }
+
+            requestAnimationFrame(detectBlink);
+        }
+
+        window.captureImageAndSubmit = function (entryType) {
+            if (!allowSubmit) {
+                videoContainer.style.borderColor = "red";
+                statusText.textContent = "Blink challenge not passed";
+                Swal.fire({
+                    title: "Liveness Check Failed",
+                    text: "Please blink twice to verify you're not using a static image.",
+                    icon: "warning"
+                });
+                return;
+            }
+
+            allowSubmit = false; // Reset after submission
+            statusText.textContent = "";
+
+            EntryTypeInput.value = entryType;
+
+            const context = canvas.getContext("2d");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvas.toDataURL("image/jpeg");
+
+            Swal.fire({
+                title: "Verifying Face...",
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch("/AS/Geo/AttendanceData", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    Type: entryType,
+                    ImageData: imageData
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const now = new Date();
+                    const formattedDateTime = now.toLocaleString();
+
+                    if (data.success) {
+                        successSound?.play();
+                        triggerHapticFeedback("success");
+                        Swal.fire({
+                            title: "Face Matched!",
+                            text: "Attendance Recorded.\nDate & Time: " + formattedDateTime,
+                            icon: "success",
+                            timer: 3000,
+                            showConfirmButton: false
+                        }).then(() => location.reload());
+                    } else {
+                        errorSound?.play();
+                        triggerHapticFeedback("error");
+                        Swal.fire({
+                            title: "Face Not Recognized.",
+                            text: "Click the button again to retry.\nDate & Time: " + formattedDateTime,
+                            icon: "error",
+                            confirmButtonText: "Retry"
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    triggerHapticFeedback("error");
+                    Swal.fire({
+                        title: "Error!",
+                        text: "An error occurred while processing your request.",
+                        icon: "error"
+                    });
+                });
+        };
+
+        function triggerHapticFeedback(type) {
+            if ("vibrate" in navigator) {
+                if (type === "success") navigator.vibrate(100);
+                else if (type === "error") navigator.vibrate([200, 100, 200]);
+            }
+        }
+    });
+</script>
+
+
+
+
+
 SELECT 
     t.name AS TableName,
     c.name AS ColumnName,
