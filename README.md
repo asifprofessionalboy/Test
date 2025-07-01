@@ -1,3 +1,28 @@
+#videoContainer {
+    display: block;
+    width: fit-content;
+    margin: 0 auto;
+    border: 4px solid limegreen; /* or transparent initially */
+    border-radius: 8px;
+    padding: 0;
+    line-height: 0; /* removes extra space under inline elements */
+}
+
+video {
+    display: block;
+    width: 100%;
+    height: auto;
+    transform: scaleX(-1);
+    -webkit-transform: scaleX(-1); 
+    -moz-transform: scaleX(-1);
+}
+
+<div id="videoContainer">
+    <video id="video" width="320" height="240" autoplay muted playsinline></video>
+</div>
+
+
+
 <script>
 window.addEventListener("DOMContentLoaded", async () => {
     const video = document.getElementById("video");
