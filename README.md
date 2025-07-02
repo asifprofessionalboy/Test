@@ -1,3 +1,40 @@
+function isUprightFace(landmarks) {
+    const nose = landmarks.getNose();
+    const leftEye = landmarks.getLeftEye();
+    const rightEye = landmarks.getRightEye();
+
+    const noseTip = nose[3];
+    const leftEyeCenter = averagePoint(leftEye);
+    const rightEyeCenter = averagePoint(rightEye);
+
+    const eyeMidY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
+
+    // Ensure nose is below eye level (face is not tilted up)
+    return noseTip.y > eyeMidY;
+}
+
+function averagePoint(points) {
+    const sum = points.reduce((acc, pt) => {
+        acc.x += pt.x;
+        acc.y += pt.y;
+        return acc;
+    }, { x: 0, y: 0 });
+
+    return {
+        x: sum.x / points.length,
+        y: sum.y / points.length
+    };
+}
+if (!isUprightFace(landmarks)) {
+    statusText.textContent = "Please keep your face upright";
+    videoContainer.style.borderColor = "orange";
+    requestAnimationFrame(detectBlink);
+    return;
+}
+
+
+
+
 <script>
 window.addEventListener("DOMContentLoaded", async () => {
     const video = document.getElementById("video");
