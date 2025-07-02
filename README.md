@@ -1,4 +1,4 @@
-this is my code , in this if i want to add face recognition also then , i have a directory in wwwroot folder in that images folder inside that user image is place as png , i want to recognize with that
+i have this code 
 <script>
 window.addEventListener("DOMContentLoaded", async () => {
     const video = document.getElementById("video");
@@ -209,3 +209,5 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 });
 </script>
+
+this is my one image file name 151514-Captured.jpg , i want to test this one image now
