@@ -1,3 +1,53 @@
+function isUprightAndFrontalFace(landmarks) {
+    const nose = landmarks.getNose();
+    const leftEye = landmarks.getLeftEye();
+    const rightEye = landmarks.getRightEye();
+    const jaw = landmarks.getJawOutline();
+
+    const leftEyeCenter = averagePoint(leftEye);
+    const rightEyeCenter = averagePoint(rightEye);
+    const noseTip = nose[3];
+    const jawBottom = jaw[8];
+
+    const eyeMidY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
+    const eyeMidX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
+
+    // Check 1: Nose should be BELOW eyes
+    if (noseTip.y < eyeMidY) return false;
+
+    // Check 2: Nose should be ABOVE chin
+    if (noseTip.y > jawBottom.y - 20) return false;
+
+    // Check 3: Eyes should be roughly aligned (avoid head tilt sideways)
+    const eyeDiffY = Math.abs(leftEyeCenter.y - rightEyeCenter.y);
+    if (eyeDiffY > 10) return false;
+
+    // Check 4: Face should be centered horizontally (optional)
+    const noseXDeviation = Math.abs(noseTip.x - eyeMidX);
+    if (noseXDeviation > 20) return false;
+
+    return true;
+}
+
+function averagePoint(points) {
+    const sum = points.reduce((acc, pt) => {
+        acc.x += pt.x;
+        acc.y += pt.y;
+        return acc;
+    }, { x: 0, y: 0 });
+    return { x: sum.x / points.length, y: sum.y / points.length };
+}
+if (!isUprightAndFrontalFace(detection.landmarks)) {
+    statusText.textContent = "Face not upright or frontal. Please look straight.";
+    videoContainer.style.borderColor = "orange";
+    blinked = false;
+    blinkCount = 0;
+    requestAnimationFrame(detectBlink);
+    return;
+}
+
+
+
 function isUprightFace(landmarks) {
     const nose = landmarks.getNose();
     const leftEye = landmarks.getLeftEye();
