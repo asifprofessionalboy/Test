@@ -1,3 +1,52 @@
+ConvertedTimes AS (
+    SELECT
+        emp.PNO,
+        f.PunchDate,
+        f.FirstPunch,
+        f.LastPunch,
+
+        -- Calculate safe minutes for InTime
+        FLOOR(emp.InTime) AS InHour,
+        CASE 
+            WHEN ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0) >= 60 THEN 59
+            ELSE CAST(ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0) AS INT)
+        END AS InMinute,
+
+        -- Calculate safe minutes for OutTime
+        FLOOR(emp.OutTime) AS OutHour,
+        CASE 
+            WHEN ROUND((emp.OutTime - FLOOR(emp.OutTime)) * 60, 0) >= 60 THEN 59
+            ELSE CAST(ROUND((emp.OutTime - FLOOR(emp.OutTime)) * 60, 0) AS INT)
+        END AS OutMinute
+    FROM FilteredEmp emp
+    JOIN FirstLastPunch f ON emp.PNO = f.PNO
+),
+TimeParts AS (
+    SELECT *,
+        TIMEFROMPARTS(InHour, InMinute, 0, 0, 0) AS InTimeConverted,
+        TIMEFROMPARTS(OutHour, OutMinute, 0, 0, 0) AS OutTimeConverted
+    FROM ConvertedTimes
+),
+FinalResult AS (
+    SELECT *,
+        CASE 
+            WHEN FirstPunch > DATEADD(MINUTE, 5, InTimeConverted) THEN 'Late'
+            ELSE 'On Time'
+        END AS ArrivalStatus,
+        CASE 
+            WHEN LastPunch < DATEADD(MINUTE, -5, OutTimeConverted) THEN 'Left Early'
+            ELSE 'On Time'
+        END AS DepartureStatus
+    FROM TimeParts
+)
+SELECT *
+FROM FinalResult
+WHERE ArrivalStatus = 'Late' OR DepartureStatus = 'Left Early'
+ORDER BY PNO, PunchDate;
+
+
+
+
 this is my query 
 
 DECLARE @FromDate DATE = '2025-07-01';
