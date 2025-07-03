@@ -1,47 +1,9 @@
-WITH FirstLastPunch AS (
-    SELECT 
-        PNO,
-        CONVERT(date, PUNCHDATE) AS PunchDate,
-        MIN(CONVERT(datetime, PUNCHDATETIME)) AS FirstIn,
-        MAX(CONVERT(datetime, PUNCHDATETIME)) AS LastOut
-    FROM T_TRPUNCHDATA_EARS
-    GROUP BY PNO, CONVERT(date, PUNCHDATE)
-)
+i have these 2 tables first one is App_Empl_Master where Every Pno has InTime and OutTime like this 
+Intime    OutTime
+9.00      18.50
 
-SELECT 
-    e.PNO,
-    e.Intime,
-    e.OutTime,
-    f.PunchDate,
-    f.FirstIn,
-    f.LastOut,
+and another table is this T_TRPUNCHDATA_EARS. in this table PunchIn and PunchOut Time is Stored like this 
+PDE_PUNCHTIME and Pno column is PDE_PSRNO
+06:53
 
-    -- Early or Late Arrival
-    CASE 
-        WHEN DATEADD(minute, -5, CAST(e.Intime AS datetime)) <= CAST(f.FirstIn AS datetime)
-             AND CAST(f.FirstIn AS datetime) <= DATEADD(minute, 5, CAST(e.Intime AS datetime))
-            THEN 'On Time'
-        WHEN CAST(f.FirstIn AS datetime) < DATEADD(minute, -5, CAST(e.Intime AS datetime))
-            THEN 'Early Arrival'
-        ELSE 'Late Arrival'
-    END AS ArrivalStatus,
-
-    -- Early or Late Exit
-    CASE 
-        WHEN DATEADD(minute, -5, CAST(e.OutTime AS datetime)) <= CAST(f.LastOut AS datetime)
-             AND CAST(f.LastOut AS datetime) <= DATEADD(minute, 5, CAST(e.OutTime AS datetime))
-            THEN 'On Time'
-        WHEN CAST(f.LastOut AS datetime) > DATEADD(minute, 5, CAST(e.OutTime AS datetime))
-            THEN 'Late Exit'
-        ELSE 'Early Exit'
-    END AS ExitStatus
-
-FROM App_Empl_Master e
-JOIN FirstLastPunch f ON e.PNO = f.PNO
-
-
-
-
-i have this table App_Empl_Master in this there is 2 columns Intime and OutTime of Every Pno and this is my 2nd table 
-select * from T_TRPUNCHDATA_EARS
-in this everyday punchData of the Users are there , i want a query to get that how many users are arrive before 5 minutes and late after 5 minutes , and same for punchOut , apply first in last out with these requirement
+i want to find out that if a user has InTime is 9.00 and he comes at 9:05 and also OutTime is 18:50 and he is gone at 18:45 i want to find that
