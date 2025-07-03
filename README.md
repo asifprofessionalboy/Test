@@ -1,3 +1,69 @@
+DECLARE @FromDate DATE = '2025-06-01';
+DECLARE @ToDate DATE = '2025-06-30';
+
+WITH PunchData AS (
+    SELECT
+        PDE_PSRNO AS PNO,
+        TRY_CAST(PDE_PUNCHTIME AS TIME) AS PunchTime,
+        PDE_PUNCHDATE AS PunchDate
+    FROM T_TRPUNCHDATA_EARS
+    WHERE PDE_PUNCHDATE BETWEEN @FromDate AND @ToDate
+      AND ISDATE(PDE_PUNCHTIME) = 1
+),
+ValidPunches AS (
+    SELECT *
+    FROM PunchData
+    WHERE PunchTime IS NOT NULL
+),
+FirstPunch AS (
+    SELECT
+        PNO,
+        PunchDate,
+        MIN(PunchTime) AS FirstIn
+    FROM ValidPunches
+    GROUP BY PNO, PunchDate
+),
+FilteredEmp AS (
+    SELECT *
+    FROM App_Empl_Master
+    WHERE Shift NOT IN ('U','V','W','X','Y','Z')
+      AND InTime IS NOT NULL
+),
+FinalResult AS (
+    SELECT 
+        emp.PNO,
+        f.PunchDate,
+        f.FirstIn,
+
+        -- Convert decimal InTime to TIME safely
+        TIMEFROMPARTS(
+            FLOOR(emp.InTime),
+            CAST(
+                CASE 
+                    WHEN ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0) >= 60 THEN 59
+                    ELSE ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0)
+                END AS INT
+            ),
+            0, 0, 0
+        ) AS InTimeConverted
+    FROM FilteredEmp emp
+    JOIN FirstPunch f ON emp.PNO = f.PNO
+)
+SELECT *,
+    CASE 
+        WHEN FirstIn < DATEADD(MINUTE, -5, InTimeConverted) THEN 'Early'
+        WHEN FirstIn > DATEADD(MINUTE, 5, InTimeConverted) THEN 'Late'
+        ELSE 'On Time'
+    END AS PunchStatus
+FROM FinalResult
+WHERE FirstIn < DATEADD(MINUTE, -5, InTimeConverted)
+   OR FirstIn > DATEADD(MINUTE, 5, InTimeConverted)
+ORDER BY PNO, PunchDate;
+
+
+
+
+
 now this is working fine, i want to make changes in this query to fetch that there is only for InPunch means firstIn value i want , who is coming 5 minutes before and 5 min late of their InTime And OutTime and there is column Shift if the user has U,V,W,x,y and z in their shift then skip them because they has flexy time. and make my query simple like normal user writes it 
 DECLARE @FromDate DATE = '2025-06-01';
 DECLARE @ToDate DATE = '2025-06-30';
