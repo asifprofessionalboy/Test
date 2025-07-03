@@ -1,3 +1,6 @@
+getting this error 
+The data types datetime and time are incompatible in the less than operator.
+
 WITH PunchData AS (
     SELECT
         PDE_PSRNO AS PNO,
