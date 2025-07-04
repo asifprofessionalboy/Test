@@ -1,3 +1,19 @@
+public static Bitmap MatToBitmap(Mat mat)
+{
+    using (VectorOfByte vb = new VectorOfByte())
+    {
+        CvInvoke.Imencode(".bmp", mat, vb);
+        using (MemoryStream ms = new MemoryStream(vb.ToArray()))
+        {
+            return new Bitmap(ms);
+        }
+    }
+}
+
+
+
+
+
 this is my full code 
   private bool VerifyFace(Bitmap captured, Bitmap stored)
         {
