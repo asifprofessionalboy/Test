@@ -1,3 +1,8 @@
+git clone https://github.com/foamliu/MobileFaceNet.git
+cd MobileFaceNet
+
+
+
 https://yakhyo.github.io/facial-analysis/?utm_source=chatgpt.com
 
 https://arxiv.org/abs/1804.07573?utm_source=chatgpt.com
