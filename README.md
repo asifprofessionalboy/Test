@@ -1,3 +1,37 @@
+public static Bitmap MatToBitmap(Mat mat)
+{
+    return mat.ToImage<Bgr, byte>().ToBitmap();
+}
+
+private float[] RunFaceNetEmbedding(Mat faceMat, string modelPath)
+{
+    Bitmap resizedBmp = MatToBitmap(faceMat);
+
+    var input = new DenseTensor<float>(new[] { 1, 3, 160, 160 });
+
+    for (int y = 0; y < 160; y++)
+    {
+        for (int x = 0; x < 160; x++)
+        {
+            var pixel = resizedBmp.GetPixel(x, y);
+            input[0, 0, y, x] = (pixel.R / 127.5f) - 1.0f;
+            input[0, 1, y, x] = (pixel.G / 127.5f) - 1.0f;
+            input[0, 2, y, x] = (pixel.B / 127.5f) - 1.0f;
+        }
+    }
+
+    using var session = new InferenceSession(modelPath);
+    var inputs = new List<NamedOnnxValue>
+    {
+        NamedOnnxValue.CreateFromTensor("input", input)
+    };
+
+    using var results = session.Run(inputs);
+    return results.First().AsEnumerable<float>().ToArray();
+}
+
+
+
 this is my full code i am getting the same error on this line 
 mat.Bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
 'Mat' does not contain a definition for 'Bitmap' and no accessible extension method 'Bitmap' accepting a first argument of type 'Mat' could be found (are you missing a using directive or an assembly reference?)
