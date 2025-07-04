@@ -1,3 +1,23 @@
+i have this old BitmaptoMat is this works for that? 
+ private Mat BitmapToMat(Bitmap bitmap)
+ {
+     using (MemoryStream ms = new MemoryStream())
+     {
+         bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+         byte[] imageData = ms.ToArray();
+
+         Mat mat = new Mat();
+         CvInvoke.Imdecode(new VectorOfByte(imageData), ImreadModes.Color, mat);
+
+         if (mat.IsEmpty)
+         {
+             Console.WriteLine("Error: Image conversion failed!");
+         }
+
+         return mat;
+     }
+ }
+
 public static Bitmap MatToBitmap(Mat mat)
 {
     return mat.ToImage<Bgr, byte>().ToBitmap();
