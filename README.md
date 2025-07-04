@@ -1,141 +1,180 @@
-DECLARE @FromDate DATE = '2025-06-01';
-DECLARE @ToDate DATE = '2025-06-30';
+this is my full code to implement ONNX for Face recognition ,
+please provide full code according to this and also Dnn
 
-WITH PunchData AS (
-    SELECT
-        PDE_PSRNO AS PNO,
-        TRY_CAST(PDE_PUNCHTIME AS TIME) AS PunchTime,
-        PDE_PUNCHDATE AS PunchDate
-    FROM T_TRPUNCHDATA_EARS
-    WHERE PDE_PUNCHDATE BETWEEN @FromDate AND @ToDate
-      AND ISDATE(PDE_PUNCHTIME) = 1
-),
-ValidPunches AS (
-    SELECT *
-    FROM PunchData
-    WHERE PunchTime IS NOT NULL
-),
-FirstPunch AS (
-    SELECT
-        PNO,
-        PunchDate,
-        MIN(PunchTime) AS FirstIn
-    FROM ValidPunches
-    GROUP BY PNO, PunchDate
-),
-FilteredEmp AS (
-    SELECT *
-    FROM App_Empl_Master
-    WHERE Shift NOT IN ('U','V','W','X','Y','Z')
-      AND InTime IS NOT NULL
-),
-FinalResult AS (
-    SELECT 
-        emp.PNO,
-        f.PunchDate,
-        f.FirstIn,
+  [HttpPost]
+  public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+  {
+      try
+      {
+          var UserId = HttpContext.Request.Cookies["Session"];
+          var UserName = HttpContext.Request.Cookies["UserName"];
+          if (string.IsNullOrEmpty(UserId))
+              return Json(new { success = false, message = "User session not found!" });
 
-        -- Convert decimal InTime to TIME safely
-        TIMEFROMPARTS(
-            FLOOR(emp.InTime),
-            CAST(
-                CASE 
-                    WHEN ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0) >= 60 THEN 59
-                    ELSE ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0)
-                END AS INT
-            ),
-            0, 0, 0
-        ) AS InTimeConverted
-    FROM FilteredEmp emp
-    JOIN FirstPunch f ON emp.PNO = f.PNO
-)
-SELECT *,
-    CASE 
-        WHEN FirstIn < DATEADD(MINUTE, -5, InTimeConverted) THEN 'Early'
-        WHEN FirstIn > DATEADD(MINUTE, 5, InTimeConverted) THEN 'Late'
-        ELSE 'On Time'
-    END AS PunchStatus
-FROM FinalResult
-WHERE FirstIn < DATEADD(MINUTE, -5, InTimeConverted)
-   OR FirstIn > DATEADD(MINUTE, 5, InTimeConverted)
-ORDER BY PNO, PunchDate;
+          string Pno = UserId;
+          string Name = UserName;
+
+         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+          string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+
+        
+
+          if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+          {
+              return Json(new { success = false, message = "No reference image found to verify face!" });
+          }
+
+          string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+         
+          SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+          bool isFaceMatched = false;
+
+          using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+          {
+              if (System.IO.File.Exists(storedImagePath))
+              {
+                  using (Bitmap stored = new Bitmap(storedImagePath))
+                  {
+                      isFaceMatched = VerifyFace(tempCaptured, stored);
+                  }
+              }
+
+              if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+              {
+                  using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                  {
+                      isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                  }
+              }
+          }
+
+          System.IO.File.Delete(tempCapturedPath);
+
+          string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+          string currentTime = DateTime.Now.ToString("HH:mm");
+
+         
+              DateTime today = DateTime.Today;
+
+              var record = context.AppFaceVerificationDetails
+                  .FirstOrDefault(x => x.Pno == Pno && x.DateAndTime.Value.Date == today);
+
+              if (record == null)
+              {
+                  record = new AppFaceVerificationDetail
+                  {
+                      Pno = Pno,
+                      PunchInFailedCount = 0,
+                      PunchOutFailedCount = 0,
+                      PunchInSuccess = false,
+                      PunchOutSuccess = false
+                  };
+                  context.AppFaceVerificationDetails.Add(record);
+              }
+
+              if (isFaceMatched)
+              {
+                  if (model.Type == "Punch In")
+                  {
+                      string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                      SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                      StoreData(currentDate, currentTime, null, Pno);
+
+                      record.PunchInSuccess = true;
+                  }
+                  else
+                  {
+                      StoreData(currentDate, null, currentTime, Pno);
+
+                      record.PunchOutSuccess = true;
+                  }
+
+                  context.SaveChanges();
+                  return Json(new { success = true, message = "Attendance recorded successfully." });
+              }
+              else
+              {
+                  if (model.Type == "Punch In")
+                      record.PunchInFailedCount = (record.PunchInFailedCount ?? 0) + 1;
+                  else
+                      record.PunchOutFailedCount = (record.PunchOutFailedCount ?? 0) + 1;
+
+                  context.SaveChanges();
+                  return Json(new { success = false, message = "Face does not match!" });
+              }
+          
+      }
+      catch (Exception ex)
+      {
+          return Json(new { success = false, message = ex.Message });
+      }
+  }
 
 
 
 
+  private bool VerifyFace(Bitmap captured, Bitmap stored)
+  {
+      try
+      {
+          Mat matCaptured = BitmapToMat(captured);
+          Mat matStored = BitmapToMat(stored);
 
-now this is working fine, i want to make changes in this query to fetch that there is only for InPunch means firstIn value i want , who is coming 5 minutes before and 5 min late of their InTime And OutTime and there is column Shift if the user has U,V,W,x,y and z in their shift then skip them because they has flexy time. and make my query simple like normal user writes it 
-DECLARE @FromDate DATE = '2025-06-01';
-DECLARE @ToDate DATE = '2025-06-30';
 
-WITH PunchData AS (
-    SELECT
-        PDE_PSRNO AS PNO,
-        TRY_CAST(PDE_PUNCHTIME AS TIME) AS PunchTime,
-        PDE_PUNCHDATE AS PunchDate
-    FROM T_TRPUNCHDATA_EARS
-    WHERE PDE_PUNCHDATE BETWEEN @FromDate AND @ToDate
-      AND ISDATE(PDE_PUNCHTIME) = 1 
-),
-ValidPunchData AS (
-    SELECT *
-    FROM PunchData
-    WHERE PunchTime IS NOT NULL
-),
-FirstLastPunch AS (
-    SELECT
-        PNO,
-        PunchDate,
-        MIN(PunchTime) AS FirstPunch,
-        MAX(PunchTime) AS LastPunch
-    FROM ValidPunchData
-    GROUP BY PNO, PunchDate
-),
-ConvertedTimes AS (
-    SELECT
-        emp.PNO,
-        f.PunchDate,
-        f.FirstPunch,
-        f.LastPunch,
+          CvInvoke.CvtColor(matCaptured, matCaptured, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
+          CvInvoke.CvtColor(matStored, matStored, Emgu.CV.CvEnum.ColorConversion.Bgr2Gray);
 
-        TIMEFROMPARTS(
-            FLOOR(emp.InTime),
-            CAST(
-                CASE 
-                    WHEN ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0) >= 60 THEN 59
-                    ELSE ROUND((emp.InTime - FLOOR(emp.InTime)) * 60, 0)
-                END AS INT
-            ),
-            0, 0, 0
-        ) AS InTimeConverted,
 
-        TIMEFROMPARTS(
-            FLOOR(emp.OutTime),
-            CAST(
-                CASE 
-                    WHEN ROUND((emp.OutTime - FLOOR(emp.OutTime)) * 60, 0) >= 60 THEN 59
-                    ELSE ROUND((emp.OutTime - FLOOR(emp.OutTime)) * 60, 0)
-                END AS INT
-            ),
-            0, 0, 0
-        ) AS OutTimeConverted
+          string cascadePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Cascades/haarcascade_frontalface_default.xml");
+          if (!System.IO.File.Exists(cascadePath))
+          {
+              Console.WriteLine("Error: Haarcascade file not found!");
+              return false;
+          }
 
-    FROM App_Empl_Master emp
-    JOIN FirstLastPunch f ON emp.PNO = f.PNO
-),
-FinalResult AS (
-    SELECT *,
-        CASE 
-            WHEN FirstPunch > DATEADD(MINUTE, 5, InTimeConverted) THEN 'Late'
-            ELSE 'On Time'
-        END AS ArrivalStatus,
-        CASE 
-            WHEN LastPunch < DATEADD(MINUTE, -5, OutTimeConverted) THEN 'Left Early'
-            ELSE 'On Time'
-        END AS DepartureStatus
-    FROM ConvertedTimes
-)
-SELECT *
-FROM FinalResult
-WHERE ArrivalStatus = 'Late' OR DepartureStatus = 'Left Early'
-ORDER BY PNO, PunchDate;
+          CascadeClassifier faceCascade = new CascadeClassifier(cascadePath);
+          Rectangle[] capturedFaces = faceCascade.DetectMultiScale(matCaptured, 1.1, 5);
+          Rectangle[] storedFaces = faceCascade.DetectMultiScale(matStored, 1.1, 5);
+
+
+          if (capturedFaces.Length == 0 || storedFaces.Length == 0)
+          {
+              Console.WriteLine("No face detected in one or both images.");
+              return false;
+          }
+
+
+
+
+          Mat capturedFace = new Mat(matCaptured, capturedFaces[0]);
+          Mat storedFace = new Mat(matStored, storedFaces[0]);
+
+
+          CvInvoke.Resize(capturedFace, capturedFace, new Size(100, 100));
+          CvInvoke.Resize(storedFace, storedFace, new Size(100, 100));
+
+
+          using (var faceRecognizer = new LBPHFaceRecognizer(1, 8, 8, 8, 97))
+          {
+              CvInvoke.EqualizeHist(capturedFace, capturedFace);
+              CvInvoke.EqualizeHist(storedFace, storedFace);
+
+              VectorOfMat trainingImages = new VectorOfMat();
+              trainingImages.Push(storedFace);
+              VectorOfInt labels = new VectorOfInt(new int[] { 1 });
+
+              faceRecognizer.Train(trainingImages, labels);
+              var result = faceRecognizer.Predict(capturedFace);
+
+              Console.WriteLine($"Prediction Label: {result.Label}, Distance: {result.Distance}");
+
+              return result.Label == 1 && result.Distance <= 97;
+          }
+      }
+      catch (Exception ex)
+      {
+          return false;
+      }
+  }
