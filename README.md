@@ -1,3 +1,37 @@
+public static Bitmap MatToBitmap(Mat mat)
+{
+    using (MemoryStream ms = new MemoryStream())
+    {
+        mat.Bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+        return new Bitmap(ms);
+    }
+}
+
+Bitmap resizedBmp = MatToBitmap(face);
+private float[] RunFaceNetEmbedding(Bitmap bmp, string modelPath)
+{
+    var input = new DenseTensor<float>(new[] { 1, 3, 160, 160 });
+
+    for (int y = 0; y < 160; y++)
+    {
+        for (int x = 0; x < 160; x++)
+        {
+            var pixel = bmp.GetPixel(x, y);
+            input[0, 0, y, x] = (pixel.R / 127.5f) - 1.0f;
+            input[0, 1, y, x] = (pixel.G / 127.5f) - 1.0f;
+            input[0, 2, y, x] = (pixel.B / 127.5f) - 1.0f;
+        }
+    }
+
+    using var session = new InferenceSession(modelPath);
+    var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input", input) };
+    using var results = session.Run(inputs);
+    return results.First().AsEnumerable<float>().ToArray();
+}
+
+
+
+
 Mat detection = net.Forward();
 float[,,,] data = (float[,,,])detection.GetData();
 
