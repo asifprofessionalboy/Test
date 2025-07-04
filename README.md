@@ -1,3 +1,9 @@
+https://yakhyo.github.io/facial-analysis/?utm_source=chatgpt.com
+
+https://arxiv.org/abs/1804.07573?utm_source=chatgpt.com
+
+
+
 https://github.com/onnx/models/raw/main/vision/body_analysis/facenet/model/facenet.onnx
 
 
