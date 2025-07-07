@@ -1,3 +1,38 @@
+private void SaveBase64ImageToFile(string base64String, string filePath)
+{
+    try
+    {
+        if (string.IsNullOrWhiteSpace(base64String) || !base64String.Contains(","))
+            throw new ArgumentException("Invalid base64 string");
+
+        string base64Data = base64String.Split(',')[1];
+
+        if (string.IsNullOrWhiteSpace(base64Data))
+            throw new ArgumentException("Base64 image data is empty");
+
+        byte[] imageBytes = Convert.FromBase64String(base64Data);
+
+        using (MemoryStream ms = new MemoryStream(imageBytes))
+        {
+            using (Bitmap bmp = new Bitmap(ms))
+            {
+                bmp.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Error saving Base64 image to file: " + ex.Message);
+        throw; // Optional: rethrow if you want to see it in the calling method
+    }
+}
+Console.WriteLine("Base64 image starts with: " + base64String.Substring(0, Math.Min(50, base64String.Length)));
+
+console.log("ImageData length:", imageData.length);
+console.log("ImageData preview:", imageData.substring(0, 100));
+
+
+
 this is my js
 <script>
     const video = document.getElementById("video");
