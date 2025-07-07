@@ -1,3 +1,7 @@
+https://github.com/zheshipinyinMc/arcface_retinaface_mxnet2onnx/raw/master/Arcface/mobilefacenet-res2-6-10-2-dim512/onnx/modelnew2_onnx.onnx
+
+
+
 getting this error
 
 Microsoft.ML.OnnxRuntime.OnnxRuntimeException: '[ErrorCode:InvalidArgument] Got invalid dimensions for input: input for the following indices
