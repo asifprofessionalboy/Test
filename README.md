@@ -1,112 +1,39 @@
-in this logic i am using a hardcoded image for testing , is this working or not ?
- [HttpPost]
- public IActionResult AttendanceData([FromBody] AttendanceRequest model)
- {
-     try
-     {
-         var UserId = HttpContext.Request.Cookies["Session"];
-         var UserName = HttpContext.Request.Cookies["UserName"];
-         if (string.IsNullOrEmpty(UserId))
-             return Json(new { success = false, message = "User session not found!" });
+on this line of code i am getting false result , it is goes inside the catch
 
-         string Pno = UserId;
-         string Name = UserName;
+var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
 
-        //string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
-        // string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+this is my full code
+  private float[] ExtractFaceEmbedding(Bitmap image)
+  {
+      string protoPath = Path.Combine("wwwroot", "Cascades", "deploy.prototxt");
+      string modelPath = Path.Combine("wwwroot", "Cascades", "res10_300x300_ssd_iter_140000.caffemodel");
+      string faceNetPath = Path.Combine("wwwroot", "Cascades", "facenet.onnx");
 
-         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"151514-Shashi Kumar.jpg");
-         string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"151514-Shashi Kumar.jpg");
+      var mat = BitmapToMat(image);
+      var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+      var blob = DnnInvoke.BlobFromImage(mat, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
+      net.SetInput(blob);
 
-         if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
-         {
-             return Json(new { success = false, message = "No reference image found to verify face!" });
-         }
+      Mat detection = net.Forward();
+      float[,,,] data = (float[,,,])detection.GetData();
 
-         string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"151514-Shashi Kumar.jpg");
-        
-         SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+      for (int i = 0; i < data.GetLength(2); i++)
+      {
+          float confidence = data[0, 0, i, 2];
 
-         bool isFaceMatched = false;
+          if (confidence > 0.6f)
+          {
+              int x1 = (int)(data[0, 0, i, 3] * mat.Cols);
+              int y1 = (int)(data[0, 0, i, 4] * mat.Rows);
+              int x2 = (int)(data[0, 0, i, 5] * mat.Cols);
+              int y2 = (int)(data[0, 0, i, 6] * mat.Rows);
 
-         using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
-         {
-             if (System.IO.File.Exists(storedImagePath))
-             {
-                 using (Bitmap stored = new Bitmap(storedImagePath))
-                 {
-                     isFaceMatched = VerifyFace(tempCaptured, stored);
-                 }
-             }
+              Rectangle faceRect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+              Mat face = new Mat(mat, faceRect);
+              CvInvoke.Resize(face, face, new Size(160, 160));
+              return RunFaceNetEmbedding(face, faceNetPath);
+          }
+      }
 
-             if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
-             {
-                 using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
-                 {
-                     isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
-                 }
-             }
-         }
-
-         //System.IO.File.Delete(tempCapturedPath);
-
-         string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
-         string currentTime = DateTime.Now.ToString("HH:mm");
-
-        
-             DateTime today = DateTime.Today;
-
-             var record = context.AppFaceVerificationDetails
-                 .FirstOrDefault(x => x.Pno == Pno && x.DateAndTime.Value.Date == today);
-
-             if (record == null)
-             {
-                 record = new AppFaceVerificationDetail
-                 {
-                     Pno = Pno,
-                     PunchInFailedCount = 0,
-                     PunchOutFailedCount = 0,
-                     PunchInSuccess = false,
-                     PunchOutSuccess = false
-                 };
-                 context.AppFaceVerificationDetails.Add(record);
-             }
-
-             if (isFaceMatched)
-             {
-                 if (model.Type == "Punch In")
-                 {
-                     string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
-                     SaveBase64ImageToFile(model.ImageData, newCapturedPath);
-
-                     StoreData(currentDate, currentTime, null, Pno);
-
-                     record.PunchInSuccess = true;
-                 }
-                 else
-                 {
-                     StoreData(currentDate, null, currentTime, Pno);
-
-                     record.PunchOutSuccess = true;
-                 }
-
-                 context.SaveChanges();
-                 return Json(new { success = true, message = "Attendance recorded successfully." });
-             }
-             else
-             {
-                 if (model.Type == "Punch In")
-                     record.PunchInFailedCount = (record.PunchInFailedCount ?? 0) + 1;
-                 else
-                     record.PunchOutFailedCount = (record.PunchOutFailedCount ?? 0) + 1;
-
-                 context.SaveChanges();
-                 return Json(new { success = false, message = "Face does not match!" });
-             }
-         
-     }
-     catch (Exception ex)
-     {
-         return Json(new { success = false, message = ex.Message });
-     }
- }
+      return null;
+  }
