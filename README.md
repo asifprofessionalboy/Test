@@ -1,3 +1,12 @@
+getting this error
+
+Microsoft.ML.OnnxRuntime.OnnxRuntimeException: '[ErrorCode:InvalidArgument] Got invalid dimensions for input: input for the following indices
+ index: 2 Got: 160 Expected: 368
+ index: 3 Got: 160 Expected: 368
+ Please fix either the inputs/outputs or the model.'
+
+
+
 on this line of code i am getting false result , it is goes inside the catch
 
 var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
