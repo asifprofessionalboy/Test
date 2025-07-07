@@ -1,3 +1,67 @@
+private float[] ExtractFaceEmbedding(Bitmap image)
+{
+    string protoPath = Path.Combine("wwwroot", "Cascades", "deploy.prototxt");
+    string modelPath = Path.Combine("wwwroot", "Cascades", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
+    string faceNetPath = Path.Combine("wwwroot", "Cascades", "modelnew2_onnx.onnx"); // <-- New small ONNX model
+
+    var mat = BitmapToMat(image);
+    var net = DnnInvoke.ReadNetFromCaffe(protoPath, modelPath);
+    var blob = DnnInvoke.BlobFromImage(mat, 1.0, new Size(300, 300), new MCvScalar(104, 177, 123));
+    net.SetInput(blob);
+
+    Mat detection = net.Forward();
+    float[,,,] data = (float[,,,])detection.GetData();
+
+    for (int i = 0; i < data.GetLength(2); i++)
+    {
+        float confidence = data[0, 0, i, 2];
+
+        if (confidence > 0.6f)
+        {
+            int x1 = (int)(data[0, 0, i, 3] * mat.Cols);
+            int y1 = (int)(data[0, 0, i, 4] * mat.Rows);
+            int x2 = (int)(data[0, 0, i, 5] * mat.Cols);
+            int y2 = (int)(data[0, 0, i, 6] * mat.Rows);
+
+            Rectangle faceRect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+            Mat face = new Mat(mat, faceRect);
+            CvInvoke.Resize(face, face, new Size(112, 112)); // <-- Match model input
+            return RunFaceNetEmbedding(face, faceNetPath);
+        }
+    }
+
+    return null;
+}
+private float[] RunFaceNetEmbedding(Mat faceMat, string modelPath)
+{
+    Bitmap resizedBmp = MatToBitmap(faceMat);
+    var input = new DenseTensor<float>(new[] { 1, 3, 112, 112 }); // <-- Updated shape
+
+    for (int y = 0; y < 112; y++)
+    {
+        for (int x = 0; x < 112; x++)
+        {
+            var pixel = resizedBmp.GetPixel(x, y);
+            input[0, 0, y, x] = (pixel.R / 127.5f) - 1.0f;
+            input[0, 1, y, x] = (pixel.G / 127.5f) - 1.0f;
+            input[0, 2, y, x] = (pixel.B / 127.5f) - 1.0f;
+        }
+    }
+
+    var inputs = new List<NamedOnnxValue>
+    {
+        NamedOnnxValue.CreateFromTensor("input", input) // <-- confirm name is "input"
+    };
+
+    using var session = new InferenceSession(modelPath);
+    using var results = session.Run(inputs);
+
+    return results.First().AsEnumerable<float>().ToArray();
+}
+
+
+
+
 now i am finally get the model ,modelnew2_onnx.onnx.
 now i have this current code please make changes that is necessary
 
