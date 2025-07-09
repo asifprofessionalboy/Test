@@ -1,4 +1,22 @@
-if (detection) {
+function isFaceCentered(box, tolerance = 0.3) {
+    const frameCenterX = video.videoWidth / 2;
+    const frameCenterY = video.videoHeight / 2;
+
+    const faceCenterX = box.x + box.width / 2;
+    const faceCenterY = box.y + box.height / 2;
+
+    const offsetX = Math.abs(faceCenterX - frameCenterX) / video.videoWidth;
+    const offsetY = Math.abs(faceCenterY - frameCenterY) / video.videoHeight;
+
+    return offsetX < tolerance && offsetY < tolerance;
+}
+
+
+
+
+
+
+mif (detection) {
     const box = detection.detection.box;
 
     if (!isFaceCentered(box)) {
