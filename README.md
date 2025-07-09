@@ -1,3 +1,25 @@
+function getFaceAngleDegrees(leftEye, rightEye) {
+    const dx = rightEye[0].x - leftEye[0].x;
+    const dy = rightEye[0].y - leftEye[0].y;
+    return Math.atan2(dy, dx) * (180 / Math.PI);
+}
+
+const leftEye = detection.landmarks.getLeftEye();
+const rightEye = detection.landmarks.getRightEye();
+
+const faceAngle = getFaceAngleDegrees(leftEye, rightEye);
+if (Math.abs(faceAngle) > 10) {
+    statusText.textContent = "Please keep your head upright and straight";
+    videoContainer.style.borderColor = "orange";
+    blinked = false;
+    blinkCount = 0;
+    requestAnimationFrame(detectBlink);
+    return;
+}
+
+
+
+
 function isFaceCentered(box, tolerance = 0.3) {
     const frameCenterX = video.videoWidth / 2;
     const frameCenterY = video.videoHeight / 2;
