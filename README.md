@@ -1,3 +1,24 @@
+if (detection) {
+    const box = detection.detection.box;
+
+    if (!isFaceCentered(box)) {
+        statusText.textContent = "Align your face in center of camera";
+        videoContainer.style.borderColor = "orange";
+        blinked = false;
+        blinkCount = 0;
+        requestAnimationFrame(detectBlink);
+        return;
+    }
+
+    const leftEye = detection.landmarks.getLeftEye();
+    const rightEye = detection.landmarks.getRightEye();
+    const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2.0;
+
+    // ... rest of your blink logic
+}
+
+
+
 this is my js 
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
