@@ -1,3 +1,38 @@
+let eyeClosed = false;
+let blinkStartTime = 0;
+
+if (avgEAR < EAR_THRESHOLD) {
+    if (!eyeClosed) {
+        eyeClosed = true;
+        blinkCount++;
+
+        if (blinkCount === 1) {
+            blinkStartTime = now;
+        }
+
+        if (blinkCount === 2 && now - blinkStartTime <= DOUBLE_BLINK_WINDOW) {
+            blinked = true;
+            blinkValidUntil = now + ALLOW_SUBMIT_DURATION;
+            blinkCount = 0;
+            eyeClosed = false;
+
+            showGreenBorder();
+            setTimeout(captureImage, 500); // delay after blink
+            startCountdown();
+        }
+
+        if (blinkCount > 2 || now - blinkStartTime > DOUBLE_BLINK_WINDOW) {
+            blinkCount = 0;
+            eyeClosed = false;
+        }
+
+        lastEARBelowThresholdTime = now;
+    }
+} else {
+    eyeClosed = false;
+}
+
+
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
