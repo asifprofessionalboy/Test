@@ -1,3 +1,61 @@
+if (detection) {
+    const box = detection.detection.box;
+
+    if (!isFaceCentered(box)) {
+        statusText.textContent = "Align your face in center of camera";
+        videoContainer.style.borderColor = "orange";
+        blinked = false;
+        blinkCount = 0;
+        requestAnimationFrame(detectBlink);
+        return;
+    }
+
+    const leftEye = detection.landmarks.getLeftEye();
+    const rightEye = detection.landmarks.getRightEye();
+    const angle = getFaceAngleDegrees(leftEye, rightEye);
+    if (Math.abs(angle) > 10) {
+        statusText.textContent = "Please keep your head straight (no side tilt)";
+        videoContainer.style.borderColor = "orange";
+        blinked = false;
+        blinkCount = 0;
+        requestAnimationFrame(detectBlink);
+        return;
+    }
+
+    if (!isHeadUpright(detection.landmarks)) {
+        statusText.textContent = "Please keep your head straight (no up/down tilt)";
+        videoContainer.style.borderColor = "orange";
+        blinked = false;
+        blinkCount = 0;
+        requestAnimationFrame(detectBlink);
+        return;
+    }
+
+    // Proceed with EAR calculation and blink logic...
+}
+
+function isHeadUpright(landmarks, maxTilt = 0.08) {
+    const nose = landmarks.getNose();      // 0 to 8 (nose bridge down to base)
+    const chin = landmarks.positions[8];   // Tip of the chin
+    const leftEye = landmarks.getLeftEye();
+    const rightEye = landmarks.getRightEye();
+
+    const eyeAvgY = (leftEye[1].y + rightEye[1].y) / 2;
+    const noseBaseY = nose[nose.length - 1].y;
+    const chinY = chin.y;
+
+    const upperPart = noseBaseY - eyeAvgY;   // distance between eyes and nose base
+    const lowerPart = chinY - noseBaseY;     // distance between nose base and chin
+
+    const ratio = upperPart / lowerPart;
+
+    // Upright face should have upperPart ~30-50% of lowerPart (ratio ~0.25 to 0.6)
+    return ratio > maxTilt && ratio < (1 - maxTilt); // i.e., between ~0.1 and 0.9
+}
+
+
+
+
 function getFaceAngleDegrees(leftEye, rightEye) {
     const dx = rightEye[0].x - leftEye[0].x;
     const dy = rightEye[0].y - leftEye[0].y;
