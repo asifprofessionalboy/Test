@@ -1,3 +1,51 @@
+string shutdownStartDateStr = ((TextBox)RequestGenerationRecord.Rows[0].FindControl("ShutdownDate")).Text;
+
+DateTime shutdownStartDate;
+if (DateTime.TryParse(shutdownStartDateStr, out shutdownStartDate))
+{
+    DateTime today = DateTime.Today;
+    DateTime currentTime = DateTime.Now;
+    DateTime thresholdTime = new DateTime(currentTime.Year, currentTime.Month, currentTime.Day, 12, 0, 0); // 12 PM
+    DateTime minAllowedDate = today.AddDays(2); // Shutdown must be at least 2 days later
+    DateTime lastSubmissionDate = shutdownStartDate.AddDays(-2); // Deadline = ShutdownStart - 2 days
+
+    if (shutdownStartDate < minAllowedDate)
+    {
+        lblModalTitle.Text = "Invalid Shutdown Date!";
+        lblModalTitle.ForeColor = System.Drawing.Color.Red;
+        lblModalBody.Text = "Shutdown Start Date must be at least 2 days from today.";
+        ScriptManager.RegisterStartupScript(Page, Page.GetType(), "myModal", "$('#myModal').modal();", true);
+        upModal.Update();
+        btnSave.Visible = false;
+        return;
+    }
+
+    if (today >= lastSubmissionDate && currentTime > thresholdTime)
+    {
+        lblModalTitle.Text = "Submission Closed!";
+        lblModalTitle.ForeColor = System.Drawing.Color.Red;
+        lblModalBody.Text = "You can't raise a request after 12:00 PM within 2 days of the Shutdown Start Date.";
+        ScriptManager.RegisterStartupScript(Page, Page.GetType(), "myModal", "$('#myModal').modal();", true);
+        upModal.Update();
+        btnSave.Visible = false;
+        return;
+    }
+
+    btnSave.Visible = true; // ✅ All conditions passed
+}
+else
+{
+    lblModalTitle.Text = "Invalid Date!";
+    lblModalTitle.ForeColor = System.Drawing.Color.Red;
+    lblModalBody.Text = "Please enter a valid shutdown start date.";
+    ScriptManager.RegisterStartupScript(Page, Page.GetType(), "myModal", "$('#myModal').modal();", true);
+    upModal.Update();
+    btnSave.Visible = false;
+}
+
+
+
+
 if (((DropDownList)RequestGenerationRecord.Rows[0].FindControl("ShutdownType")).SelectedValue.ToString() == "type2" && ((DropDownList)RequestGenerationRecord.Rows[0].FindControl("Department")).SelectedItem.ToString() == "PSD-SK")
                 {
                     string ShutdownStartDate= ((TextBox)RequestGenerationRecord.Rows[0].FindControl("ShutdownDate")).Text;
