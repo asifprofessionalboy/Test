@@ -1,4 +1,75 @@
-<script>
+// Step 0: Category Alias Dictionary (fix spelling/mismatch)
+Dictionary<string, string> categoryAlias = new Dictionary<string, string>
+{
+    { "SEMISKILLED", "SEMI SKILLED" },
+    { "SEMI-SKILLED", "SEMI SKILLED" },
+    { "SEMI  SKILLED", "SEMI SKILLED" },
+    { "SEMI_SKILLED", "SEMI SKILLED" },
+    { "SKILLED", "SKILLED" },
+    { "UNSKILLED", "UNSKILLED" },
+    // Add more if needed
+};
+
+List<string> validWorkOrders = new List<string>();
+
+foreach (var workOrder in workOrders)
+{
+    bool allCategoriesMet = true;
+
+    // Step 1: Filter distinctWorker for this workOrder
+    // Make sure distinctWorker is created properly for this specific workOrder
+    // Example: var distinctWorker = workerTable.Select($"WorkOrderNo = '{workOrder}'").CopyToDataTable();
+
+    var categoryCount = (from r in distinctWorker.AsEnumerable()
+                         let rawCat = r["JobMainCategory"]?.ToString().Trim().ToUpper() ?? ""
+                         let cat = categoryAlias.ContainsKey(rawCat) ? categoryAlias[rawCat] : rawCat
+                         where !string.IsNullOrWhiteSpace(cat)
+                         group r by cat into g
+                         select new
+                         {
+                             Key = g.Key,
+                             Count = g.Count()
+                         }).ToDictionary(x => x.Key, x => x.Count);
+
+    // Step 2: Filter Ds2 rows for this work order
+    var requiredRows = Ds2.Tables[0].Select($"WorkOrderNo = '{workOrder}'");
+
+    // Step 3: Compare each category's required vs actual count
+    foreach (var row in requiredRows)
+    {
+        string rawEmpType = row["EMP_TYPE"]?.ToString().Trim().ToUpper() ?? "";
+        string category = categoryAlias.ContainsKey(rawEmpType) ? categoryAlias[rawEmpType] : rawEmpType;
+
+        int requiredCount = 0;
+        if (row["Total"] != DBNull.Value && !string.IsNullOrWhiteSpace(row["Total"].ToString()))
+        {
+            int.TryParse(row["Total"].ToString(), out requiredCount);
+        }
+
+        if (requiredCount == 0)
+            continue;
+
+        int actualCount = categoryCount.ContainsKey(category) ? categoryCount[category] : 0;
+
+        Console.WriteLine($"[WorkOrder: {workOrder}] Category: {category} | Required: {requiredCount}, Actual: {actualCount}");
+
+        if (actualCount < requiredCount)
+        {
+            allCategoriesMet = false;
+            break;
+        }
+    }
+
+    // Step 4: Add to final list only if all categories matched
+    if (allCategoriesMet)
+    {
+        validWorkOrders.Add(workOrder);
+    }
+}
+
+
+
+ <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
         const canvas = document.getElementById("canvas");
