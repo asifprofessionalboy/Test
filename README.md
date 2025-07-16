@@ -1,3 +1,17 @@
+var categoryCount = (from r in distinctWorkmen.AsEnumerable()
+                     let cat = r["WorkManCategory"].ToString().Trim().ToUpper().Replace(" ", "")
+                     where !string.IsNullOrEmpty(cat)
+                     group r by cat into g
+                     select new
+                     {
+                         Key = g.Key,
+                         Count = g.Count()
+                     }).ToDictionary(x => x.Key, x => x.Count);
+
+string category = row["EMP_TYPE"].ToString().Trim().ToUpper().Replace(" ", "");
+
+
+
 PageRecordDataSet.Merge(ds);
                     // Final result variable to store valid workorders
                     List<string> validWorkOrders = new List<string>();
