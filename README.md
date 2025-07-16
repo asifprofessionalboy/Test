@@ -1,3 +1,67 @@
+// Merge PageRecordDataSet
+PageRecordDataSet.Merge(ds);
+
+// Final result variable to store valid workorders
+List<string> validWorkOrders = new List<string>();
+
+// Step 1: Get distinct WorkOrderNo
+DataView workOrderView = new DataView(PageRecordDataSet.Tables[0]);
+DataTable distinctWorkOrders = workOrderView.ToTable(true, "WorkOrderNo");
+
+foreach (DataRow woRow in distinctWorkOrders.Rows)
+{
+    string workOrder = woRow["WorkOrderNo"].ToString();
+
+    // Step 2: Get expected category-wise count from Ds2
+    DataSet Ds2 = blobj.Get_WoNo_Chk(workOrder);
+    if (Ds2 != null && Ds2.Tables.Count > 0 && Ds2.Tables[0].Rows.Count > 0)
+    {
+        // Step 3: Filter PageRecordDataSet for current WorkOrderNo
+        DataView filteredView = new DataView(PageRecordDataSet.Tables[0]);
+        filteredView.RowFilter = $"WorkOrderNo = '{workOrder}'";
+
+        // Step 4: Get distinct AadharNo and WorkManCategory for current WorkOrder
+        DataTable distinctWorkmen = filteredView.ToTable(true, "AadharNo", "WorkManCategory");
+
+        // Step 5: Count how many workmen per category
+        var categoryCount = distinctWorkmen.AsEnumerable()
+            .GroupBy(r => r.Field<string>("WorkManCategory"))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        bool allCategoriesMet = true;
+
+        foreach (DataRow row in Ds2.Tables[0].Rows)
+        {
+            string category = row["EMP_TYPE"].ToString();
+            int requiredCount = Convert.ToInt32(row["Total"]);
+
+            // Skip categories with zero requirement
+            if (requiredCount == 0)
+                continue;
+
+            int actualCount = categoryCount.ContainsKey(category) ? categoryCount[category] : 0;
+
+            if (actualCount < requiredCount)
+            {
+                allCategoriesMet = false;
+                break;
+            }
+        }
+
+        // Step 6: If all required categories are met, store workorder
+        if (allCategoriesMet)
+        {
+            validWorkOrders.Add(workOrder);
+        }
+    }
+}
+
+// Final string of valid work orders
+string validWorkOrderList = string.Join(",", validWorkOrders);
+
+
+
+
 PageRecordDataSet.Merge(ds);
 
                     //sangita_7/15/2025
