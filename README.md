@@ -1,80 +1,41 @@
-string shutdownStartDateStr = ((TextBox)RequestGenerationRecord.Rows[0].FindControl("ShutdownDate")).Text;
+PageRecordDataSet.Merge(ds);
 
-DateTime shutdownStartDate;
-if (DateTime.TryParse(shutdownStartDateStr, out shutdownStartDate))
-{
-    DateTime today = DateTime.Today;
-    DateTime currentTime = DateTime.Now;
-    DateTime thresholdTime = new DateTime(currentTime.Year, currentTime.Month, currentTime.Day, 12, 0, 0); // 12 PM
-    DateTime minAllowedDate = today.AddDays(2); // Shutdown must be at least 2 days later
-    DateTime lastSubmissionDate = shutdownStartDate.AddDays(-2); // Deadline = ShutdownStart - 2 days
+                    //sangita_7/15/2025
+                    // workman category wise checking start
 
-    if (shutdownStartDate < minAllowedDate)
-    {
-        lblModalTitle.Text = "Invalid Shutdown Date!";
-        lblModalTitle.ForeColor = System.Drawing.Color.Red;
-        lblModalBody.Text = "Shutdown Start Date must be at least 2 days from today.";
-        ScriptManager.RegisterStartupScript(Page, Page.GetType(), "myModal", "$('#myModal').modal();", true);
-        upModal.Update();
-        btnSave.Visible = false;
-        return;
-    }
+                    DataView view = new DataView(PageRecordDataSet.Tables[0]);
+                    DataTable distinctTable = view.ToTable(true, "WorkOrderNo");
 
-    if (today >= lastSubmissionDate && currentTime > thresholdTime)
-    {
-        lblModalTitle.Text = "Submission Closed!";
-        lblModalTitle.ForeColor = System.Drawing.Color.Red;
-        lblModalBody.Text = "You can't raise a request after 12:00 PM within 2 days of the Shutdown Start Date.";
-        ScriptManager.RegisterStartupScript(Page, Page.GetType(), "myModal", "$('#myModal').modal();", true);
-        upModal.Update();
-        btnSave.Visible = false;
-        return;
-    }
-
-    btnSave.Visible = true; // ✅ All conditions passed
-}
-else
-{
-    lblModalTitle.Text = "Invalid Date!";
-    lblModalTitle.ForeColor = System.Drawing.Color.Red;
-    lblModalBody.Text = "Please enter a valid shutdown start date.";
-    ScriptManager.RegisterStartupScript(Page, Page.GetType(), "myModal", "$('#myModal').modal();", true);
-    upModal.Update();
-    btnSave.Visible = false;
-}
-
-
-
-
-if (((DropDownList)RequestGenerationRecord.Rows[0].FindControl("ShutdownType")).SelectedValue.ToString() == "type2" && ((DropDownList)RequestGenerationRecord.Rows[0].FindControl("Department")).SelectedItem.ToString() == "PSD-SK")
-                {
-                    string ShutdownStartDate= ((TextBox)RequestGenerationRecord.Rows[0].FindControl("ShutdownDate")).Text;
-                    string ShutdownEndDate = ((TextBox)RequestGenerationRecord.Rows[0].FindControl("EndDate")).Text;
-                    string CurrentDate = System.DateTime.Now.ToString();
-
-                    DateTime currentTime = DateTime.Now; // Get the current server time
-                    DateTime thresholdTime = new DateTime(currentTime.Year, currentTime.Month, currentTime.Day, 12, 0, 0); // Set the threshold to 12 PM
-
-                    if (currentTime > thresholdTime)
+                    foreach (DataRow row in distinctTable.Rows)
                     {
-                        lblModalTitle.Text = "Warning!";
-                        lblModalTitle.ForeColor = System.Drawing.Color.Red;
-                        lblModalBody.Text = "You Can't Raise Request after 12:00 Pm ";
-                        ScriptManager.RegisterStartupScript(Page, Page.GetType(), "myModal", "$('#myModal').modal();", true);
-                        upModal.Update();
-                        btnSave.Visible = false;
-                        ((DropDownList)RequestGenerationRecord.Rows[0].FindControl("Department")).SelectedIndex = -1;
-                    }
-                    else
-                    {
+                        string Workorder = row["WorkOrderNo"].ToString();
 
-                        btnSave.Visible = true; // Enable the submit button
+                        DataSet Ds2 = new DataSet();
+                        Ds2 = blobj.Get_WoNo_Chk(Workorder);
+                        
+                        if (Ds2 != null && Ds2.Tables[0].Rows.Count > 0)
+                        {
+                            DataSet Ds2 = new DataSet();
+                            Ds2 = blobj.Get_WoNo_Chk(Workorder);
+                            DataView view1 = new DataView(PageRecordDataSet.Tables[0]);
+                            DataTable distinctTable1 = view.ToTable(true, "WorkOrderNo", "AadharNo", "WorkManCategory");
+                        }
+
+
                     }
 
-                }
 
-this is my textbox 
-string ShutdownStartDate= ((TextBox)RequestGenerationRecord.Rows[0].FindControl("ShutdownDate")).Text;
 
-i want this condition that minimum value of start date is 2 days after that he can maximum any date , and validate if the value of start data is 16-07-2025 then he can submit before 2 days from this date means 14 and if the start date is 17 then it validates -2 days of the start date
+here first i want to get distinct workorder from page record data set after getting workorder i want to get those workorder details which
+ shows total count of workman category now i have to pass workorder and distinct adhar no  in pagerecord data set and count how many workmancategory was there and compare this
+with total and when i found gather then total category wise then store those workorder no  over string variable
+
+i have in Ds2 data  here catory is like HIGHLYSKILLED,SKILLED,SEMISKILLED,UNSKILLED having total count also present from which i have to compare from PageRecordData data			 :
+
+AUTHOR_ADHAR_NUMBER	EMP_TYPE	Total
+385515337557	HIGHLYSKILLED	0
+385515337557	SKILLED	30
+385515337557	SEMISKILLED	30
+385515337557	UNSKILLED	10
+385515337557	OTHERS	0
 
