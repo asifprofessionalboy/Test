@@ -1,3 +1,55 @@
+// Step 1: Create dictionary with normalized category keys
+var categoryCount = (from r in distinctWorker.AsEnumerable()
+                     let cat = r["JobMainCategory"].ToString().Trim().ToUpper()
+                     group r by cat into g
+                     select new
+                     {
+                         Key = g.Key,
+                         Count = g.Count()
+                     }).ToDictionary(x => x.Key, x => x.Count);
+
+// Step 2: Check required vs actual category counts
+bool allCategoriesMet = true;
+
+foreach (DataRow row in Ds2.Tables[0].Rows)
+{
+    string category = row["EMP_TYPE"].ToString().Trim().ToUpper();  // Normalize
+    int requiredCount = 0;
+
+    // Safe parse for Total column
+    if (row["Total"] != DBNull.Value && !string.IsNullOrWhiteSpace(row["Total"].ToString()))
+    {
+        int.TryParse(row["Total"].ToString(), out requiredCount);
+    }
+
+    // Skip if nothing required
+    if (requiredCount == 0)
+        continue;
+
+    // Get actual count safely
+    int actualCount = categoryCount.ContainsKey(category) ? categoryCount[category] : 0;
+
+    // Debug print (optional)
+    Console.WriteLine($"Checking category: {category}, Required: {requiredCount}, Actual: {actualCount}");
+
+    if (actualCount < requiredCount)
+    {
+        allCategoriesMet = false;
+        break;
+    }
+}
+
+// Step 3: Add to valid list if all categories satisfied
+if (allCategoriesMet)
+{
+    validWorkOrders.Add(workOrder);
+}
+
+
+
+
+
+
 // Merge PageRecordDataSet
 PageRecordDataSet.Merge(ds);
 
