@@ -1,3 +1,17 @@
+var categoryCount = (from r in distinctWorker.AsEnumerable()
+                     let rawCat = r["JobMainCategory"] == DBNull.Value ? "" : r["JobMainCategory"].ToString()
+                     let cat = rawCat.Trim().ToUpper()
+                     where !string.IsNullOrEmpty(cat)
+                     group r by cat into g
+                     select new
+                     {
+                         Key = g.Key,
+                         Count = g.Count()
+                     }).ToDictionary(x => x.Key, x => x.Count);
+
+
+
+
 // Step 1: Create dictionary with normalized category keys
 var categoryCount = (from r in distinctWorker.AsEnumerable()
                      let cat = r["JobMainCategory"].ToString().Trim().ToUpper()
