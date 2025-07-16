@@ -1,3 +1,59 @@
+async function captureImage() {
+    const context = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    capturedImage.src = canvas.toDataURL("image/jpeg");
+    capturedImage.style.display = "block";
+    video.style.display = "none";
+
+    const result = await recognizeFace();
+
+    if (result.matched) {
+        statusText.textContent = `✅ ${result.label} - Face Matched (Distance: ${result.distance.toFixed(2)})`;
+        videoContainer.style.borderColor = "green";
+
+        if (punchInButton) punchInButton.style.display = "inline-block";
+        if (punchOutButton) punchOutButton.style.display = "inline-block";
+
+        // Keep status visible for 2.5 seconds before clearing it
+        setTimeout(() => {
+            statusText.textContent = "";
+        }, 2500);
+    } else {
+        statusText.textContent = `❌ Unknown - Face Not Recognized`;
+        videoContainer.style.borderColor = "red";
+
+        if (punchInButton) punchInButton.style.display = "none";
+        if (punchOutButton) punchOutButton.style.display = "none";
+
+        // Hide status after 2.5s and reset UI
+        setTimeout(() => {
+            statusText.textContent = "";
+            video.style.display = "block";
+            capturedImage.style.display = "none";
+        }, 2500);
+    }
+}
+
+const descriptors = [
+    await loadStoredFaceDescriptor('/images/151514-1.jpg'),
+    await loadStoredFaceDescriptor('/images/151514-2.jpg'),
+    await loadStoredFaceDescriptor('/images/151514-3.jpg')
+].filter(d => d !== null);
+
+const faceMatcher = new faceapi.FaceMatcher([
+    new faceapi.LabeledFaceDescriptors("151514", descriptors)
+], 0.4);
+
+
+
+
+
 // Step 0: Category Alias Dictionary (fix spelling/mismatch)
 Dictionary<string, string> categoryAlias = new Dictionary<string, string>
 {
