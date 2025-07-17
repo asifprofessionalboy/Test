@@ -1,3 +1,49 @@
+async function captureImage() {
+    const canvas = faceapi.createCanvasFromMedia(video);
+    const context = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const captured = await faceapi.detectSingleFace(canvas, detectorOptions).withFaceLandmarks().withFaceDescriptor();
+
+    if (!captured) {
+        alert("Face not detected in captured image");
+        resetAfterDelay();
+        return;
+    }
+
+    const match = faceMatcher.findBestMatch(captured.descriptor);
+
+    if (match.label === userId && match.distance < 0.35) {
+        statusText.textContent = `${userName} matched ✅`;
+        videoContainer.style.borderColor = "green";
+
+        // ✅ Show Punch In/Out
+        if (punchInButton) punchInButton.style.display = "inline-block";
+        if (punchOutButton) punchOutButton.style.display = "inline-block";
+
+        setTimeout(() => {
+            statusText.textContent = "";
+            videoContainer.style.borderColor = "gray";
+        }, 3000);
+    } else {
+        statusText.textContent = "Face not matched ❌";
+        videoContainer.style.borderColor = "red";
+
+        // ❌ Face not matched, wait 10s before retry
+        setTimeout(() => {
+            resetBlink();
+            statusText.textContent = "Please double blink";
+            videoContainer.style.borderColor = "red";
+            detectBlink(); // restart detection
+        }, 10000);
+    }
+}
+
+
+
+
 i have this full js make changes to this 
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
