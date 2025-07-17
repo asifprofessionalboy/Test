@@ -1,3 +1,51 @@
+async function handleDoubleBlink() {
+    statusText.innerText = "Double blink detected. Verifying face...";
+    const capturedDescriptor = await getCapturedFaceDescriptor(); // implement this if not already
+
+    if (!capturedDescriptor) {
+        statusText.innerText = "No face detected for verification.";
+        startCountdownForRetry();
+        return;
+    }
+
+    const match = faceMatcher.findBestMatch(capturedDescriptor);
+    console.log("Match Result:", match.toString());
+
+    if (match.label !== "unknown" && match.distance < 0.35) {
+        // ✅ Matched
+        statusText.innerText = `Face matched!`;
+        showPunchButton(); // ✅ Show Punch In/Out button
+        setTimeout(() => {
+            statusText.innerText = "";
+        }, 3000);
+    } else {
+        // ❌ Not matched, show countdown before next attempt
+        statusText.innerText = "Face not matched. Please wait...";
+        startCountdownForRetry();
+    }
+}
+
+function startCountdownForRetry() {
+    let countdown = 10;
+    const interval = setInterval(() => {
+        countdown--;
+        if (countdown === 0) {
+            clearInterval(interval);
+            statusText.innerText = "Please blink again.";
+            // Reset blink detection here
+            resetBlinkDetection();
+        }
+    }, 1000);
+}
+
+function showPunchButton() {
+    document.getElementById("punchButtonContainer").style.display = "block"; // show container with Punch In/Out button
+}
+
+
+
+
+
 [HttpPost]
 public IActionResult AttendanceData([FromBody] AttendanceRequest model)
 {
