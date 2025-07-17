@@ -1,50 +1,34 @@
-async function captureImage() {
-    const canvas = faceapi.createCanvasFromMedia(video);
-    const context = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+this is my form and buttons 
+<form asp-action="AttendanceData" id="form" asp-controller="Geo" method="post">
+    <div class="text-center camera">
+        <div id="videoContainer" style="display: inline-block;width: 195px; border: 4px solid transparent; border-radius: 8px; transition: border-color 0.3s ease;">
+            <video id="video" width="185" height="240" autoplay muted playsinline></video>
+            <img id="capturedImage" style="display:none; width: 186px; height: 240px; border-radius: 8px;" />
+        </div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <p id="statusText" style="font-weight: bold; margin-top: 10px; color: #444;"></p>
+    </div>
 
-    const captured = await faceapi.detectSingleFace(canvas, detectorOptions).withFaceLandmarks().withFaceDescriptor();
+    <input type="hidden" name="Type" id="EntryType" />
 
-    if (!captured) {
-        alert("Face not detected in captured image");
-        resetAfterDelay();
-        return;
-    }
+    <div class="mt-5 form-group">
+        <div class="col d-flex justify-content-center mb-4">
+            @if (ViewBag.InOut == "I")
+            {
+                <button type="button" class="Btn" id="PunchIn" onclick="captureImageAndSubmit('Punch In')">Punch In</button>
+            }
+        </div>
+        <div class="col d-flex justify-content-center">
+            @if (ViewBag.InOut == "O")
+            {
+                <button type="button" class="Btn2" id="PunchOut" onclick="captureImageAndSubmit('Punch Out')">Punch Out</button>
+            }
+        </div>
+    </div>
+</form>
 
-    const match = faceMatcher.findBestMatch(captured.descriptor);
+this is my js 
 
-    if (match.label === userId && match.distance < 0.35) {
-        statusText.textContent = `${userName} matched ✅`;
-        videoContainer.style.borderColor = "green";
-
-        // ✅ Show Punch In/Out
-        if (punchInButton) punchInButton.style.display = "inline-block";
-        if (punchOutButton) punchOutButton.style.display = "inline-block";
-
-        setTimeout(() => {
-            statusText.textContent = "";
-            videoContainer.style.borderColor = "gray";
-        }, 3000);
-    } else {
-        statusText.textContent = "Face not matched ❌";
-        videoContainer.style.borderColor = "red";
-
-        // ❌ Face not matched, wait 10s before retry
-        setTimeout(() => {
-            resetBlink();
-            statusText.textContent = "Please double blink";
-            videoContainer.style.borderColor = "red";
-            detectBlink(); // restart detection
-        }, 10000);
-    }
-}
-
-
-
-
-i have this full js make changes to this 
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
@@ -261,7 +245,7 @@ const faceMatcher = new faceapi.FaceMatcher([
 }
 
 
-     async function captureImage() {
+  async function captureImage() {
     const canvas = faceapi.createCanvasFromMedia(video);
     const context = canvas.getContext('2d');
     canvas.width = video.videoWidth;
@@ -272,45 +256,36 @@ const faceMatcher = new faceapi.FaceMatcher([
 
     if (!captured) {
         alert("Face not detected in captured image");
+        resetAfterDelay();
         return;
     }
 
-    const stored = await loadStoredFaceDescriptor(`/AS/Images/${userId}-${userName}.jpg`);
-
-    if (!stored) {
-        alert("Stored image not found or face not detected in it");
-        return;
-    }
-
-    const faceMatcher = new faceapi.FaceMatcher([new faceapi.LabeledFaceDescriptors(userId, [stored])], 0.35);
     const match = faceMatcher.findBestMatch(captured.descriptor);
 
-    if (match.label === userId) {
+    if (match.label === userId && match.distance < 0.35) {
         statusText.textContent = `${userName} matched ✅`;
         videoContainer.style.borderColor = "green";
+
+      
+        if (punchInButton) punchInButton.style.display = "inline-block";
+        if (punchOutButton) punchOutButton.style.display = "inline-block";
+
         setTimeout(() => {
             statusText.textContent = "";
             videoContainer.style.borderColor = "gray";
-        }, 2000); 
+        }, 3000);
     } else {
         statusText.textContent = "Face not matched ❌";
         videoContainer.style.borderColor = "red";
+
+        
         setTimeout(() => {
-            statusText.textContent = "";
-            videoContainer.style.borderColor = "gray";
-        }, 2000);
+            resetBlink();
+            statusText.textContent = "Please double blink";
+            videoContainer.style.borderColor = "red";
+            detectBlink(); 
+        }, 10000);
     }
-}
-
-
-        function startCountdown() {
-    blinkValidUntil = Date.now() + 10000; 
-    setTimeout(() => {
-        statusText.textContent = "Please double blink";
-        videoContainer.style.borderColor = "red";
-        resetBlink();
-        detectBlink(); 
-    }, 10000);
 }
 
 
@@ -361,41 +336,41 @@ const faceMatcher = new faceapi.FaceMatcher([
 }
 
         window.captureImageAndSubmit = async function (entryType) {
-            if (!blinked || Date.now() > blinkValidUntil) {
-                videoContainer.style.borderColor = "red";
-                statusText.textContent = "Double blink required before submitting";
-                Swal.fire({
-                    title: "Liveness Check Failed",
-                    text: "Please double blink first.",
-                    icon: "warning"
-                });
-                return;
-            }
+            // if (!blinked || Date.now() > blinkValidUntil) {
+            //     videoContainer.style.borderColor = "red";
+            //     statusText.textContent = "Double blink required before submitting";
+            //     Swal.fire({
+            //         title: "Liveness Check Failed",
+            //         text: "Please double blink first.",
+            //         icon: "warning"
+            //     });
+            //     return;
+            // }
 
-            blinked = false;
-            clearInterval(blinkCountdownInterval);
-            statusText.textContent = "";
-            videoContainer.style.borderColor = "transparent";
+            // blinked = false;
+            // clearInterval(blinkCountdownInterval);
+            // statusText.textContent = "";
+            // videoContainer.style.borderColor = "transparent";
             EntryTypeInput.value = entryType;
             const imageData = capturedImage.src;
 
             Swal.fire({
-                title: "Verifying Face...",
+                title: "Please wait...",
                 allowOutsideClick: false,
                 showConfirmButton: false,
                 didOpen: () => Swal.showLoading()
             });
 
-            const result = await recognizeFace();
+            // const result = await recognizeFace();
 
-            if (!result.matched) {
-                Swal.fire({
-                    title: "Face Not Recognized",
-                    text: result.message,
-                    icon: "error"
-                });
-                return;
-            }
+            // if (!result.matched) {
+            //     Swal.fire({
+            //         title: "Face Not Recognized",
+            //         text: result.message,
+            //         icon: "error"
+            //     });
+            //     return;
+            // }
 
             // Face matched, send to backend
             fetch("/AS/Geo/AttendanceData", {
@@ -408,7 +383,7 @@ const faceMatcher = new faceapi.FaceMatcher([
                     const now = new Date().toLocaleString();
                     if (data.success) {
                         Swal.fire({
-                            title: "Face Matched!",
+                            title: "Thank you!",
                             text: `Attendance Recorded.\nDate & Time: ${now}`,
                             icon: "success",
                             timer: 3000,
@@ -429,3 +404,151 @@ const faceMatcher = new faceapi.FaceMatcher([
         };
     });
 </script>
+
+and this is my controller code 
+
+ [HttpPost]
+ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+ {
+     try
+     {
+         var UserId = HttpContext.Request.Cookies["Session"];
+         var UserName = HttpContext.Request.Cookies["UserName"];
+         if (string.IsNullOrEmpty(UserId))
+             return Json(new { success = false, message = "User session not found!" });
+
+         
+
+
+         string Pno = UserId;
+         string Name = UserName;
+
+         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+         string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+
+        
+
+         if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+         {
+             return Json(new { success = false, message = "No reference image found to verify face!" });
+         }
+
+        
+         string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+         SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+         bool isFaceMatched = false;
+
+         using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+         {
+             if (System.IO.File.Exists(storedImagePath))
+             {
+                 using (Bitmap stored = new Bitmap(storedImagePath))
+                 {
+                     isFaceMatched = VerifyFace(tempCaptured, stored);
+                 }
+             }
+
+             if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+             {
+                 using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                 {
+                     isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                 }
+             }
+         }
+
+         System.IO.File.Delete(tempCapturedPath);
+
+         string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+         string currentTime = DateTime.Now.ToString("HH:mm");
+
+        
+             DateTime today = DateTime.Today;
+
+             var record = context.AppFaceVerificationDetails
+                 .FirstOrDefault(x => x.Pno == Pno && x.DateAndTime.Value.Date == today);
+
+             if (record == null)
+             {
+                 record = new AppFaceVerificationDetail
+                 {
+                     Pno = Pno,
+                     PunchInFailedCount = 0,
+                     PunchOutFailedCount = 0,
+                     PunchInSuccess = false,
+                     PunchOutSuccess = false
+                 };
+                 context.AppFaceVerificationDetails.Add(record);
+             }
+
+        
+         if (model.IsFaceMatched)
+         {
+             if (model.Type == "Punch In")
+             {
+                 string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                 SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                 StoreData(currentDate, currentTime, null, Pno);
+                 record.PunchInSuccess = true;
+             }
+             else
+             {
+                 StoreData(currentDate, null, currentTime, Pno);
+                 record.PunchOutSuccess = true;
+             }
+
+             context.SaveChanges();
+             return Json(new { success = true, message = "Attendance recorded successfully." });
+         }
+
+         
+
+         return Json(new { success = false, message = "Face verification failed." }); // fallback
+     
+
+
+
+             //if (isFaceMatched)
+             //{
+             //    if (model.Type == "Punch In")
+             //    {
+             //        string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+             //        SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+             //        StoreData(currentDate, currentTime, null, Pno);
+
+             //        record.PunchInSuccess = true;
+             //    }
+             //    else
+             //    {
+             //        StoreData(currentDate, null, currentTime, Pno);
+
+             //        record.PunchOutSuccess = true;
+             //    }
+
+             //    context.SaveChanges();
+             //    return Json(new { success = true, message = "Attendance recorded successfully." });
+             //}
+             //else
+             //{
+             //    if (model.Type == "Punch In")
+             //        record.PunchInFailedCount = (record.PunchInFailedCount ?? 0) + 1;
+             //    else
+             //        record.PunchOutFailedCount = (record.PunchOutFailedCount ?? 0) + 1;
+
+             //    context.SaveChanges();
+             //    return Json(new { success = false, message = "Face does not match!" });
+             //}
+         
+     }
+     catch (Exception ex)
+     {
+         return Json(new { success = false, message = ex.Message });
+     }
+ }
+
+but i am getting this error 
+Face Recognized, But Error!Server didn't accept attendance.\nDate & Time: , please resolve this issue
