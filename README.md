@@ -1,4 +1,36 @@
 if (actualCount > requiredCount)
+{
+    failedWorkorder.Add(workOrder);
+    overCountWarnings.Add($"{workOrder}|{category}|{actualCount}|{requiredCount}");
+}
+
+if (overCountWarnings.Count > 0)
+{
+    string msg = $"Mismatches of No's of workers in workers' attendance count date: {str_date_to} Against the workorder No is found in Form C3:<br><br>";
+
+    // Start HTML table
+    msg += "<table border='1' cellpadding='4' cellspacing='0' style='border-collapse:collapse;'>";
+    msg += "<tr style='background-color:#f2f2f2;'><th>WorkOrder</th><th>Category</th><th>Actual Count</th><th>Required Count</th></tr>";
+
+    foreach (string item in overCountWarnings)
+    {
+        string[] parts = item.Split('|');
+        if (parts.Length == 4)
+        {
+            msg += $"<tr><td>{parts[0]}</td><td>{parts[1]}</td><td>{parts[2]}</td><td>{parts[3]}</td></tr>";
+        }
+    }
+
+    msg += "</table>";
+
+    MyMsgBox.show(CLMS.Control.MyMsgBox.MessageType.Errors, msg);
+}
+
+
+
+
+
+if (actualCount > requiredCount)
                                 {
                                     //allCategoriesMet = false;
                                     failedWorkorder.Add(workOrder);
