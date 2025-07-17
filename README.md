@@ -1,3 +1,73 @@
+[HttpPost]
+public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+{
+    try
+    {
+        var UserId = HttpContext.Request.Cookies["Session"];
+        var UserName = HttpContext.Request.Cookies["UserName"];
+        if (string.IsNullOrEmpty(UserId))
+            return Json(new { success = false, message = "User session not found!" });
+
+        string Pno = UserId;
+        string Name = UserName;
+
+        string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+        string currentTime = DateTime.Now.ToString("HH:mm");
+        DateTime today = DateTime.Today;
+
+        var record = context.AppFaceVerificationDetails
+            .FirstOrDefault(x => x.Pno == Pno && x.DateAndTime.Value.Date == today);
+
+        if (record == null)
+        {
+            record = new AppFaceVerificationDetail
+            {
+                Pno = Pno,
+                PunchInFailedCount = 0,
+                PunchOutFailedCount = 0,
+                PunchInSuccess = false,
+                PunchOutSuccess = false
+            };
+            context.AppFaceVerificationDetails.Add(record);
+        }
+
+        // ✅ SHORT-CIRCUIT: If client already verified the face, skip server-side face match
+        if (model.IsFaceMatched)
+        {
+            if (model.Type == "Punch In")
+            {
+                string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                StoreData(currentDate, currentTime, null, Pno);
+                record.PunchInSuccess = true;
+            }
+            else
+            {
+                StoreData(currentDate, null, currentTime, Pno);
+                record.PunchOutSuccess = true;
+            }
+
+            context.SaveChanges();
+            return Json(new { success = true, message = "Attendance recorded successfully." });
+        }
+
+        // 🔁 fallback to original server-side face verification (if needed)
+        // [Your existing logic remains here]
+
+        return Json(new { success = false, message = "Face verification failed." }); // fallback
+    }
+    catch (Exception ex)
+    {
+        return Json(new { success = false, message = ex.Message });
+    }
+}
+
+
+
+
+
+
 this is my controller code ,in this when button is click this method is called and verify the face but now i want that from client side of the js if face is matched then i dont want to verify face automatically it true in IsFaceMatched
  [HttpPost]
  public IActionResult AttendanceData([FromBody] AttendanceRequest model)
