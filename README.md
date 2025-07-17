@@ -1,3 +1,62 @@
+<video id="video" autoplay muted playsinline width="300" height="225"></video>
+<canvas id="canvas" width="300" height="225" style="display:none;"></canvas>
+<button onclick="compareFace()">Compare Face</button>
+
+<script>
+  async function loadStoredDescriptor(imagePath) {
+    const img = await faceapi.fetchImage(imagePath);
+    const detection = await faceapi
+      .detectSingleFace(img)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!detection) {
+      alert("⚠️ No face detected in stored image.");
+      return null;
+    }
+    return detection.descriptor;
+  }
+
+  async function compareFace() {
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const context = canvas.getContext("2d");
+
+    // Draw current frame from video to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const liveDetection = await faceapi
+      .detectSingleFace(canvas)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!liveDetection) {
+      alert("❌ Face not detected in live webcam feed.");
+      return;
+    }
+
+    const liveDescriptor = liveDetection.descriptor;
+
+    // Load stored descriptor (change the image name as needed)
+    const storedDescriptor = await loadStoredDescriptor("/Images/151514-Shashi Kumar.jpg");
+
+    if (!storedDescriptor) return;
+
+    // Calculate Euclidean distance
+    const distance = faceapi.euclideanDistance(liveDescriptor, storedDescriptor);
+
+    if (distance < 0.35) {
+      alert(`✅ Face matched!\nDistance: ${distance.toFixed(5)}\n(This is below 0.35)`);
+    } else {
+      alert(`❌ Face not matched.\nDistance: ${distance.toFixed(5)}\n(This is above 0.35)`);
+    }
+  }
+</script>
+
+
+
+
+
 this is my full code 
 <script>
     const userId = '@ViewBag.UserId';
