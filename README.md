@@ -1,165 +1,119 @@
-let blinked = false;
-let blinkCount = 0;
-let eyeClosed = false;
-let blinkStartTime = null;
-let blinkValidUntil = null;
+this is my controller code ,in this when button is click this method is called and verify the face but now i want that from client side of the js if face is matched then i dont want to verify face automatically it true in IsFaceMatched
+ [HttpPost]
+ public IActionResult AttendanceData([FromBody] AttendanceRequest model)
+ {
+     try
+     {
+         var UserId = HttpContext.Request.Cookies["Session"];
+         var UserName = HttpContext.Request.Cookies["UserName"];
+         if (string.IsNullOrEmpty(UserId))
+             return Json(new { success = false, message = "User session not found!" });
 
-function resetBlink() {
-    blinkCount = 0;
-    eyeClosed = false;
-    blinked = false;
-    blinkStartTime = null;
-    blinkValidUntil = null;
-}
-
-function startCountdown() {
-    blinkValidUntil = Date.now() + 10000; // 10 seconds window
-    setTimeout(() => {
-        statusText.textContent = "Please double blink";
-        videoContainer.style.borderColor = "red";
-        resetBlink();
-        detectBlink(); // restart detection after 10s
-    }, 10000);
-}
-
-function showGreenBorder() {
-    videoContainer.style.borderColor = "green";
-    setTimeout(() => {
-        videoContainer.style.borderColor = "gray";
-    }, 5000);
-}
-
-async function captureImage() {
-    const canvas = faceapi.createCanvasFromMedia(video);
-    const context = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const captured = await faceapi.detectSingleFace(canvas, detectorOptions).withFaceLandmarks().withFaceDescriptor();
-
-    if (!captured) {
-        alert("Face not detected in captured image");
-        return;
-    }
-
-    const stored = await loadStoredFaceDescriptor(`/AS/Images/${userId}-${userName}.jpg`);
-
-    if (!stored) {
-        alert("Stored image not found or face not detected in it");
-        return;
-    }
-
-    const faceMatcher = new faceapi.FaceMatcher([new faceapi.LabeledFaceDescriptors(userId, [stored])], 0.35);
-    const match = faceMatcher.findBestMatch(captured.descriptor);
-
-    if (match.label === userId) {
-        statusText.textContent = `${userName} matched ✅`;
-        videoContainer.style.borderColor = "green";
-        setTimeout(() => {
-            statusText.textContent = "";
-            videoContainer.style.borderColor = "gray";
-        }, 2000); // brief display
-    } else {
-        statusText.textContent = "Face not matched ❌";
-        videoContainer.style.borderColor = "red";
-        setTimeout(() => {
-            statusText.textContent = "";
-            videoContainer.style.borderColor = "gray";
-        }, 2000);
-    }
-}
-
-async function detectBlink() {
-    const detection = await faceapi.detectSingleFace(video, detectorOptions).withFaceLandmarks();
-
-    if (detection) {
-        const box = detection.detection.box;
-
-        if (isFaceTooSmall(box)) {
-            statusText.textContent = "Move closer to the camera";
-            videoContainer.style.borderColor = "orange";
-            resetBlink();
-            requestAnimationFrame(detectBlink);
-            return;
-        }
-
-        if (!isFaceCentered(box)) {
-            statusText.textContent = "Align your face in center";
-            videoContainer.style.borderColor = "orange";
-            resetBlink();
-            requestAnimationFrame(detectBlink);
-            return;
-        }
-
-        const landmarks = detection.landmarks;
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-        const angle = getFaceAngleDegrees(leftEye, rightEye);
-
-        if (Math.abs(angle) > 10) {
-            statusText.textContent = "Keep your head straight";
-            videoContainer.style.borderColor = "orange";
-            resetBlink();
-            requestAnimationFrame(detectBlink);
-            return;
-        }
-
-        if (!isHeadUpright(landmarks)) {
-            statusText.textContent = "Keep your head upright";
-            videoContainer.style.borderColor = "orange";
-            resetBlink();
-            requestAnimationFrame(detectBlink);
-            return;
-        }
-
-        const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2.0;
-
-        if (avgEAR < EAR_THRESHOLD) {
-            if (!eyeClosed) {
-                eyeClosed = true;
-                blinkCount++;
-
-                if (blinkCount === 1) blinkStartTime = Date.now();
-
-                if (blinkCount === 2 && Date.now() - blinkStartTime <= DOUBLE_BLINK_WINDOW) {
-                    blinked = true;
-                    blinkCount = 0;
-                    eyeClosed = false;
-
-                    showGreenBorder();
-                    statusText.textContent = ""; // hide status
-                    captureImage();
-                    startCountdown(); // 10 sec lock
-                    return;
-                }
-
-                if (blinkCount > 2 || Date.now() - blinkStartTime > DOUBLE_BLINK_WINDOW) {
-                    resetBlink();
-                }
-            }
-        } else {
-            eyeClosed = false;
-        }
-
-        if (!blinked) {
-            statusText.textContent = "Please double blink";
-            videoContainer.style.borderColor = "red";
-        }
-    } else {
-        statusText.textContent = "No face detected";
-        videoContainer.style.borderColor = "gray";
-        resetBlink();
-    }
-
-    requestAnimationFrame(detectBlink);
-}
+         
 
 
+         string Pno = UserId;
+         string Name = UserName;
 
+         string storedImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-{Name}.jpg");
+         string lastCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
 
+        
 
-this is my full js 
+         if (!System.IO.File.Exists(storedImagePath) && !System.IO.File.Exists(lastCapturedPath))
+         {
+             return Json(new { success = false, message = "No reference image found to verify face!" });
+         }
+
+        
+         string tempCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured-{DateTime.Now.Ticks}.jpg");
+
+         SaveBase64ImageToFile(model.ImageData, tempCapturedPath);
+
+         bool isFaceMatched = false;
+
+         using (Bitmap tempCaptured = new Bitmap(tempCapturedPath))
+         {
+             if (System.IO.File.Exists(storedImagePath))
+             {
+                 using (Bitmap stored = new Bitmap(storedImagePath))
+                 {
+                     isFaceMatched = VerifyFace(tempCaptured, stored);
+                 }
+             }
+
+             if (!isFaceMatched && System.IO.File.Exists(lastCapturedPath))
+             {
+                 using (Bitmap lastCaptured = new Bitmap(lastCapturedPath))
+                 {
+                     isFaceMatched = VerifyFace(tempCaptured, lastCaptured);
+                 }
+             }
+         }
+
+         System.IO.File.Delete(tempCapturedPath);
+
+         string currentDate = DateTime.Now.ToString("yyyy/MM/dd");
+         string currentTime = DateTime.Now.ToString("HH:mm");
+
+        
+             DateTime today = DateTime.Today;
+
+             var record = context.AppFaceVerificationDetails
+                 .FirstOrDefault(x => x.Pno == Pno && x.DateAndTime.Value.Date == today);
+
+             if (record == null)
+             {
+                 record = new AppFaceVerificationDetail
+                 {
+                     Pno = Pno,
+                     PunchInFailedCount = 0,
+                     PunchOutFailedCount = 0,
+                     PunchInSuccess = false,
+                     PunchOutSuccess = false
+                 };
+                 context.AppFaceVerificationDetails.Add(record);
+             }
+
+             if (isFaceMatched)
+             {
+                 if (model.Type == "Punch In")
+                 {
+                     string newCapturedPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Images/", $"{Pno}-Captured.jpg");
+                     SaveBase64ImageToFile(model.ImageData, newCapturedPath);
+
+                     StoreData(currentDate, currentTime, null, Pno);
+
+                     record.PunchInSuccess = true;
+                 }
+                 else
+                 {
+                     StoreData(currentDate, null, currentTime, Pno);
+
+                     record.PunchOutSuccess = true;
+                 }
+
+                 context.SaveChanges();
+                 return Json(new { success = true, message = "Attendance recorded successfully." });
+             }
+             else
+             {
+                 if (model.Type == "Punch In")
+                     record.PunchInFailedCount = (record.PunchInFailedCount ?? 0) + 1;
+                 else
+                     record.PunchOutFailedCount = (record.PunchOutFailedCount ?? 0) + 1;
+
+                 context.SaveChanges();
+                 return Json(new { success = false, message = "Face does not match!" });
+             }
+         
+     }
+     catch (Exception ex)
+     {
+         return Json(new { success = false, message = ex.Message });
+     }
+ }
+and this is my client side code
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
@@ -178,12 +132,12 @@ this is my full js
         const DOUBLE_BLINK_WINDOW = 2000;
         const ALLOW_SUBMIT_DURATION = 10000;
 
-        let eyeClosed = false;
-        let blinkCount = 0;
         let blinked = false;
-        let blinkStartTime = 0;
-        let blinkValidUntil = 0;
-        let blinkCountdownInterval;
+let blinkCount = 0;
+let eyeClosed = false;
+let blinkStartTime = null;
+let blinkValidUntil = null;
+
 
         const detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
 
@@ -274,168 +228,160 @@ const faceMatcher = new faceapi.FaceMatcher([
             return (box.height / video.videoHeight) < minHeightRatio;
         }
 
-        async function detectBlink() {
-            const now = Date.now();
+       async function detectBlink() {
+    const detection = await faceapi.detectSingleFace(video, detectorOptions).withFaceLandmarks();
 
-            if (blinked && now < blinkValidUntil) {
-                requestAnimationFrame(detectBlink);
-                return;
-            }
+    if (detection) {
+        const box = detection.detection.box;
 
-            const detection = await faceapi.detectSingleFace(video, detectorOptions).withFaceLandmarks();
-
-            if (detection) {
-                const box = detection.detection.box;
-                if (isFaceTooSmall(box)) {
-                    statusText.textContent = "Move closer to the camera";
-                    videoContainer.style.borderColor = "orange";
-                    resetBlink();
-                    requestAnimationFrame(detectBlink);
-                    return;
-                }
-
-                if (!isFaceCentered(box)) {
-                    statusText.textContent = "Align your face in center";
-                    videoContainer.style.borderColor = "orange";
-                    resetBlink();
-                    requestAnimationFrame(detectBlink);
-                    return;
-                }
-
-                const landmarks = detection.landmarks;
-                const leftEye = landmarks.getLeftEye();
-                const rightEye = landmarks.getRightEye();
-                const angle = getFaceAngleDegrees(leftEye, rightEye);
-
-                if (Math.abs(angle) > 10) {
-                    statusText.textContent = "Keep your head straight (no tilt)";
-                    videoContainer.style.borderColor = "orange";
-                    resetBlink();
-                    requestAnimationFrame(detectBlink);
-                    return;
-                }
-
-                if (!isHeadUpright(landmarks)) {
-                    statusText.textContent = "Keep your head upright";
-                    videoContainer.style.borderColor = "orange";
-                    resetBlink();
-                    requestAnimationFrame(detectBlink);
-                    return;
-                }
-
-                const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2.0;
-
-                if (avgEAR < EAR_THRESHOLD) {
-                    if (!eyeClosed) {
-                        eyeClosed = true;
-                        blinkCount++;
-
-                        if (blinkCount === 1) blinkStartTime = now;
-
-                        if (blinkCount === 2 && now - blinkStartTime <= DOUBLE_BLINK_WINDOW) {
-                            blinked = true;
-                            blinkValidUntil = now + ALLOW_SUBMIT_DURATION;
-                            blinkCount = 0;
-                            eyeClosed = false;
-
-                            showGreenBorder();
-                            setTimeout(captureImage, 500);
-                            startCountdown();
-                        }
-
-                        if (blinkCount > 2 || now - blinkStartTime > DOUBLE_BLINK_WINDOW) {
-                            resetBlink();
-                        }
-                    }
-                } else {
-                    eyeClosed = false;
-                }
-
-                if (!blinked) {
-                    statusText.textContent = "Please double blink";
-                    videoContainer.style.borderColor = "red";
-                }
-            } else {
-                statusText.textContent = "No face detected";
-                videoContainer.style.borderColor = "gray";
-                resetBlink();
-            }
-
+        if (isFaceTooSmall(box)) {
+            statusText.textContent = "Move closer to the camera";
+            videoContainer.style.borderColor = "orange";
+            resetBlink();
             requestAnimationFrame(detectBlink);
+            return;
         }
+
+        if (!isFaceCentered(box)) {
+            statusText.textContent = "Align your face in center";
+            videoContainer.style.borderColor = "orange";
+            resetBlink();
+            requestAnimationFrame(detectBlink);
+            return;
+        }
+
+        const landmarks = detection.landmarks;
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+        const angle = getFaceAngleDegrees(leftEye, rightEye);
+
+        if (Math.abs(angle) > 10) {
+            statusText.textContent = "Keep your head straight";
+            videoContainer.style.borderColor = "orange";
+            resetBlink();
+            requestAnimationFrame(detectBlink);
+            return;
+        }
+
+        if (!isHeadUpright(landmarks)) {
+            statusText.textContent = "Keep your head upright";
+            videoContainer.style.borderColor = "orange";
+            resetBlink();
+            requestAnimationFrame(detectBlink);
+            return;
+        }
+
+        const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2.0;
+
+        if (avgEAR < EAR_THRESHOLD) {
+            if (!eyeClosed) {
+                eyeClosed = true;
+                blinkCount++;
+
+                if (blinkCount === 1) blinkStartTime = Date.now();
+
+                if (blinkCount === 2 && Date.now() - blinkStartTime <= DOUBLE_BLINK_WINDOW) {
+                    blinked = true;
+                    blinkCount = 0;
+                    eyeClosed = false;
+
+                    showGreenBorder();
+                    statusText.textContent = ""; 
+                    captureImage();
+                    startCountdown(); 
+                    return;
+                }
+
+                if (blinkCount > 2 || Date.now() - blinkStartTime > DOUBLE_BLINK_WINDOW) {
+                    resetBlink();
+                }
+            }
+        } else {
+            eyeClosed = false;
+        }
+
+        if (!blinked) {
+            statusText.textContent = "Please double blink";
+            videoContainer.style.borderColor = "red";
+        }
+    } else {
+        statusText.textContent = "No face detected";
+        videoContainer.style.borderColor = "gray";
+        resetBlink();
+    }
+
+    requestAnimationFrame(detectBlink);
+}
 
         function resetBlink() {
-            blinkCount = 0;
-            eyeClosed = false;
-            blinked = false;
-        }
+    blinkCount = 0;
+    eyeClosed = false;
+    blinked = false;
+    blinkStartTime = null;
+    blinkValidUntil = null;
+}
+
 
         function showGreenBorder() {
-            videoContainer.style.borderColor = "limegreen";
-        }
+    videoContainer.style.borderColor = "green";
+    setTimeout(() => {
+        videoContainer.style.borderColor = "gray";
+    }, 5000);
+}
 
-       async function captureImage() {
-    const context = canvas.getContext("2d");
+
+     async function captureImage() {
+    const canvas = faceapi.createCanvasFromMedia(video);
+    const context = canvas.getContext('2d');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    capturedImage.src = canvas.toDataURL("image/jpeg");
-    capturedImage.style.display = "block";
-    video.style.display = "none";
+    const captured = await faceapi.detectSingleFace(canvas, detectorOptions).withFaceLandmarks().withFaceDescriptor();
 
-    const result = await recognizeFace();
+    if (!captured) {
+        alert("Face not detected in captured image");
+        return;
+    }
 
-    if (result.matched) {
-        statusText.textContent = `✅ ${result.label} - Face Matched (Distance: ${result.distance.toFixed(2)})`;
+    const stored = await loadStoredFaceDescriptor(`/AS/Images/${userId}-${userName}.jpg`);
+
+    if (!stored) {
+        alert("Stored image not found or face not detected in it");
+        return;
+    }
+
+    const faceMatcher = new faceapi.FaceMatcher([new faceapi.LabeledFaceDescriptors(userId, [stored])], 0.35);
+    const match = faceMatcher.findBestMatch(captured.descriptor);
+
+    if (match.label === userId) {
+        statusText.textContent = `${userName} matched ✅`;
         videoContainer.style.borderColor = "green";
-
-        if (punchInButton) punchInButton.style.display = "inline-block";
-        if (punchOutButton) punchOutButton.style.display = "inline-block";
-
-        
         setTimeout(() => {
             statusText.textContent = "";
-        }, 2500);
+            videoContainer.style.borderColor = "gray";
+        }, 2000); 
     } else {
-        statusText.textContent = `❌ Unknown - Face Not Recognized (Distance: ${result.distance.toFixed(2)})`;
+        statusText.textContent = "Face not matched ❌";
         videoContainer.style.borderColor = "red";
-
-        if (punchInButton) punchInButton.style.display = "none";
-        if (punchOutButton) punchOutButton.style.display = "none";
-
-     
         setTimeout(() => {
             statusText.textContent = "";
-            video.style.display = "block";
-            capturedImage.style.display = "none";
-        }, 2500);
+            videoContainer.style.borderColor = "gray";
+        }, 2000);
     }
 }
 
+
         function startCountdown() {
-            let remaining = ALLOW_SUBMIT_DURATION / 1000;
-            statusText.textContent = `Double blink detected! You can proceed. (${remaining}s)`;
-            clearInterval(blinkCountdownInterval);
-            blinkCountdownInterval = setInterval(() => {
-                remaining--;
-                if (remaining > 0) {
-                    statusText.textContent = `You can proceed. (${remaining}s)`;
-                } else {
-                    clearInterval(blinkCountdownInterval);
-                    resetBlink();
-                    videoContainer.style.borderColor = "red";
-                    statusText.textContent = "Please double blink again";
-                    video.style.display = "block";
-                    capturedImage.style.display = "none";
-                    if (punchInButton) punchInButton.style.display = "none";
-                    if (punchOutButton) punchOutButton.style.display = "none";
-                }
-            }, 1000);
-        }
+    blinkValidUntil = Date.now() + 10000; 
+    setTimeout(() => {
+        statusText.textContent = "Please double blink";
+        videoContainer.style.borderColor = "red";
+        resetBlink();
+        detectBlink(); 
+    }, 10000);
+}
+
 
         async function loadStoredFaceDescriptor(imagePath) {
     try {
@@ -553,6 +499,3 @@ const faceMatcher = new faceapi.FaceMatcher([
     });
 </script>
 
-
-
-i this when image is not found it shows face matched with Distance 0.00 , i just want that if image is not found or blank it shows a alert that Based image and current image is not available and sometimes face matcher is not calling , only blink works , please provide a good and provide proper js to handle this otherwise it works fine and good 
