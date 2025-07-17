@@ -1,69 +1,4 @@
-<video id="video" autoplay muted playsinline width="300" height="225"></video>
-<canvas id="canvas" width="300" height="225" style="display:none;"></canvas>
-<button onclick="compareFace()">Compare Face</button>
-
-<script>
-  async function loadStoredDescriptor(imagePath) {
-    const img = await faceapi.fetchImage(imagePath);
-    const detection = await faceapi
-      .detectSingleFace(img)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (!detection) {
-      alert("⚠️ No face detected in stored image.");
-      return null;
-    }
-    return detection.descriptor;
-  }
-
-  async function compareFace() {
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const context = canvas.getContext("2d");
-
-    // Draw current frame from video to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const liveDetection = await faceapi
-      .detectSingleFace(canvas)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (!liveDetection) {
-      alert("❌ Face not detected in live webcam feed.");
-      return;
-    }
-
-    const liveDescriptor = liveDetection.descriptor;
-
-    // Load stored descriptor (change the image name as needed)
-    const storedDescriptor = await loadStoredDescriptor("/Images/151514-Shashi Kumar.jpg");
-
-    if (!storedDescriptor) return;
-
-    // Calculate Euclidean distance
-    const distance = faceapi.euclideanDistance(liveDescriptor, storedDescriptor);
-
-    if (distance < 0.35) {
-      alert(`✅ Face matched!\nDistance: ${distance.toFixed(5)}\n(This is below 0.35)`);
-    } else {
-      alert(`❌ Face not matched.\nDistance: ${distance.toFixed(5)}\n(This is above 0.35)`);
-    }
-  }
-</script>
-
-
-
-
-
-this is my full code 
-<script>
-    const userId = '@ViewBag.UserId';
-    const userName = '@ViewBag.UserName';
-</script>
-
-
+this is my full js 
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
@@ -103,8 +38,8 @@ this is my full code
        console.log("Safe user name:"+safeUserName);
 
        const descriptors = [
-    await loadStoredFaceDescriptor(`/Images/${userId}-Captured.jpg`),
-    await loadStoredFaceDescriptor(`/Images/${userId}-${safeUserName}.jpg`)
+    await loadStoredFaceDescriptor(`/AS/Images/${userId}-Captured.jpg`),
+    await loadStoredFaceDescriptor(`/AS/Images/${userId}-${safeUserName}.jpg`)
 ].filter(d => d !== null);
 
 const faceMatcher = new faceapi.FaceMatcher([
@@ -305,7 +240,7 @@ const faceMatcher = new faceapi.FaceMatcher([
             statusText.textContent = "";
         }, 2500);
     } else {
-        statusText.textContent = `❌ Unknown - Face Not Recognized`;
+        statusText.textContent = `❌ Unknown - Face Not Recognized (Distance: ${result.distance.toFixed(2)})`;
         videoContainer.style.borderColor = "red";
 
         if (punchInButton) punchInButton.style.display = "none";
@@ -458,4 +393,5 @@ const faceMatcher = new faceapi.FaceMatcher([
 </script>
 
 
-understand the issue and please resolve it , i am getting Distance 0.00 with another user 
+
+i this when image is not found it shows face matched with Distance 0.00 , i just want that if image is not found or blank it shows a alert that Based image and current image is not available and sometimes face matcher is not calling , only blink works , please provide a good and provide proper js to handle this otherwise it works fine and good 
