@@ -1,3 +1,16 @@
+const punchInButton = document.getElementById("PunchIn");
+const punchOutButton = document.getElementById("PunchOut");
+
+// Always check before using
+if (punchInButton) {
+    punchInButton.style.display = "none";
+}
+if (punchOutButton) {
+    punchOutButton.style.display = "none";
+}
+
+
+
 async function verifyAndCapture() {
     const canvasTemp = document.createElement("canvas");
     canvasTemp.width = video.videoWidth;
