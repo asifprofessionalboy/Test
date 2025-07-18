@@ -1,3 +1,73 @@
+function captureImageAndShow(entryType) {
+    if (entryType === "PunchIn") {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+
+        // Unmirror the image
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageDataUrl = canvas.toDataURL("image/jpeg");
+
+        // Hide video, show captured image
+        video.style.display = "none";
+        capturedImage.src = imageDataUrl;
+        capturedImage.style.display = "block";
+
+        // Send image only for Punch In
+        window.captureImageAndSubmit(entryType, imageDataUrl);
+    } else {
+        // For Punch Out, just send the request without image
+        window.captureImageAndSubmit(entryType, null);
+    }
+}
+
+window.captureImageAndSubmit = async function (entryType, imageData) {
+    EntryTypeInput.value = entryType;
+
+    Swal.fire({
+        title: "Please wait...",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    fetch("/AS/Geo/AttendanceData", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ Type: entryType, ImageData: imageData })
+    })
+        .then(res => res.json())
+        .then(data => {
+            const now = new Date().toLocaleString();
+            if (data.success) {
+                Swal.fire({
+                    title: "Thank you!",
+                    text: `Attendance Recorded.\nDate & Time: ${now}`,
+                    icon: "success",
+                    timer: 3000,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                Swal.fire({
+                    title: "Face Recognized, But Error!",
+                    text: `Server didn't accept attendance.\nDate & Time: ${now}`,
+                    icon: "error"
+                });
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            Swal.fire("Error!", "An error occurred while processing your request.", "error");
+        });
+};
+
+
+
+
 <script>
 let blinkCount = 0;
 let lastBlinkTime = 0;
