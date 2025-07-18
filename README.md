@@ -1,3 +1,46 @@
+let imageCaptured = null; // Global captured image variable
+
+async function verifyAndCapture() {
+    const canvasTemp = document.createElement("canvas");
+    canvasTemp.width = video.videoWidth;
+    canvasTemp.height = video.videoHeight;
+    canvasTemp.getContext("2d").drawImage(video, 0, 0, canvasTemp.width, canvasTemp.height);
+
+    const captured = await faceapi.detectSingleFace(canvasTemp, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
+                                  .withFaceLandmarks()
+                                  .withFaceDescriptor();
+
+    if (!captured) {
+        statusText.textContent = "Face not detected in captured image";
+        return resetBlink();
+    }
+
+    const match = faceMatcher.findBestMatch(captured.descriptor);
+    if (match.label === userId && match.distance < 0.35) {
+        statusText.textContent = `${userName} matched ✅`;
+
+        // ✅ Capture image after match
+        imageCaptured = canvasTemp.toDataURL("image/jpeg");
+
+        if (punchInButton) punchInButton.style.display = "inline-block";
+        if (punchOutButton) punchOutButton.style.display = "inline-block";
+
+        setTimeout(() => statusText.textContent = "", 2000);
+    } else {
+        statusText.textContent = "Face not matched ❌";
+        videoContainer.style.borderColor = "red";
+        setTimeout(() => {
+            resetBlink();
+            videoContainer.style.borderColor = "gray";
+            detectBlink();
+        }, 10000);
+    }
+}
+
+
+
+
+
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
