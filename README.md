@@ -1,3 +1,21 @@
+if (!imageCaptured) {
+    alert("No capture image available");
+    statusText.textContent = "Please try again — no image captured.";
+
+    capturedImage.style.display = "none";
+    video.style.display = "block";
+    if (punchInButton) punchInButton.style.display = "none";
+    if (punchOutButton) punchOutButton.style.display = "none";
+
+    resetBlink();
+    detectBlink();
+    return;
+}
+
+
+
+
+
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
         const video = document.getElementById("video");
