@@ -1,3 +1,27 @@
+setTimeout(() => {
+    const captureCanvas = document.createElement("canvas");
+    captureCanvas.width  = video.videoWidth;
+    captureCanvas.height = video.videoHeight;
+
+    // ⬇️  Flip so the final JPEG is not mirrored
+    const ctx = captureCanvas.getContext("2d");
+    ctx.translate(captureCanvas.width, 0);
+    ctx.scale(-1, 1);              // mirror left ↔ right
+    ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+    imageCaptured        = captureCanvas.toDataURL("image/jpeg");
+    capturedImage.src    = imageCaptured;
+    capturedImage.style.display = "block";
+    video.style.display  = "none";
+
+    if (punchInButton)  punchInButton.style.display  = "inline-block";
+    if (punchOutButton) punchOutButton.style.display = "inline-block";
+}, 100);   // ← your 100 ms delay
+
+
+
+
+
 async function verifyAndCapture() {
     const canvasTemp = document.createElement("canvas");
     canvasTemp.width = video.videoWidth;
