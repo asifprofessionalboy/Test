@@ -1,3 +1,10 @@
+setTimeout(() => {
+        captureImageAndShow("PunchIn"); // or "PunchOut"
+    }, 2000);
+
+
+
+
 function captureImageAndShow(entryType) {
     if (entryType === "PunchIn") {
         const canvas = document.createElement("canvas");
