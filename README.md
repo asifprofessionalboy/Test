@@ -1,3 +1,59 @@
+async function verifyAndCapture() {
+    const canvasTemp = document.createElement("canvas");
+    canvasTemp.width = video.videoWidth;
+    canvasTemp.height = video.videoHeight;
+    canvasTemp.getContext("2d").drawImage(video, 0, 0, canvasTemp.width, canvasTemp.height);
+
+    const captured = await faceapi.detectSingleFace(canvasTemp, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
+                                  .withFaceLandmarks()
+                                  .withFaceDescriptor();
+
+    if (!captured) {
+        statusText.textContent = "Face not detected in captured image";
+        return resetBlink();
+    }
+
+    const match = faceMatcher.findBestMatch(captured.descriptor);
+
+    if (match.label === userId && match.distance < 0.35) {
+        statusText.textContent = `${userName} matched ✅`;
+
+        setTimeout(() => {
+            // ✅ Capture image after 2 seconds
+            const captureCanvas = document.createElement("canvas");
+            captureCanvas.width = video.videoWidth;
+            captureCanvas.height = video.videoHeight;
+            captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+            imageCaptured = captureCanvas.toDataURL("image/jpeg"); // Save base64 image
+            capturedImage.src = imageCaptured;
+            capturedImage.style.display = "block";
+            video.style.display = "none";
+
+            // Show Punch buttons
+            if (punchInButton) punchInButton.style.display = "inline-block";
+            if (punchOutButton) punchOutButton.style.display = "inline-block";
+
+            statusText.textContent = "";
+        }, 2000);
+
+    } else {
+        statusText.textContent = "Face not matched ❌";
+        videoContainer.style.borderColor = "red";
+
+        setTimeout(() => {
+            resetBlink();
+            videoContainer.style.borderColor = "gray";
+            detectBlink();
+        }, 10000);
+    }
+}
+
+
+
+
+
+
 let imageCaptured = null; // Global captured image variable
 
 async function verifyAndCapture() {
