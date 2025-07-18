@@ -1,3 +1,44 @@
+<script>
+async function sendCapturedImage(imageDataUrl, isMatched) {
+    const response = await fetch("/AS/Geo/AttendanceData", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ImageData: imageDataUrl,
+            Type: "Punch In", // or "Punch Out"
+            IsFaceMatched: isMatched
+        })
+    });
+
+    const result = await response.json();
+    alert(result.success ? "✅ Attendance recorded" : `❌ Error: ${result.message}`);
+}
+
+function captureFrameAndSend(isMatched) {
+    const video = document.getElementById("video");
+    const canvas = document.createElement("canvas");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = canvas.toDataURL("image/jpeg");
+
+    // Hide video, show captured image
+    document.getElementById("video").style.display = "none";
+    const img = document.getElementById("capturedImage");
+    img.src = imageData;
+    img.style.display = "block";
+
+    // Send to backend
+    sendCapturedImage(imageData, isMatched);
+}
+</script>
+
+
+
+
 this is my js 
 <script>
     window.addEventListener("DOMContentLoaded", async () => {
