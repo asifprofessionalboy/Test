@@ -69,4 +69,37 @@
 
                 </fieldset>
    </div>
-    
+
+
+      public partial class Compliance_Mis_Report : Classes.basePage
+  {
+      App_Compliance_MIS_DS dsRecords = new App_Compliance_MIS_DS();
+      protected void Page_Load(object sender, EventArgs e)
+      {
+          Mis_Records.DataSource = PageRecordsDataSet;
+
+          if (!IsPostBack)
+          {
+
+              GetRecords(GetFilterCondition(), Mis_Records.PageSize, 10, "");
+             Mis_Records.DataBind();
+
+          }
+      }
+
+      protected override void SetBaseControls()
+      {
+          base.SetBaseControls();
+          PageRecordsDataSet = dsRecords;
+          BLObject = new BL_Compliance_MIS();
+      }
+      private StringDictionary GetFilterCondition()
+      {
+          StringDictionary d = null;
+          d = new StringDictionary();
+          d.Add("V_Code", Session["UserName"].ToString());
+          return d;
+      }
+
+  
+  }
