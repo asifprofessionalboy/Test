@@ -1,33 +1,34 @@
-public partial class Compliance_Mis_Report : Classes.basePage
+..
+protected void Mis_Records_RowCreated(object sender, GridViewRowEventArgs e)
 {
-    App_Compliance_MIS_DS dsRecords = new App_Compliance_MIS_DS();
-    DataSet dsDDL = new DataSet();
-
-    // 🔸 Declare objMIS globally (class level)
-    BL_Compliance_MIS objMIS = new BL_Compliance_MIS();
-
-    protected override void SetBaseControls()
+    if (e.Row.RowType == DataControlRowType.Header)
     {
-        base.SetBaseControls();
-        PageRecordsDataSet = dsRecords;
-        PageDDLDataset = dsDDL;
+        GridViewRow headerRow = new GridViewRow(0, 0, DataControlRowType.Header, DataControlRowState.Insert);
 
-        // Already declared above, no need to reassign objMIS here
-        BLObject = objMIS; // Optional if you're using this somewhere
+        headerRow.BackColor = System.Drawing.Color.LightGray;
+
+        // Example: Merge headers like "Male", "Female", "Skill" categories
+        headerRow.Cells.Add(MakeHeaderCell("Vendor Code", 1));
+        headerRow.Cells.Add(MakeHeaderCell("Vendor Name", 1));
+        headerRow.Cells.Add(MakeHeaderCell("Workorder No.", 1));
+        headerRow.Cells.Add(MakeHeaderCell("Male", 6));     // Span 6 columns under Male
+        headerRow.Cells.Add(MakeHeaderCell("Female", 6));   // Span 6 columns under Female
+        headerRow.Cells.Add(MakeHeaderCell("Skill Category", 8));
+        headerRow.Cells.Add(MakeHeaderCell("Total", 2));
+        headerRow.Cells.Add(MakeHeaderCell("Description", 1));
+
+        // Add the row before default header row
+        ((GridView)sender).Controls[0].Controls.AddAt(0, headerRow);
     }
+}
 
-    protected void Page_Load(object sender, EventArgs e)
-    {
-        if (!IsPostBack)
-        {
-            string vendorCode = Session["UserName"].ToString(); 
-            DataSet ds = objMIS.Get_Mis_Data(vendorCode); 
-
-            if (ds != null && ds.Tables.Count > 0)
-            {
-                Mis_Records.DataSource = ds;
-                Mis_Records.DataBind();
-            }
-        }
-    }
+private TableHeaderCell MakeHeaderCell(string text, int columnSpan)
+{
+    TableHeaderCell cell = new TableHeaderCell();
+    cell.Text = text;
+    cell.ColumnSpan = columnSpan;
+    cell.HorizontalAlign = HorizontalAlign.Center;
+    cell.BackColor = System.Drawing.Color.LightBlue;
+    cell.Font.Bold = true;
+    return cell;
 }
