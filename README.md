@@ -1,18 +1,1 @@
-<asp:TemplateField HeaderText="Sl. No.">
-    <ItemTemplate>
-        <asp:Label ID="lblSlNo" runat="server" />
-    </ItemTemplate>
-</asp:TemplateField>
-
-
-protected void Mis_Records_RowDataBound(object sender, GridViewRowEventArgs e)
-{
-    if (e.Row.RowType == DataControlRowType.DataRow)
-    {
-        Label lblSlNo = (Label)e.Row.FindControl("lblSlNo");
-        if (lblSlNo != null)
-        {
-            lblSlNo.Text = (e.Row.RowIndex + 1).ToString();
-        }
-    }
-}
+ROW_NUMBER() OVER (ORDER BY mis.vendorcode) AS [1],  -- This is your "Sl. No." column
