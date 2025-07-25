@@ -1,93 +1,38 @@
+foreach (string year in yearArray)
+{
+    foreach (string month in monthArray)
+    {
+        int intMonth = Convert.ToInt32(month);
+        int intYear = Convert.ToInt32(year);
 
-        protected void btnSearch_Click(object sender, EventArgs e)
+        // Calculate the next month and year for date range filtering
+        int nextMonth = (intMonth == 12) ? 1 : intMonth + 1;
+        int nextYear = (intMonth == 12) ? intYear + 1 : intYear;
+
+        // Format months as two digits for safety
+        string monthStr = intMonth.ToString("D2");
+        string nextMonthStr = nextMonth.ToString("D2");
+
+        // Calculate the date range strings for filtering
+        string startDate = $"{intYear}-{monthStr}-01";
+        string endDate = new DateTime(nextYear, nextMonth, 1).AddTicks(-1).ToString("yyyy-MM-dd HH:mm:ss");
+
+        // Build Location and Department filters if any
+        string locationFilter = "";
+        if (!string.IsNullOrEmpty(Locationvalue))
         {
+            locationFilter = $" AND WOR.LOC_OF_WORK IN ({Locationvalue}) ";
+        }
 
-            string stryear = string.Join(",", Year.Items.Cast<ListItem>().Where(i => i.Selected).Select(i => i.Value));
+        string departmentFilter = "";
+        if (!string.IsNullOrEmpty(Dpartmentvalue))
+        {
+            departmentFilter = $" AND tab.DepartmentCode IN ({Dpartmentvalue}) ";
+        }
 
-            string strmnth = string.Join(",", Month.Items.Cast<ListItem>().Where(i => i.Selected).Select(i => i.Value));
-
-
-            if (Month.Items.Cast<ListItem>().Any(i => i.Selected) && Year.Items.Cast<ListItem>().Any(i => i.Selected))
-            {
-
-
-                BL_Compliance_MIS blobj = new BL_Compliance_MIS();
-
-
-                string strSql = string.Empty;
-                string strCond = string.Empty;
-                strCond = " 1=1 ";
-                ReportDataSource rds = new ReportDataSource();
-
-
-                string Locationvalue = "";
-                string Dpartmentvalue = "";
-
-                if (Location.SelectedValue != "")
-                {
-                    foreach (ListItem item in Location.Items)
-                    {
-                        if (item.Selected)
-                        {
-                            Locationvalue += $"'{item.Value}',";
-                        }
-                    }
-                    Locationvalue = Locationvalue.TrimEnd(',');
-
-                    strCond += $" and WOR.LOC_OF_WORK in({Locationvalue})";
-                }
-
-                if (Department.SelectedValue != "")
-                {
-                    foreach (ListItem item in Department.Items)
-                    {
-                        if (item.Selected)
-                        {
-                            Dpartmentvalue += $"'{item.Value}',";
-                        }
-                    }
-                    Dpartmentvalue = Dpartmentvalue.TrimEnd(',');
-                    strCond += $" and tab.DepartmentCode in({Dpartmentvalue})";
-                }
-
-
-
-
-
-
-                string[] yearArray = stryear.Split(',');
-                string[] monthArray = strmnth.Split(',');
-
-
-
-                DataSet ds = new DataSet();
-                DataSet ds1 = new DataSet();
-                foreach (string year in yearArray)
-                {
-
-                    foreach (string month in monthArray)
-                    {
-                        int Nxt_Mnth = Convert.ToInt32(month);
-                        int nxtyear = Convert.ToInt32(year);
-                        if (Nxt_Mnth == 12)
-                        {
-                            Nxt_Mnth = 1;
-                            nxtyear++;
-                        }
-                        else
-                        {
-                            Nxt_Mnth = (Nxt_Mnth + 1);
-
-                        }
-                        string NxtMnth = Convert.ToString(Nxt_Mnth);
-
-
-
-                        DateTime EDate = new DateTime(int.Parse(year), int.Parse(month), 1).AddMonths(1).AddTicks(-1);
-                        string EndDate = EDate.ToString("yyyy-MM-dd HH:mm:ss");
-
-
-                        string strQuery = @" WITH RankedAttendance AS (
+        // Build the query string with dynamic dates and filters
+        string strQuery = $@"
+WITH RankedAttendance AS (
     SELECT
         AD.VendorCode,
         AD.WorkOrderNo,
@@ -106,7 +51,7 @@
         ON EM.AadharCard = AD.AadharNo
         AND EM.VendorCode = AD.VendorCode
         AND EM.WorkManSlNo = AD.WorkManSl
-    WHERE AD.dates >= '2025-01-01' AND AD.dates < '2025-02-01'
+    WHERE AD.dates >= '{startDate}' AND AD.dates < '{endDate}'
 ),
 
 AttendanceAgg AS (
@@ -140,30 +85,29 @@ WorkOrders AS (
         DEPT_CODE AS DepartmentCode,
         TXZ01 AS Description
     FROM App_Vendorwodetails
-    WHERE START_DATE <= '2025-01-31' AND END_DATE >= '2025-01-01'
+    WHERE START_DATE <= '{endDate}' AND END_DATE >= '{startDate}'
 ),
 
 WageAgg AS (
-    SELECT distinct
+    SELECT DISTINCT
         VendorCode,
         WorkOrderNo,
-       ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(BasicWages AS FLOAT), 0) + ISNULL(CAST(DAWages AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS BasicA,
-      
-      ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(OtherAllow AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS Allowance,
+        ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(BasicWages AS FLOAT), 0) + ISNULL(CAST(DAWages AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS BasicA,
+        ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(OtherAllow AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS Allowance,
         ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(TotalWages AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS GrossWages,
         ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(PfAmt AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS PF_DEDUCTION,
         ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(EsiAmt AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS ESI_DEDUCTION,
         ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(OtherDeduAmt AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS Other_DEDUCTION,
         ROUND(ISNULL(AVG(CAST(NULLIF(ISNULL(CAST(NetWagesAmt AS FLOAT), 0), 0) AS FLOAT)), 0), 2) AS NET_WAGES_AMOUNT
     FROM App_WagesDetailsJharkhand
-    WHERE MonthWage = '1' AND YearWage = '2025'
+    WHERE MonthWage = '{intMonth}' AND YearWage = '{intYear}'
     GROUP BY VendorCode, WorkOrderNo
 )
 
 SELECT
-ROW_NUMBER() OVER (ORDER BY mis.vendorcode) AS SlNo,
-    '01' AS ProcessMonth,
-    '2025' AS ProcessYear,
+    ROW_NUMBER() OVER (ORDER BY mis.vendorcode) AS SlNo,
+    '{monthStr}' AS ProcessMonth,
+    '{intYear}' AS ProcessYear,
     mis.vendorcode,
     VM.V_NAME,
     mis.workorder,
@@ -173,12 +117,8 @@ ROW_NUMBER() OVER (ORDER BY mis.vendorcode) AS SlNo,
     ISNULL(DM.DepartmentName, 'Work Order Not Registered') AS DepartmentName,
     ISNULL(LM.Location, 'Work Order Not Registered') AS Location,
     ISNULL(CC.RESPONSIBLE_PERSON, 'Vendor Registration Not Done') AS RESPONSIBLE_PERSON_OF_THE_CONTRACTOR,
+    mis.Description as NatureOfWork,
 
-      mis.Description as NatureOfWork,
-
-
-
-   
     SUM(CASE WHEN AA.Sex = 'M' THEN AA.TotalWorkers ELSE 0 END) AS MALE_NO_OF_MALE_WORKERS,
     SUM(CASE WHEN AA.Sex = 'M' AND AA.Social_Category IN ('ST','SC') THEN AA.TotalWorkers ELSE 0 END) AS MALE_NOS_OF_SC_ST_WORKERS,
     SUM(CASE WHEN AA.Sex = 'M' AND AA.Social_Category = 'OBC' THEN AA.TotalWorkers ELSE 0 END) AS MALE_NOS_OF_OBC_WORKERS,
@@ -186,7 +126,6 @@ ROW_NUMBER() OVER (ORDER BY mis.vendorcode) AS SlNo,
     SUM(CASE WHEN AA.Sex = 'M' AND AA.Social_Category IN ('ST','SC') THEN AA.TotalMandays ELSE 0 END) AS MALE_MANDAYS_SC_ST,
     SUM(CASE WHEN AA.Sex = 'M' AND AA.Social_Category = 'OBC' THEN AA.TotalMandays ELSE 0 END) AS MALE_MANDAYS_OBC,
 
-   
     SUM(CASE WHEN AA.Sex = 'F' THEN AA.TotalWorkers ELSE 0 END) AS FEMALE_NO_OF_FEMALE_WORKERS,
     SUM(CASE WHEN AA.Sex = 'F' AND AA.Social_Category IN ('ST','SC') THEN AA.TotalWorkers ELSE 0 END) AS FEMALE_NOS_OF_SC_ST_WORKERS,
     SUM(CASE WHEN AA.Sex = 'F' AND AA.Social_Category = 'OBC' THEN AA.TotalWorkers ELSE 0 END) AS FEMALE_NOS_OF_OBC_WORKERS,
@@ -194,54 +133,44 @@ ROW_NUMBER() OVER (ORDER BY mis.vendorcode) AS SlNo,
     SUM(CASE WHEN AA.Sex = 'F' AND AA.Social_Category IN ('ST','SC') THEN AA.TotalMandays ELSE 0 END) AS FEMALE_MANDAYS_SC_ST,
     SUM(CASE WHEN AA.Sex = 'F' AND AA.Social_Category = 'OBC' THEN AA.TotalMandays ELSE 0 END) AS FEMALE_MANDAYS_OBC,
 
+    ISNULL(SUM(AA.TotalWorkers), 0) AS Total_NOS_OF_WORKERS,
+    ISNULL(SUM(AA.TotalMandays), 0) AS Total_Mandays,
 
+    ISNULL((SELECT DISTINCT CONVERT(varchar(50), OW.PAYMENT_DATE, 103)
+            FROM App_Online_Wages OW
+            INNER JOIN App_Online_Wages_Details OWD
+                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage
+                AND OWD.VendorCode = OW.V_CODE AND OWD.WorkOrderNo = mis.workorder
+            WHERE OW.MonthWage = '{intMonth}' AND OW.YearWage = '{intYear}' AND OW.STATUS = 'Request Closed' AND OW.V_CODE = mis.vendorcode), '') AS Payment_date_WAGES,
 
-    
-    (IsNull(SUM(AA.TotalWorkers),0)) AS Total_NOS_OF_WORKERS,
-    (IsNull(SUM(AA.TotalMandays),0)) AS Total_Mandays,
+    ISNULL((SELECT DISTINCT OW.STATUS
+            FROM App_Online_Wages OW
+            INNER JOIN App_Online_Wages_Details OWD
+                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage
+                AND OWD.VendorCode = OW.V_CODE AND OWD.WorkOrderNo = mis.workorder
+            WHERE OW.MonthWage = '{intMonth}' AND OW.YearWage = '{intYear}' AND OW.STATUS = 'Request Closed' AND OW.V_CODE = mis.vendorcode), '') AS WagesStatus,
 
-   
-    ISNULL((SELECT DISTINCT CONVERT(varchar(50), OW.PAYMENT_DATE, 103) 
-            FROM App_Online_Wages OW 
-            INNER JOIN App_Online_Wages_Details OWD 
-                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage 
-                AND OWD.VendorCode = OW.V_CODE AND OWD.WorkOrderNo = mis.workorder 
-            WHERE OW.MonthWage ='1' AND OW.YearWage = '2025' AND OW.STATUS = 'Request Closed' AND OW.V_CODE = mis.vendorcode), '') 
-        AS Payment_date_WAGES,
+    ISNULL((SELECT DISTINCT CONVERT(varchar(50), OW.PFChallanDate, 103)
+            FROM App_PF_ESI_Summary OW
+            INNER JOIN App_PF_ESI_Details OWD
+                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage
+                AND OWD.VendorCode = OW.VendorCode AND OWD.WorkOrderNo = mis.workorder
+            WHERE OW.MonthWage = '{intMonth}' AND OW.YearWage = '{intYear}' AND OW.STATUS = 'Request Closed' AND OW.VendorCode = mis.vendorcode), '') AS PFPaymentDate,
 
-    ISNULL((SELECT DISTINCT OW.STATUS 
-            FROM App_Online_Wages OW 
-            INNER JOIN App_Online_Wages_Details OWD 
-                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage 
-                AND OWD.VendorCode = OW.V_CODE AND OWD.WorkOrderNo = mis.workorder 
-            WHERE OW.MonthWage = '1' AND OW.YearWage = '2025' AND OW.STATUS = 'Request Closed' AND OW.V_CODE = mis.vendorcode), '') 
-        AS WagesStatus,
+    ISNULL((SELECT DISTINCT CONVERT(varchar(50), OW.ESIChallanDate, 103)
+            FROM App_PF_ESI_Summary OW
+            INNER JOIN App_PF_ESI_Details OWD
+                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage
+                AND OWD.VendorCode = OW.VendorCode AND OWD.WorkOrderNo = mis.workorder
+            WHERE OW.MonthWage = '{intMonth}' AND OW.YearWage = '{intYear}' AND OW.STATUS = 'Request Closed' AND OW.VendorCode = mis.vendorcode), '') AS ESIPaymentDate,
 
-    ISNULL((SELECT DISTINCT CONVERT(varchar(50), OW.PFChallanDate, 103) 
-            FROM App_PF_ESI_Summary OW 
-            INNER JOIN App_PF_ESI_Details OWD 
-                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage 
-                AND OWD.VendorCode = OW.VendorCode AND OWD.WorkOrderNo = mis.workorder 
-            WHERE OW.MonthWage = '1' AND OW.YearWage = '2025' AND OW.STATUS = 'Request Closed' AND OW.VendorCode = mis.vendorcode), '') 
-        AS PFPaymentDate,
+    ISNULL((SELECT DISTINCT OW.Status
+            FROM App_PF_ESI_Summary OW
+            INNER JOIN App_PF_ESI_Details OWD
+                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage
+                AND OWD.VendorCode = OW.VendorCode AND OWD.WorkOrderNo = mis.workorder
+            WHERE OW.MonthWage = '{intMonth}' AND OW.YearWage = '{intYear}' AND OW.STATUS = 'Request Closed' AND OW.VendorCode = mis.vendorcode), '') AS PFESI_Status,
 
-    ISNULL((SELECT DISTINCT CONVERT(varchar(50), OW.ESIChallanDate, 103) 
-            FROM App_PF_ESI_Summary OW 
-            INNER JOIN App_PF_ESI_Details OWD 
-                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage 
-                AND OWD.VendorCode = OW.VendorCode AND OWD.WorkOrderNo = mis.workorder 
-            WHERE OW.MonthWage = '1' AND OW.YearWage = '2025' AND OW.STATUS = 'Request Closed' AND OW.VendorCode = mis.vendorcode), '') 
-        AS ESIPaymentDate,
-
-    ISNULL((SELECT DISTINCT OW.Status 
-            FROM App_PF_ESI_Summary OW 
-            INNER JOIN App_PF_ESI_Details OWD 
-                ON OWD.MonthWage = OW.MonthWage AND OWD.YearWage = OW.YearWage 
-                AND OWD.VendorCode = OW.VendorCode AND OWD.WorkOrderNo = mis.workorder 
-            WHERE OW.MonthWage = '1' AND OW.YearWage = '2025' AND OW.STATUS = 'Request Closed' AND OW.VendorCode = mis.vendorcode), '') 
-        AS PFESI_Status,
-
-   
     SUM(CASE WHEN AA.WorkManCategory = 'Unskilled' THEN AA.TotalWorkers ELSE 0 END) AS UNSKILLED_NOS_OF_WORKERS,
     SUM(CASE WHEN AA.WorkManCategory = 'Unskilled' THEN AA.TotalMandays ELSE 0 END) AS UNSKILLED_TOTAL_MANDAYS,
     SUM(CASE WHEN AA.WorkManCategory = 'Semi Skilled' THEN AA.TotalWorkers ELSE 0 END) AS SEMISKILLED_NOS_OF_WORKERS,
@@ -254,46 +183,33 @@ ROW_NUMBER() OVER (ORDER BY mis.vendorcode) AS SlNo,
     SUM(CASE WHEN AA.WorkManCategory = 'Other' THEN AA.TotalWorkers ELSE 0 END) AS Other_NOS_OF_WORKERS,
     SUM(CASE WHEN AA.WorkManCategory = 'Other' THEN AA.TotalMandays ELSE 0 END) AS Other_TOTAL_MANDAYS,
 
+    ISNULL(WA.BasicA, 0) AS BasicDA,
+    ISNULL(WA.Allowance, 0) AS Allowance,
+    ISNULL(WA.GrossWages, 0) AS GrossWages,
+    ISNULL(WA.PF_DEDUCTION, 0) AS PF_DEDUCTION,
+    ISNULL(WA.ESI_DEDUCTION, 0) AS ESI_DEDUCTION,
+    ISNULL(WA.Other_DEDUCTION, 0) AS Other_DEDUCTION,
+    ISNULL(WA.NET_WAGES_AMOUNT, 0) AS NET_WAGES_AMOUNT,
 
-   
-   (ISNULL(WA.BasicA,0)) as BasicDA,
-    (ISNULL(WA.Allowance,0)) as Allowance,
-   (ISNULL(WA.GrossWages,0)) as GrossWages,
-    (ISNULL(WA.PF_DEDUCTION,0)) as PF_DEDUCTION,
-   (ISNULL(WA.ESI_DEDUCTION,0)) as ESI_DEDUCTION,
-     (ISNULL(WA.Other_DEDUCTION,0)) as Other_DEDUCTION,
-   (ISNULL(WA.NET_WAGES_AMOUNT,0)) as NET_WAGES_AMOUNT
-   
-    , CASE
-        WHEN EXISTS (
-            SELECT 1
-            FROM App_Wo_Nil T
-            WHERE T.WO_NO = mis.workorder
-              AND T.NO_WORK = 'Temporary'
-              AND T.TEMPORARY_YEAR = '2025'
-              AND T.TEMPORARY_MONTH = '1'
-        ) THEN 'Yes' ELSE 'No'
-    END AS Temporary
+    CASE WHEN EXISTS (
+        SELECT 1 FROM App_Wo_Nil T
+        WHERE T.WO_NO = mis.workorder
+          AND T.NO_WORK = 'Temporary'
+          AND T.TEMPORARY_YEAR = '{intYear}'
+          AND T.TEMPORARY_MONTH = '{intMonth}'
+    ) THEN 'Yes' ELSE 'No' END AS Temporary,
 
-    , CASE
-        WHEN EXISTS (
-            SELECT 1
-            FROM App_Wo_Nil P
-            WHERE P.WO_NO = mis.workorder
-              AND P.NO_WORK = 'Permanent'
-              AND CONVERT(INT, P.TEMPORARY_YEAR + FORMAT(CONVERT(INT, P.CLOSER_DATE), '00')) <= 202501
-        ) THEN 'Yes' ELSE 'No'
-    END AS Permanent
+    CASE WHEN EXISTS (
+        SELECT 1 FROM App_Wo_Nil P
+        WHERE P.WO_NO = mis.workorder
+          AND P.NO_WORK = 'Permanent'
+          AND CONVERT(INT, P.TEMPORARY_YEAR + FORMAT(CONVERT(INT, P.CLOSER_DATE), '00')) <= {intYear}{monthStr}
+    ) THEN 'Yes' ELSE 'No' END AS Permanent,
 
-    , CASE
-        WHEN EXISTS (
-            SELECT 1
-            FROM APP_RECOGNIZED_WO R
-            WHERE R.WO_NO = mis.workorder
-        ) THEN 'Yes' ELSE 'No'
-    END AS Recognized
-
-  
+    CASE WHEN EXISTS (
+        SELECT 1 FROM APP_RECOGNIZED_WO R
+        WHERE R.WO_NO = mis.workorder
+    ) THEN 'Yes' ELSE 'No' END AS Recognized
 
 FROM WorkOrders mis
 LEFT JOIN App_VendorMaster VM ON VM.V_CODE = mis.vendorcode
@@ -304,6 +220,10 @@ LEFT JOIN ContractorContact CC ON CC.VendorCode = mis.vendorcode
 LEFT JOIN AttendanceAgg AA ON AA.VendorCode = mis.vendorcode AND AA.WorkOrderNo = mis.workorder
 LEFT JOIN WageAgg WA ON WA.VendorCode = mis.vendorcode AND WA.WorkOrderNo = mis.workorder
 
+WHERE 1=1
+{locationFilter}
+{departmentFilter}
+
 GROUP BY
     mis.vendorcode, VM.V_NAME, mis.workorder, mis.from_date, mis.to_date,
     DM.DepartmentCode, DM.DepartmentName, LM.Location,
@@ -312,8 +232,7 @@ GROUP BY
     mis.Description
 
 ORDER BY mis.vendorcode;
-        ";
-
-
-
-                    }
+";
+        // You can now execute strQuery for this year-month combo
+    }
+}
