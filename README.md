@@ -2,8 +2,8 @@
 @{
     ViewData["Title"] = "Emp Tagging Master";
     var pnoList = ViewBag.PnoList as List<SelectListItem>;
-    var worksiteList = ViewBag.WorksiteDropdown as List<SelectListItem>;
-    var createdBy = ViewBag.CreatedBy as string;
+       var createdBy = ViewBag.CreatedBy as string;
+    var WorksiteDropdown = ViewBag.WorksiteDDList;
 }
 
 <div class="card p-3">
@@ -30,19 +30,8 @@
                 {
                     <tr>
                         <td>@item.Pno</td>
-                        <td>@item.Position</td>
-                        <td>
-                            @{
-                                var sites = context.AppPositionWorksites
-                                    .Where(x => x.Position == item.Position)
-                                    .Select(x => x.Worksite)
-                                    .ToList();
-                            }
-                            @foreach (var site in sites)
-                            {
-                                <span class="badge bg-info text-dark me-1">@site</span>
-                            }
-                        </td>
+                        <td>@item.Postion</td>
+                        <td>@item.Worksite</td>
                     </tr>
                 }
             }
@@ -53,25 +42,53 @@
         </tbody>
     </table>
 
-    @if (ViewBag.TotalPages > 1)
-    {
-        <nav class="d-flex justify-content-center">
-            <ul class="pagination">
-                <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
-                    <a class="page-link" asp-route-page="@(ViewBag.CurrentPage - 1)" asp-route-searchString="@ViewBag.SearchString">Previous</a>
-                </li>
-                @for (int i = 1; i <= ViewBag.TotalPages; i++)
-                {
-                    <li class="page-item @(ViewBag.CurrentPage == i ? "active" : "")">
-                        <a class="page-link" asp-route-page="@i" asp-route-searchString="@ViewBag.SearchString">@i</a>
-                    </li>
-                }
-                <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
-                    <a class="page-link" asp-route-page="@(ViewBag.CurrentPage + 1)" asp-route-searchString="@ViewBag.SearchString">Next</a>
-                </li>
-            </ul>
-        </nav>
-    }
+    <div class="text-center">
+
+
+        <div class="text-center">
+
+
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav aria-label="Page navigation" style="font-size:12px;" class="d-flex justify-content-center">
+                    <ul class="pagination">
+
+                        <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                            <a class="page-link" asp-action="PositionMaster"
+                               asp-route-page="@(ViewBag.CurrentPage - 1)"
+                               asp-route-searchString="@ViewBag.SearchValue">
+                                Previous
+                            </a>
+                        </li>
+
+
+                        @for (int i = Math.Max(1, ViewBag.CurrentPage - 1); i <= Math.Min(ViewBag.CurrentPage + 1, ViewBag.TotalPages); i++)
+                        {
+                            <li class="page-item @(ViewBag.CurrentPage == i ? "active" : "")">
+                                <a class="page-link" asp-action="PositionMaster"
+                                   asp-route-page="@i"
+                                   asp-route-searchString="@ViewBag.SearchValue">
+                                    @i
+                                </a>
+                            </li>
+                        }
+
+
+                        <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                            <a class="page-link" asp-action="PositionMaster"
+                               asp-route-page="@(ViewBag.CurrentPage + 1)"
+                               asp-route-searchString="@ViewBag.SearchValue">
+                                Next
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+
+        </div>
+
+
+    </div>
 </div>
 
 <!-- Form Container -->
@@ -101,23 +118,39 @@
                 <input type="number" name="Position" class="form-control" required />
             </div>
 
-            <div class="col-md-6 mb-3">
-                <label>Worksites</label>
-                <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
-                    @foreach (var site in worksiteList)
-                    {
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input worksite-checkbox" value="@site.Value" id="ws_@site.Value" />
-                            <label class="form-check-label" for="ws_@site.Value">@site.Text</label>
-                        </div>
-                    }
+            <div class="col-sm-3">
+                <div class="dropdown">
+                    <input class="dropdown-toggle form-control form-control-sm custom-select" placeholder="" type="button"
+                           id="worksiteDropdown" data-bs-toggle="dropdown" aria-expanded="false" />
+
+
+
+                    <ul class="dropdown-menu w-100" aria-labelledby="worksiteDropdown" id="locationList">
+                        @foreach (var item in WorksiteDropdown)
+                        {
+                            <li style="margin-left:5%;">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input worksite-checkbox"
+                                           value="@item.Value" id="worksite_@item.Value" />
+                                    <label class="form-check-label" for="worksite_@item.Value">@item.Text</label>
+                                </div>
+
+                            </li>
+                        }
+                    </ul>
+
                 </div>
+                <input type="hidden" id="Worksite" name="Worksite" />
+
+
+
             </div>
 
         </div>
 
         <div class="card-footer text-center">
             <button type="submit" class="btn btn-success" onclick="setAction('Submit', event)">Submit</button>
+            <button type="submit" class="btn btn-danger" onclick="setAction('Delete', event)">Delete</button>
         </div>
     </form>
 </div>
@@ -134,7 +167,6 @@
 
             document.getElementById('actionType').value = action;
 
-            // collect selected worksite values
             var selected = [];
             $('.worksite-checkbox:checked').each(function () {
                 selected.push($(this).val());
@@ -150,3 +182,116 @@
         });
     </script>
 }
+
+
+ [HttpGet]
+ public async Task<IActionResult> EmptaggingMaster(Guid? id, string searchString = "", int page = 1)
+ {
+     var UserId = HttpContext.Request.Cookies["Session"];
+     if (string.IsNullOrEmpty(UserId))
+         return RedirectToAction("Login", "User");
+
+     var allowedPnos = context.AppPermissionMasters.Select(x => x.Pno).ToList();
+     if (!allowedPnos.Contains(UserId))
+         return RedirectToAction("Login", "User");
+
+     ViewBag.CreatedBy = UserId;
+
+   
+     var loggedUserDept = context.AppCoordinatorMasters
+         .Where(x => x.Pno == UserId)
+         .Select(x => x.DeptName)
+         .FirstOrDefault();
+
+   
+     ViewBag.PnoList = context.AppCoordinatorMasters
+         .Where(e => e.DeptName == loggedUserDept)
+         .Select(e => new SelectListItem
+         {
+             Value = e.Pno,
+             Text = e.Pno
+         }).ToList();
+
+     var WorksiteList = context.AppLocationMasters
+           .Select(x => new SelectListItem
+           {
+               Value = x.Id.ToString(),
+               Text = x.WorkSite
+           }).Distinct().OrderBy(x => x.Text).ToList();
+
+     ViewBag.WorksiteDDList = WorksiteList;
+
+
+
+     var WorksiteList2 = context.AppEmpPositions
+         .Select(x => new SelectListItem
+         {
+             Value = x.Position.ToString(),
+             Text = x.Position.ToString()
+         }).ToList();
+
+     ViewBag.PositionDDList = WorksiteList2;
+
+
+
+
+      
+
+
+
+     int pageSize = 5;
+     var query = context.AppEmpPositions.AsQueryable();
+     var data = query.OrderBy(x => x.Pno).ToList();
+     var pagedData = data.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+     ViewBag.pList = pagedData;
+     ViewBag.CurrentPage = page;
+     ViewBag.TotalPages = (int)Math.Ceiling(data.Count / (double)pageSize);
+     ViewBag.SearchString = searchString;
+
+     return View(new EmpTagViewModel());
+ }
+
+
+
+ [HttpPost]
+ public async Task<IActionResult> EmptaggingMaster(string Pno, int Position, string Worksite, string ActionType)
+ {
+     var UserId = HttpContext.Request.Cookies["Session"];
+     if (string.IsNullOrEmpty(UserId))
+         return RedirectToAction("Login", "User");
+
+     if (ActionType == "Submit")
+     {
+ 
+         var empPos = new AppEmpPosition
+         {
+             Id = Guid.NewGuid(),
+             Pno = Pno,
+             Position = Position
+         };
+         context.AppEmpPositions.Add(empPos);
+
+     
+         var worksites = Worksite.Split(','); 
+         foreach (var ws in worksites)
+         {
+             var posWorksite = new AppPositionWorksite
+             {
+                 Id = Guid.NewGuid(),
+                 Position = Position,
+                 Worksite = ws.Trim(),
+                 CreatedBy = UserId,
+                 CreatedOn = DateTime.Now
+             };
+             context.AppPositionWorksites.Add(posWorksite);
+         }
+
+         await context.SaveChangesAsync();
+         TempData["msg"] = "Data saved successfully.";
+     }
+
+     return RedirectToAction("EmptaggingMaster");
+ }
+
+
