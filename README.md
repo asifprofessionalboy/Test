@@ -1,10 +1,12 @@
-<asp:Button ID="btnExport" runat="server" Text="Export to Excel"
-    OnClick="btnExport_Click" CssClass="btn btn-success mt-2" />
-
-
 protected void btnExport_Click(object sender, EventArgs e)
 {
-    // Clear the response
+    // Optional: restore saved data (or bind again)
+    if (ViewState["MISData"] != null)
+    {
+        Mis_Grid.DataSource = (DataTable)ViewState["MISData"];
+        Mis_Grid.DataBind();
+    }
+
     Response.Clear();
     Response.Buffer = true;
     Response.AddHeader("content-disposition", "attachment;filename=ComplianceReport.xls");
@@ -15,21 +17,8 @@ protected void btnExport_Click(object sender, EventArgs e)
     {
         using (HtmlTextWriter hw = new HtmlTextWriter(sw))
         {
-            // To Export all pages, disable paging temporarily
-            Mis_Grid.AllowPaging = false;
-
-            // Re-bind data
-            BindGrid(); // You must have your data-binding method here
-
-            // Hide unwanted columns if needed
-            foreach (GridViewRow row in Mis_Grid.Rows)
-            {
-                row.Attributes.Add("class", "textmode");
-            }
-
             Mis_Grid.RenderControl(hw);
-
-            string style = @"<style> .textmode { mso-number-format:\@; } </style>";
+            string style = "<style> .textmode { mso-number-format:\\@; } </style>";
             Response.Write(style);
             Response.Output.Write(sw.ToString());
             Response.Flush();
@@ -38,8 +27,8 @@ protected void btnExport_Click(object sender, EventArgs e)
     }
 }
 
-// Required override
+// Required for exporting server controls
 public override void VerifyRenderingInServerForm(Control control)
 {
-    // This confirms that the control can be rendered
+    // Do nothing – required for GridView export
 }
