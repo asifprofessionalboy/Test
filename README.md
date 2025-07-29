@@ -310,3 +310,37 @@ and
         });
     });
 </script>
+
+
+
+
+namespace GFAS.Models
+{
+    public class EmpTagViewModel
+    {
+        public partial class AppEmpPosition
+        {
+            public Guid Id { get; set; }
+            public string? Pno { get; set; }
+            public int? Position { get; set; }
+        }
+
+
+        public partial class AppPositionWorksite
+        {
+            public Guid Id { get; set; }
+            public int? Position { get; set; }
+            public string? Worksite { get; set; }
+            public string? CreatedBy { get; set; }
+            public DateTime? CreatedOn { get; set; }
+        }
+
+
+
+    }
+}
+and   public class EmpTagWrapper
+  {
+      public List<EmpTagViewModel> EmpTag { get; set; }
+      public string ActionType { get; set; }
+  }
