@@ -1,52 +1,31 @@
-      }
+..
+<div style="height: 400px; overflow-y: scroll; border: 1px solid #ccc;">
+    <asp:GridView ID="Mis_Grid" runat="server"
+                  AutoGenerateColumns="False"
+                  CssClass="fixed-header-grid"
+                  OnRowCreated="Mis_Records_RowCreated">
+        <!-- Your columns here -->
+    </asp:GridView>
+</div>
 
-      protected void Mis_Records_RowCreated(object sender,
-                                            GridViewRowEventArgs e)
-      {
-          if (e.Row.RowType == DataControlRowType.Header)
-          {
-              GridViewRow headerRow = new GridViewRow(0, 0, DataControlRowType.Header,
-                                                      DataControlRowState.Insert);
 
-              headerRow.Cells.Add(CreateHeaderCell("SlNo", 1));
-              //headerRow.Cells.Add(CreateHeaderCell("Process Month/Year", 2));
+<style>
+    .fixed-header-grid {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
 
-              headerRow.Cells.Add(CreateHeaderCell("Vendor Details", 2));
+    .fixed-header-grid th {
+        position: sticky;
+        top: 0;
+        background-color: #f9f9f9;
+        z-index: 2;
+        border-bottom: 2px solid #ddd;
+    }
 
-              headerRow.Cells.Add(CreateHeaderCell("WorkOrder Details", 4));
-
-              headerRow.Cells.Add(CreateHeaderCell("Department Details", 2));
-              headerRow.Cells.Add(CreateHeaderCell("Location", 1));
-
-              headerRow.Cells.Add(CreateHeaderCell("Responsible", 1));
-
-              headerRow.Cells.Add(CreateHeaderCell("Male", 6));
-
-              headerRow.Cells.Add(CreateHeaderCell("Female", 6));
-
-              headerRow.Cells.Add(CreateHeaderCell("UnSkilled", 2));
-              headerRow.Cells.Add(CreateHeaderCell("Semi Skilled", 2));
-              headerRow.Cells.Add(CreateHeaderCell("Skilled", 2));
-              headerRow.Cells.Add(CreateHeaderCell("Highly Skilled", 2));
-              headerRow.Cells.Add(CreateHeaderCell("Others", 2));
-              headerRow.Cells.Add(CreateHeaderCell("Total", 2));
-              headerRow.Cells.Add(CreateHeaderCell("Wages", 7));
-              headerRow.Cells.Add(CreateHeaderCell("PF/ESI", 5));
-              headerRow.Cells.Add(CreateHeaderCell("Nil & Recognised", 5));
-
-              Mis_Grid.Controls[0].Controls.AddAt(0, headerRow);
-          }
-      }
-
-      private TableHeaderCell CreateHeaderCell(string text, int colSpan)
-      {
-          TableHeaderCell cell =
-              new TableHeaderCell
-              {
-                  Text = text,
-                  ColumnSpan = colSpan,
-                  HorizontalAlign = HorizontalAlign.Center,
-                  CssClass = "groupHeader"
-              };
-          return cell;
-      }
+    .groupHeader {
+        background-color: #e1e1e1;
+        font-weight: bold;
+    }
+</style>
