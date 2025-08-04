@@ -1,75 +1,83 @@
-  WHERE 1=1 and
-  {locationFilter}
-     and
-  {departmentFilter}
+;WITH Leave_Processed AS (
+    SELECT *, CreatedOn AS ApplicationDate
+    FROM App_Leave_Comp_Summary
+    WHERE ReSubmiteddate IS NULL
 
+    UNION ALL
 
-   [HttpPost]
- public async Task<IActionResult> EmpTaggingMaster(string Pno, int Position, string Worksite, string ActionType)
- {
-     var UserId = HttpContext.Request.Cookies["Session"];
-     if (string.IsNullOrEmpty(UserId))
-         return RedirectToAction("Login", "User");
+    SELECT *, ReSubmiteddate AS ApplicationDate
+    FROM App_Leave_Comp_Summary
+    WHERE ReSubmiteddate IS NOT NULL
+),
+Leave_Filtered AS (
+    SELECT *
+    FROM Leave_Processed
+    WHERE ApplicationDate >= '2025-04-01' AND ApplicationDate < '2026-04-01'
+),
+Leave_Aggregated AS (
+    SELECT
+        DATEPART(MONTH, ApplicationDate) AS MonthNum,
+        SUM(CASE WHEN Status = 'Request Closed' THEN 1 ELSE 0 END) AS Approved,
+        SUM(CASE 
+            WHEN Status = 'Request Closed' 
+                 AND CC_CreatedOn_L2 IS NOT NULL 
+                 AND DATEDIFF(DAY, ApplicationDate, CC_CreatedOn_L2) <= 5 
+            THEN 1 ELSE 0 
+        END) AS ApprovedUnderSLA
+    FROM Leave_Filtered
+    GROUP BY DATEPART(MONTH, ApplicationDate)
+),
+Leave_Pivoted AS (
+    SELECT
+        'Leave Compliance' AS Object,
+        '5 days' AS SLG,
+        '5 days' AS RevisedSLG,
+        MAX(CASE WHEN MonthNum = 4 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS APR,
+        MAX(CASE WHEN MonthNum = 5 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS MAY,
+        MAX(CASE WHEN MonthNum = 6 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS JUN,
+        MAX(CASE WHEN MonthNum = 7 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS JUL
+),
+Wage_Processed AS (
+    SELECT *, CREATEDON AS ApplicationDate
+    FROM App_Online_Wages
+    WHERE ReSubmitedOn IS NULL
 
-     if (ActionType == "Delete")
-     {
-         var empPosition = await context.AppEmpPositions.FirstOrDefaultAsync(e => e.Pno == Pno);
-         if (empPosition != null)
-             context.AppEmpPositions.Remove(empPosition);
+    UNION ALL
 
-         var positionWorksite = await context.AppPositionWorksites.FirstOrDefaultAsync(w => w.Position == Position);
-         if (positionWorksite != null)
-             context.AppPositionWorksites.Remove(positionWorksite);
+    SELECT *, ReSubmitedOn AS ApplicationDate
+    FROM App_Online_Wages
+    WHERE ReSubmitedOn IS NOT NULL
+),
+Wage_Filtered AS (
+    SELECT *
+    FROM Wage_Processed
+    WHERE ApplicationDate >= '2025-04-01' AND ApplicationDate < '2026-04-01'
+),
+Wage_Aggregated AS (
+    SELECT
+        DATEPART(MONTH, ApplicationDate) AS MonthNum,
+        SUM(CASE WHEN Status = 'Request Closed' THEN 1 ELSE 0 END) AS Approved,
+        SUM(CASE 
+            WHEN Status = 'Request Closed' 
+                 AND LEVEL_2_UPDATEDON IS NOT NULL 
+                 AND DATEDIFF(DAY, ApplicationDate, LEVEL_2_UPDATEDON) <= 3 
+            THEN 1 ELSE 0 
+        END) AS ApprovedUnderSLA
+    FROM Wage_Filtered
+    GROUP BY DATEPART(MONTH, ApplicationDate)
+),
+Wage_Pivoted AS (
+    SELECT
+        'Wage Compliance' AS Object,
+        '3 days' AS SLG,
+        '5 days' AS RevisedSLG,
+        MAX(CASE WHEN MonthNum = 4 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS APR,
+        MAX(CASE WHEN MonthNum = 5 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS MAY,
+        MAX(CASE WHEN MonthNum = 6 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS JUN,
+        MAX(CASE WHEN MonthNum = 7 THEN ApprovedUnderSLA * 100.0 / NULLIF(Approved, 0) END) AS JUL
+)
 
-         await context.SaveChangesAsync();
-         TempData["Dltmsg2"] = "Deleted Successfully!";
-         return RedirectToAction("EmpTaggingMaster");
-     }
-
-     // Save or update position
-     var existingEmp = await context.AppEmpPositions.FirstOrDefaultAsync(e => e.Pno == Pno);
-     if (existingEmp != null)
-     {
-         existingEmp.Position = Position;
-         context.AppEmpPositions.Update(existingEmp);
-     }
-     else
-     {
-         var empPosition = new AppEmpPosition
-         {
-             Id = Guid.NewGuid(),
-             Pno = Pno,
-             Position = Position
-         };
-         await context.AppEmpPositions.AddAsync(empPosition);
-     }
-
-
-     // Save or update worksite
-     var existingWorksite = await context.AppPositionWorksites.FirstOrDefaultAsync(w => w.Position == Position);
-
-
-     if (existingWorksite != null)
-     {
-         existingWorksite.Worksite = Worksite;
-         existingWorksite.CreatedBy = UserId;
-         existingWorksite.CreatedOn = DateTime.Now;
-         context.AppPositionWorksites.Update(existingWorksite);
-     }
-     else
-     {
-         var ws = new AppPositionWorksite
-         {
-             Id = Guid.NewGuid(),
-             Position = Position,
-             Worksite = Worksite,
-             CreatedBy = UserId,
-             CreatedOn = DateTime.Now
-         };
-         await context.AppPositionWorksites.AddAsync(ws);
-     }
-
-     await context.SaveChangesAsync();
-     TempData["msg2"] = "Tagged Successfully!";
-     return RedirectToAction("EmpTaggingMaster");
- }
+-- Final SELECT combining both
+SELECT * FROM Leave_Pivoted
+UNION ALL
+SELECT * FROM Wage_Pivoted;
