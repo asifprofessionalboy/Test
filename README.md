@@ -1,34 +1,34 @@
- -- 1.Leave
-  
-  WITH Processed AS (
-    SELECT 
-        *, 
-        CreatedOn AS ApplicationDate
-    FROM App_Leave_Comp_Summary
-    WHERE ReSubmiteddate IS NULL
-
-    UNION ALL
-
-    SELECT 
-        *, 
-        ReSubmiteddate AS ApplicationDate
-    FROM App_Leave_Comp_Summary
-    WHERE ReSubmiteddate IS NOT NULL
+WITH LeaveProcessed AS (
+   -- Your existing Leave logic...
 ),
-Filtered AS (
-    SELECT *
-    FROM Processed
-    WHERE ApplicationDate >= '2025-04-01' AND ApplicationDate < '2026-04-01'
+LeaveFiltered AS (
+   -- ...
 ),
-Aggregated AS (
-    SELECT
-        FORMAT(ApplicationDate, 'yyyy-MM') AS MonthYear,
-        DATENAME(MONTH, ApplicationDate) AS MonthName,
-        LEFT(DATENAME(MONTH, ApplicationDate), 3) AS MonthShort,
-        DATEPART(MONTH, ApplicationDate) AS MonthNum,
-        SUM(CASE WHEN Status = 'Request Closed' THEN 1 ELSE 0 END) AS Approved,
-        SUM(CASE 
-            WHEN Status = 'Request Closed' 
+LeaveAggregated AS (
+   -- ...
+),
+LeavePivoted AS (
+   -- ...
+)
+
+-- Now second chain
+, WageProcessed AS (
+   -- Your existing Wage logic...
+),
+WageFiltered AS (
+   -- ...
+),
+WageAggregated AS (
+   -- ...
+),
+WagePivoted AS (
+   -- ...
+)
+
+-- Final SELECTs unioned:
+SELECT * FROM LeavePivoted
+UNION ALL
+SELECT * FROM WagePivoted;
               AND CC_CreatedOn_L2 IS NOT NULL 
               AND DATEDIFF(DAY, ApplicationDate, CC_CreatedOn_L2) <= 5 
             THEN 1 ELSE 0 
