@@ -1,32 +1,28 @@
-function checkCheckboxesFromDropdownText() {
-    const dropdownText = document.getElementById("DeptDropdown").value;
+I have two checkbox department that is saved in my table - Administration & Event Management and Row,Admin & Compliances   
+but when this function execute only this Administration & Event Management department is coming not this Row,Admin & Compliances  
 
-    // Split the dropdown text into an array of names
-    const selectedNames = dropdownText
-        .split(",")
-        .map(s => s.trim())
-        .filter(s => s); // Remove empty strings
+note - Row,Admin & Compliances  its one department with comma
+ 
+ function checkCheckboxesFromDropdownText() {
+        const dropdownText = document.getElementById("DeptDropdown").value;
+        const selectedNames = dropdownText.split(",").map(s => s.trim()).filter(s => s);
 
-    // Uncheck all checkboxes first
-    document.querySelectorAll(".Dept-checkbox").forEach(cb => {
-        cb.checked = false;
-    });
+       
+        document.querySelectorAll(".Dept-checkbox").forEach(cb => cb.checked = false);
 
-    // Check boxes whose label matches any name from dropdown
-    selectedNames.forEach(name => {
-        const lowerName = name.toLowerCase();
 
-        document.querySelectorAll(".Dept-checkbox").forEach(cb => {
-            const label = document.querySelector(`label[for="${cb.id}"]`);
-            if (label) {
-                const labelText = label.textContent.trim().toLowerCase();
-                if (labelText === lowerName) {
+
+
+
+       
+        selectedNames.forEach(name => {
+            document.querySelectorAll(".Dept-checkbox").forEach(cb => {
+                const label = document.querySelector(`label[for="${cb.id}"]`);
+                if (label && label.textContent.trim() === name) {
                     cb.checked = true;
                 }
-            }
+            });
         });
-    });
 
-    // Call function to update hidden field (assumes this function exists)
-    updateHiddenFieldFromCheckboxes();
-}
+        updateHiddenFieldFromCheckboxes(); 
+    }
