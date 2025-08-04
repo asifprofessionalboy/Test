@@ -1,22 +1,24 @@
-  <label class="form-label">Department</label>
+function checkCheckboxesFromDropdownText() {
+    const dropdownText = document.getElementById("DeptDropdown").value;
 
-  <div class="dropdown">
-      <input class="form-control form-control-sm" placeholder="Select Depts"
-             type="button" id="DeptDropdown" data-bs-toggle="dropdown" aria-expanded="false"/>
+    // Match strings wrapped in quotes: "Row,Admin & Compliances", etc.
+    const selectedNames = Array.from(dropdownText.matchAll(/"([^"]+)"/g), m => m[1].trim());
 
-      <ul class="dropdown-menu w-100" aria-labelledby="DeptDropdown" id="locationList" style="max-height: 200px; overflow-y: auto;">
-          @foreach (var item in ViewBag.DeptList as List<SelectListItem>)
-          {
-              <li style="margin-left:5%;">
-                  <div class="form-check">
-                      <input type="checkbox" class="form-check-input Dept-checkbox"
-                             value="@item.Value" id="Dept_@item.Value" />
-                      <label class="form-check-label" for="Dept_@item.Value">@item.Text</label>
-                  </div>
-              </li>
-          }
-      </ul>
-  </div>
+    // Uncheck all checkboxes
+    document.querySelectorAll(".Dept-checkbox").forEach(cb => {
+        cb.checked = false;
+    });
 
-  <!-- Hidden dept field for form -->
-  <input type="hidden" id="Dept" name="Coordinators[0].DeptName" />
+    // Match each checkbox label
+    selectedNames.forEach(name => {
+        const lowerName = name.toLowerCase();
+        document.querySelectorAll(".Dept-checkbox").forEach(cb => {
+            const label = document.querySelector(`label[for="${cb.id}"]`);
+            if (label && label.textContent.trim().toLowerCase() === lowerName) {
+                cb.checked = true;
+            }
+        });
+    });
+
+    updateHiddenFieldFromCheckboxes(); // your existing function
+}
